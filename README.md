@@ -4,6 +4,8 @@ Drivacy는 상세 주행기록을 보험사에 공개하지 않고, 보험사가
 
 Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
+현재 팀 합의, 발표용 데모 흐름, 구현 우선순위와 미해결 질문은 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)를 참고하세요.
+
 ## Project status
 
 Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행 가능한 앱, Compact 계약, 증명 생성 및 네트워크 연동은 구현되지 않았습니다. 아래 내용은 구현 목표입니다.
