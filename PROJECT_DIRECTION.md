@@ -108,6 +108,8 @@ Gemini 공식 모델 목록 REST API를 API 키 없이 호출한 결과 HTTP `40
 
 2026-09-16 후속 지시에서도 Claude와 Midnight 개발 지원 도구를 함께 사용할 계획을 확인했다. 사용자가 ‘엘리펀트’라고 언급한 도구와의 동일성은 미확인이며 GitHub에서 확인한 이름은 Midnight Expert다. 오픈소스 후보는 `create-mn-app`, `example-bboard`, 공식 `midnight-wallet`, `midnight-local-dev`, OpenZeppelin `compact-contracts`이며, [docs/MIDNIGHT_OPEN_SOURCE.md](docs/MIDNIGHT_OPEN_SOURCE.md)에 용도·라이선스·조사 커밋을 기록했다. 후보 조사는 설치·도입 확정이나 호환성 검증이 아니다. Midnight Expert README에 따라 Windows에서는 WSL2 개발 경로를 추천한다.
 
+추가 요청으로 ZK의 Compact 표준 라이브러리·Merkle 테스트·nullifier 예제·ZKLoan 조건 평가와 `midnight-zk`를 조사했다. 약관 처리·규칙 입력·검증·테스트에는 PDF.js, Zod, React Hook Form, Vitest를 추천 후보로 함께 기록했다. 기존 기능 구현에 필요한 소스·라이브러리 재사용을 검토하는 방향이며, 패키지 설치·버전 채택·PDF 파일 규격·인증/DB 서비스 선정은 이번 조사에서 확정하지 않았다.
+
 규칙 등록은 LLM 초안 생성을 우선 시도하고 수기 입력 경로를 유지한다. 전체 구현은 기술 스택·첫 API 계약 확정 → 이메일 로그인·동의·본인 모의 계약 조회 → Rule 초안 생성·검토·승인 → 임베디드 월렛과 실제 증명 경로 연결 → Dataset Merkle Tree 및 두 운행의 체인 검증 후 누적 상태 확정 → 최종 신청·보험사 결정 → 재현 가능한 클론·실행 안내를 권장한다. 가입자 임베디드 월렛은 MVP에 포함하며, 구체적인 SDK 버전과 Devnet/테스트넷 선택은 미정이다. 실제 보험사 REST 연동은 MVP 범위 밖이다.
 
 ## 미해결 질문

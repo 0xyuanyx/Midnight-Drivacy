@@ -6,7 +6,7 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 현재 팀 합의, 발표용 데모 흐름, 구현 우선순위와 미해결 질문은 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)를 참고하세요.
 
-연결된 채팅까지 반영한 [개발 결정 정리](docs/README.md), [키 입력 없는 LLM 실행 설계](docs/LLM_EXECUTION.md), [Midnight 오픈소스 후보](docs/MIDNIGHT_OPEN_SOURCE.md)는 `docs/`에 있습니다.
+연결된 채팅까지 반영한 [개발 결정 정리](docs/README.md), [키 입력 없는 LLM 실행 설계](docs/LLM_EXECUTION.md), [Midnight·ZK 및 약관 처리·폼·테스트 오픈소스 후보](docs/MIDNIGHT_OPEN_SOURCE.md)는 `docs/`에 있습니다.
 
 개발 기준은 최신 사용자 지시 → 최종 API 명세서·데이터 플로우 → 최종 기획 문서 → 기존 코드·주석 → 일반 개발 관행 순서입니다. 자료에서 제안·미정으로 표시한 내용은 확정 사양으로 취급하지 않습니다.
 
