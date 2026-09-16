@@ -45,6 +45,34 @@ Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행
 
 원본 기록은 설계상 Drivacy의 계산·증명 처리 영역에 일시적으로 존재합니다. 보험사와 공개 원장에 원본을 전달하지 않는 것이 목표이며, Drivacy 자체가 원본에 접근하지 않는 구조로 표현하지 않습니다.
 
+## Backend foundation
+
+The repository now includes the phase-one shared backend foundation. It provides
+an npm workspace, a strict TypeScript Express 5 service, a shared TypeScript
+package, a `GET /health` endpoint, automated health testing, and a production
+Dockerfile. It does not yet connect Supabase, a database, authentication,
+insurance rules, trips, or Midnight.
+
+Requirements: Node.js 24 LTS and npm.
+
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+npm run dev
+```
+
+With the development server running, `GET http://localhost:3000/health` returns:
+
+```json
+{
+  "status": "ok",
+  "service": "drivacy-backend"
+}
+```
+
 ## Run and submission
 
 실행·컴파일·증명 생성 명령과 데모 절차는 구현 후 검증하여 추가할 예정입니다.

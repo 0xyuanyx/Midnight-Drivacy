@@ -1,0 +1,16 @@
+{
+  "name": "@drivacy/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@drivacy/shared": "file:../../packages/shared",
+    "express": "^5.0.0"
+  }
+}
