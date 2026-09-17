@@ -25,6 +25,13 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - API 오류는 `code`, `message`, 선택적 `requestId`를 사용한다. `requestId`가 있을 때는 `x-request-id` 응답 헤더와 같은 요청 추적 값이어야 한다.
 - Rule/State, DB 모델, Supabase Auth 연동, 실제 로그인·동의·보험계약 API와 Midnight 관련 계약은 이번 단계 범위 밖으로 유지한다.
 
+### 첫 수직 기능 DB 스키마 — 2026-09-17 적용 완료
+
+- Supabase 원격 프로젝트에는 `20260917142636_initial_first_vertical` Migration이 적용됐고, 동일 SQL을 `db/migrations/`에 보존한다. `users`, `user_roles`, `consents`, `insurers`, `insurance_contracts`, `special_contracts` 여섯 테이블과 FK 인덱스·`updated_at` 트리거·RLS 활성화 및 직접 접근 권한 회수가 포함된다.
+- 브라우저의 업무 테이블 직접 접근은 허용하지 않으며 RLS 정책은 추가하지 않았다. 향후 Backend의 서버 전용 pg 실행 계정과 객체 단위 접근 제어 방식이 확정될 때 별도로 구성한다.
+- 이 적용은 DB 스키마 보존 단계이며 Supabase Auth 로그인, Backend pg 연결, 실제 계약 조회 API, Rule/State·주행·증명·Midnight 구현 완료를 뜻하지 않는다.
+- `Consent.consentedAt`은 Shared에서 필수 ISO 문자열이나 DB의 `consented_at`은 NULL을 허용한다. 동의 시각의 필수 정책은 후속 계약 결정으로 남긴다.
+
 1. 예시 보험사 한 곳과 안전운전 특약 한 종을 사용한다.
 2. 예시 약관 한 종의 **LLM·Document Agent 규칙 초안 생성을 우선 시도**한다. 보험사 담당자가 초안을 수정·검토하고 최종 승인한다. 변환 실패 시 지원하는 규칙 값을 수기로 입력하며 동일한 검토·승인 경로를 사용한다. LLM 방식이 구현되지 않으면 제외하고 수기 입력 경로를 유지한다. 이는 기존의 수기 입력 전용 결정을 변경한 2026-09-16 합의다.
 3. 가입자는 해당 특약을 선택하고 **두 번 이상의 모의 운행**을 순차적으로 처리한다. 실제 GPS, 외부 내비게이션 및 실제 보험사 시스템 연동은 데모 범위 밖이다.

@@ -16,7 +16,7 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행 가능한 앱, Compact 계약, 증명 생성 및 네트워크 연동은 구현되지 않았습니다. 아래 내용은 구현 목표입니다.
 
-2026-09-17 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. DB 스키마, Supabase Auth 연동, 로그인·동의·계약 API, Rule/State/ZK/Midnight 구현은 아직 없습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다. 공유 시트의 API 경로와 상태코드는 현재 구현 제안입니다. LLM의 기본 실행 방식은 클론한 앱이 팀 배포 Backend를 호출하도록 만드는 것으로 확정했습니다.
+2026-09-17 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. Supabase 원격 프로젝트에 적용된 첫 수직 기능 DB Migration(`20260917142636_initial_first_vertical`)은 `db/migrations/`에도 보존하며, `users`, `user_roles`, `consents`, `insurers`, `insurance_contracts`, `special_contracts` 테이블을 정의합니다. Supabase Auth 연동, Backend pg 연결, 로그인·동의·계약 API, Rule/State/ZK/Midnight 구현은 아직 없습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다. 공유 시트의 API 경로와 상태코드는 현재 구현 제안입니다. LLM의 기본 실행 방식은 클론한 앱이 팀 배포 Backend를 호출하도록 만드는 것으로 확정했습니다.
 
 ## Planned demo
 
