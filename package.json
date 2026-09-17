@@ -12,7 +12,7 @@
     "build": "npm run build --workspace=@drivacy/shared && npm run build --workspace=@drivacy/backend",
     "typecheck": "npm run typecheck --workspace=@drivacy/shared && npm run typecheck --workspace=@drivacy/backend",
     "lint": "eslint .",
-    "test": "npm run test --workspace=@drivacy/backend"
+    "test": "npm run test --workspace=@drivacy/shared && npm run test --workspace=@drivacy/backend"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

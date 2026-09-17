@@ -1,6 +1,6 @@
-/**
- * Shared contracts intentionally start with only the health-check type.
- * Rule, state, trip, and proof schemas remain undecided until the team agrees
- * on their cross-service contract in a later phase.
- */
+export * from "./api.js";
+export * from "./auth.js";
+export * from "./consent.js";
+export * from "./insurance.js";
+
 export type HealthStatus = "ok";

@@ -16,7 +16,7 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행 가능한 앱, Compact 계약, 증명 생성 및 네트워크 연동은 구현되지 않았습니다. 아래 내용은 구현 목표입니다.
 
-2026-09-16 로컬 `feat` 체크아웃에는 루트 문서와 `docs/`의 결정·설계·조사 문서가 있습니다. HTML 소스, 패키지 설정, 환경변수 예시, DB 스키마, 테스트와 배포 설정은 없습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다. 첫 기능의 요청·응답·오류 API 계약은 구체화 전입니다. 선정한 패키지와 서비스는 아직 설치·구현·연동 검증하지 않았습니다. 공유 시트의 API 경로와 상태코드는 현재 구현 제안입니다. LLM의 기본 실행 방식은 클론한 앱이 팀 배포 Backend를 호출하도록 만드는 것으로 확정했습니다.
+2026-09-17 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. DB 스키마, Supabase Auth 연동, 로그인·동의·계약 API, Rule/State/ZK/Midnight 구현은 아직 없습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다. 공유 시트의 API 경로와 상태코드는 현재 구현 제안입니다. LLM의 기본 실행 방식은 클론한 앱이 팀 배포 Backend를 호출하도록 만드는 것으로 확정했습니다.
 
 ## Planned demo
 
@@ -48,10 +48,10 @@ Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행
 ## Backend foundation
 
 The repository now includes the phase-one shared backend foundation. It provides
-an npm workspace, a strict TypeScript Express 5 service, a shared TypeScript
-package, a `GET /health` endpoint, automated health testing, and a production
-Dockerfile. It does not yet connect Supabase, a database, authentication,
-insurance rules, trips, or Midnight.
+an npm workspace, a strict TypeScript Express 5 service, a Zod-backed shared
+contract package, a `GET /health` endpoint, automated health and contract
+testing, and a production Dockerfile. It does not yet connect Supabase, a
+database, authentication, insurance rules, trips, or Midnight.
 
 Requirements: Node.js 24 LTS and npm.
 
