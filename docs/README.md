@@ -108,6 +108,13 @@ ZK가 검증할 대상은 제출된 기록에 대한 승인 규칙 계산과 이
 
 Claude Code와 Midnight 개발 지원 도구를 함께 사용할 계획이다. GitHub에서 확인한 도구명은 **Midnight Expert**다. 사용자가 언급한 ‘엘리펀트’가 이를 뜻하는지는 미확인이며, [오픈소스 조사](MIDNIGHT_OPEN_SOURCE.md)에 후보를 정리했다.
 
+## rule-draft 계약 문서 (main 로컬에서 이관, P2-7)
+
+- [RULE_DRAFT_CONTRACT.md](contracts/RULE_DRAFT_CONTRACT.md): A가 제안한 초안 상태 머신·필드·issue 코드 계약(제안/확정 라벨 포함).
+- [RULE_DRAFT_API_PROPOSAL.md](contracts/RULE_DRAFT_API_PROPOSAL.md): B 검토용 초안 생성 API 제안(구현 없음).
+- [SCREEN_API_STATE_MAP.md](frontend/SCREEN_API_STATE_MAP.md): 화면-API-상태 매핑표.
+- [PLAN_DECISIONS.md](PLAN_DECISIONS.md): D1~D4 결정 게이트 기록.
+
 ## 구현·검증 기록의 범위
 
 연결된 채팅에서 2026-09-16 새로 클론한 공개 `main`의 커밋은 `4445e9a67eaee6ba0e1c3e53cc52e82a83f11234`였고 문서 4개만 있었다. 키 없는 Gemini 모델 목록 요청은 HTTP 403으로 거부됐다. 이는 당시 점검 기록이며 실제 생성 호출·규칙 추출·비용·성능 검증은 아니다.

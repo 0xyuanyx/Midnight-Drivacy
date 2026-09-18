@@ -1,0 +1,24 @@
+{
+  "name": "@drivacy/rule-draft",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.3.289",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "pdfkit": "0.20.2"
+  }
+}
