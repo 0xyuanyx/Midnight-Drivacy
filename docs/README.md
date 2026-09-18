@@ -1,5 +1,9 @@
 # Drivacy 개발 결정 정리
 
+2026-09-18 논의한 운행 시작 버튼 기반 Backend 모의 기록 생성과 승인 최소 거리에
+맞춘 데모 구성은 [DRIVING_SIMULATION.md](DRIVING_SIMULATION.md)에 정리했다.
+생성기·API·화면은 미구현이며 구체적인 난수 범위·확률은 추천안이다.
+
 작성일: 2026-09-16 (KST) · 작성 브랜치: `feat`
 
 이 문서는 연결된 **Locate Google Sheets spreadsheet** 채팅의 사용자 지시·팀 답변과 이후 확정한 LLM 실행 방식을 개발 인수인계용으로 정리한다. 구현 완료 보고가 아니다. 방향의 기준 문서는 [PROJECT_DIRECTION.md](../PROJECT_DIRECTION.md)다.
