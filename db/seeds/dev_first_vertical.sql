@@ -18,8 +18,15 @@ DECLARE
  insurer_id uuid;
  contract_id uuid;
 BEGIN
- IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = driver_id) THEN
-   RAISE EXCEPTION 'The supplied development DRIVER is not initialized';
+ -- 이 fixture는 DRIVER의 계약을 만들므로, 존재 여부만 확인하면 INSURER나 역할 미지정
+ -- 사용자의 UUID에도 데이터를 만들 수 있다. 서비스 역할 source of truth를 함께 검증한다.
+ IF NOT EXISTS (
+   SELECT 1
+   FROM public.users u
+   INNER JOIN public.user_roles r ON r.user_id = u.id
+   WHERE u.id = driver_id AND r.role = 'DRIVER'
+ ) THEN
+   RAISE EXCEPTION 'The supplied development user must be an initialized DRIVER';
  END IF;
 
  SELECT id INTO insurer_id FROM public.insurers

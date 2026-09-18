@@ -8,16 +8,20 @@ import type { InsuranceService } from "../insurance/insurance-service.js";
 import { createRequireAuth } from "../middleware/require-auth.js";
 import { requireRole } from "../middleware/require-role.js";
 
+const UuidSchema = z.uuid();
+
 const SelectionRequestSchema = z.object({
-  specialContractId: z.string().min(1),
+  specialContractId: UuidSchema,
 }).strict();
 
 const contractId = (value: string | string[]): string => {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new AppError("INVALID_REQUEST", "Insurance contract ID is required", 400);
+  const parsed = UuidSchema.safeParse(value);
+  if (!parsed.success) {
+    // DB uuid 컬럼 비교 전에 HTTP 경계에서 막아 PostgreSQL 형식 오류가 500이 되지 않게 한다.
+    throw new AppError("INVALID_REQUEST", "Insurance contract ID must be a UUID", 400);
   }
 
-  return value;
+  return parsed.data;
 };
 
 export const createInsuranceRouter = (
@@ -51,7 +55,7 @@ export const createInsuranceRouter = (
     async (request, response) => {
       const body = SelectionRequestSchema.safeParse(request.body);
       if (!body.success) {
-        throw new AppError("INVALID_REQUEST", "specialContractId is required", 400);
+        throw new AppError("INVALID_REQUEST", "specialContractId must be a UUID", 400);
       }
 
       response.json(

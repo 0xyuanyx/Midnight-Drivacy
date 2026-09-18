@@ -50,8 +50,10 @@ Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행
 The repository now includes the phase-one shared backend foundation. It provides
 an npm workspace, a strict TypeScript Express 5 service, a Zod-backed shared
 contract package, a `GET /health` endpoint, automated health and contract
-testing, and a production Dockerfile. It does not yet connect Supabase, a
-database, authentication, insurance rules, trips, or Midnight.
+testing, and a production Dockerfile. It connects Supabase Auth and Postgres
+for the implemented first-vertical authentication, consent, contract, and
+special-contract selection APIs. Insurance rules, trips, and Midnight remain
+unimplemented.
 
 Requirements: Node.js 24 LTS and npm.
 

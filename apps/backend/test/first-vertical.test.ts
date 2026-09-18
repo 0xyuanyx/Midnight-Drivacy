@@ -17,6 +17,12 @@ import { InsuranceService } from "../src/insurance/insurance-service.js";
 
 const driverId = "b7f9c342-7e04-4bd9-b0e3-8269661db2df";
 const otherDriverId = "6ee17d8c-6a6f-4d50-af63-dc4ce071b48c";
+const driverContractId = "1c8bb808-e7f3-4e49-9a5b-67501f9454d6";
+const otherDriverContractId = "3ec99d86-c4de-4d58-8b5c-efdf9201f5cb";
+const eligibleSpecialContractId = "58710811-b501-44f6-bced-8c0f5e646e65";
+const replacementSpecialContractId = "c44a5c6b-f17c-4098-89f7-9dc59b4e6885";
+const ineligibleSpecialContractId = "08e64dc5-a0b5-451d-a6ba-bbf625a0aed8";
+const otherContractSpecialContractId = "0b31fc04-ae2c-44ea-892b-f53a5116a86c";
 
 class MemoryConsentRepository implements ConsentRepository {
   private readonly consents = new Map<string, ConsentRow>();
@@ -38,7 +44,7 @@ class MemoryInsuranceRepository implements InsuranceRepository {
 
   private readonly contracts: InsuranceContractRow[] = [
     {
-      id: "contract-driver",
+      id: driverContractId,
       ownerUserId: driverId,
       insurerName: "Drivacy Demo Insurance",
       coverageStartsAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -46,7 +52,7 @@ class MemoryInsuranceRepository implements InsuranceRepository {
       status: "DEMO",
     },
     {
-      id: "contract-other-driver",
+      id: otherDriverContractId,
       ownerUserId: otherDriverId,
       insurerName: "Drivacy Demo Insurance",
       coverageStartsAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -57,32 +63,32 @@ class MemoryInsuranceRepository implements InsuranceRepository {
 
   private readonly specialContracts: SpecialContractRow[] = [
     {
-      id: "special-eligible-one",
-      insuranceContractId: "contract-driver",
+      id: eligibleSpecialContractId,
+      insuranceContractId: driverContractId,
       insurerName: "Drivacy Demo Insurance",
       name: "Safe Driving Special Contract",
       isEligible: true,
       status: "DEMO",
     },
     {
-      id: "special-eligible-two",
-      insuranceContractId: "contract-driver",
+      id: replacementSpecialContractId,
+      insuranceContractId: driverContractId,
       insurerName: "Drivacy Demo Insurance",
       name: "Alternative Demo Special Contract",
       isEligible: true,
       status: "DEMO",
     },
     {
-      id: "special-ineligible",
-      insuranceContractId: "contract-driver",
+      id: ineligibleSpecialContractId,
+      insuranceContractId: driverContractId,
       insurerName: "Drivacy Demo Insurance",
       name: "Ineligible Demo Special Contract",
       isEligible: false,
       status: "DEMO",
     },
     {
-      id: "special-other-contract",
-      insuranceContractId: "contract-other-driver",
+      id: otherContractSpecialContractId,
+      insuranceContractId: otherDriverContractId,
       insurerName: "Drivacy Demo Insurance",
       name: "Other Driver Special Contract",
       isEligible: true,
@@ -200,28 +206,35 @@ describe("insurance-contract routes", () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
     expect(response.body[0]).toMatchObject({
-      id: "contract-driver",
+      id: driverContractId,
       insurerName: "Drivacy Demo Insurance",
     });
     expect(response.body[0].specialContracts).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "special-eligible-one", isEligible: true })]),
+      expect.arrayContaining([expect.objectContaining({ id: eligibleSpecialContractId, isEligible: true })]),
     );
   });
 
   it("does not expose another driver's or nonexistent contract", async () => {
     const { app } = appFor();
-    const other = await driverRequest(app).get("/insurance-contracts/contract-other-driver");
-    const missing = await driverRequest(app).get("/insurance-contracts/no-such-contract");
+    const other = await driverRequest(app).get(`/insurance-contracts/${otherDriverContractId}`);
+    const missing = await driverRequest(app).get("/insurance-contracts/af1634c3-914a-4d1c-8e19-386cb2f0a1e2");
 
     expect(other.status).toBe(404);
     expect(missing.status).toBe(404);
     expect(other.body.code).toBe("INSURANCE_CONTRACT_NOT_FOUND");
   });
 
+  it("rejects a malformed contract UUID before querying the repository", async () => {
+    const response = await driverRequest(appFor().app).get("/insurance-contracts/not-a-uuid");
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("INVALID_REQUEST");
+  });
+
   it("returns special contracts only after the owning contract is authorized", async () => {
     const { app } = appFor();
-    const owned = await driverRequest(app).get("/insurance-contracts/contract-driver/special-contracts");
-    const other = await driverRequest(app).get("/insurance-contracts/contract-other-driver/special-contracts");
+    const owned = await driverRequest(app).get(`/insurance-contracts/${driverContractId}/special-contracts`);
+    const other = await driverRequest(app).get(`/insurance-contracts/${otherDriverContractId}/special-contracts`);
 
     expect(owned.status).toBe(200);
     expect(owned.body).toHaveLength(3);
@@ -233,21 +246,21 @@ describe("special-contract selection routes", () => {
   it("creates then atomically replaces the one current selection", async () => {
     const { app, insuranceRepository } = appFor();
     const first = await driverRequest(app)
-      .put("/insurance-contracts/contract-driver/special-contract-selection")
-      .send({ specialContractId: "special-eligible-one" });
+      .put(`/insurance-contracts/${driverContractId}/special-contract-selection`)
+      .send({ specialContractId: eligibleSpecialContractId });
     const second = await driverRequest(app)
-      .put("/insurance-contracts/contract-driver/special-contract-selection")
-      .send({ specialContractId: "special-eligible-two" });
+      .put(`/insurance-contracts/${driverContractId}/special-contract-selection`)
+      .send({ specialContractId: replacementSpecialContractId });
     const current = await driverRequest(app).get(
-      "/insurance-contracts/contract-driver/special-contract-selection",
+      `/insurance-contracts/${driverContractId}/special-contract-selection`,
     );
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(insuranceRepository.selections.size).toBe(1);
     expect(current.body).toEqual({
-      insuranceContractId: "contract-driver",
-      specialContractId: "special-eligible-two",
+      insuranceContractId: driverContractId,
+      specialContractId: replacementSpecialContractId,
       selectedAt: "2026-09-18T10:00:00.000Z",
     });
   });
@@ -255,14 +268,14 @@ describe("special-contract selection routes", () => {
   it("rejects missing, foreign, and ineligible special contracts", async () => {
     const { app } = appFor();
     const missingSelection = await driverRequest(app).get(
-      "/insurance-contracts/contract-driver/special-contract-selection",
+      `/insurance-contracts/${driverContractId}/special-contract-selection`,
     );
     const foreign = await driverRequest(app)
-      .put("/insurance-contracts/contract-driver/special-contract-selection")
-      .send({ specialContractId: "special-other-contract" });
+      .put(`/insurance-contracts/${driverContractId}/special-contract-selection`)
+      .send({ specialContractId: otherContractSpecialContractId });
     const ineligible = await driverRequest(app)
-      .put("/insurance-contracts/contract-driver/special-contract-selection")
-      .send({ specialContractId: "special-ineligible" });
+      .put(`/insurance-contracts/${driverContractId}/special-contract-selection`)
+      .send({ specialContractId: ineligibleSpecialContractId });
 
     expect(missingSelection.status).toBe(404);
     expect(missingSelection.body.code).toBe("SPECIAL_CONTRACT_SELECTION_NOT_FOUND");
@@ -270,5 +283,14 @@ describe("special-contract selection routes", () => {
     expect(foreign.body.code).toBe("SPECIAL_CONTRACT_NOT_FOUND");
     expect(ineligible.status).toBe(409);
     expect(ineligible.body.code).toBe("SPECIAL_CONTRACT_NOT_ELIGIBLE");
+  });
+
+  it("rejects a malformed special-contract UUID before querying PostgreSQL", async () => {
+    const response = await driverRequest(appFor().app)
+      .put(`/insurance-contracts/${driverContractId}/special-contract-selection`)
+      .send({ specialContractId: "not-a-uuid" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("INVALID_REQUEST");
   });
 });

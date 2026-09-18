@@ -28,8 +28,8 @@ DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한
 
 - Shared `Consent.consentedAt`은 필수 ISO 8601 문자열이지만, DB `consents.consented_at`은 원격 적용본대로 NULL을 허용한다. 동의 시각을 반드시 기록할지 확정한 뒤 API 경계 또는 후속 Migration에서 조정한다.
 - DB ID는 UUID이고 Shared ID는 비어 있지 않은 문자열이다. UUID는 문자열로 표현 가능하며, API UUID 엄격 검증을 채택할 근거가 아직 없어 Shared는 변경하지 않는다.
-- INSURER 계정과 `insurers` 행의 연결, 특약 선택 상태·복수 선택 정책, 서버 전용 pg 실행 계정/권한, 동의 종류·버전·철회 및 사용자 삭제 정책은 미정이다.
+- INSURER 계정과 `insurers` 행의 연결, 서버 전용 pg 실행 계정/권한, 동의 종류·버전·철회 및 사용자 삭제 정책은 미정이다. MVP는 보험계약당 현재 특약 선택 하나를 유지하며, 선택 이력과 복수 선택 확장은 후속 결정 사항이다.
 
 ## 권한 경계
 
-여섯 업무 테이블은 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 회수했다. 브라우저 직접 정책은 만들지 않았으며, 서버 전용 접근 방식과 권한은 후속 단계에서 결정한다. Connection String·비밀번호·Supabase Secret은 이 저장소나 이 문서에 기록하지 않는다.
+일곱 업무 테이블은 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 회수했다. 브라우저 직접 정책은 만들지 않았으며, 서버 전용 접근 방식과 권한은 후속 단계에서 결정한다. Connection String·비밀번호·Supabase Secret은 이 저장소나 이 문서에 기록하지 않는다.
