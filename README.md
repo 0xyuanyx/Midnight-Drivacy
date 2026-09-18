@@ -6,6 +6,10 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 현재 팀 합의, 발표용 데모 흐름, 구현 우선순위와 미해결 질문은 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)를 참고하세요.
 
+검증은 런타임·의존성·캐시를 분리한 별도 실행 환경에서도 진행하고, 계산 로직은
+명세에서 독립 작성한 기준 계산과 대조합니다. 환경·명령·소스 해시·결과와 실제
+체인/브라우저 등 미검증 범위를 기록하는 기준을 채택했습니다.
+
 연결된 채팅까지 반영한 [개발 결정 정리](docs/README.md), [키 입력 없는 LLM 실행 설계](docs/LLM_EXECUTION.md), [Midnight·ZK 및 약관 처리·폼·테스트 오픈소스 후보](docs/MIDNIGHT_OPEN_SOURCE.md)는 `docs/`에 있습니다.
 
 프론트를 제외한 세 개발자의 [기능 분담안·남은 결정사항·공통 작업 원칙](docs/TEAM_WORKING_PLAN.md)도 정리했습니다. 개발자는 프론트+백엔드 1명과 백엔드 위주 2명입니다. 새 브랜치는 만들지 않는 조건이며, 후속 위임으로 기능 분담과 공통 원칙을 채택했습니다. [확정 기술 스택](docs/TECH_STACK.md)은 선정 완료이며 API 계약은 구체화 전입니다.
@@ -14,7 +18,56 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 ## Project status
 
-Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행 가능한 앱, Compact 계약, 증명 생성 및 네트워크 연동은 구현되지 않았습니다. 아래 내용은 구현 목표입니다.
+Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 업무 앱은 아직 구현되지 않았습니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 업무 앱·Preprod·가입자 브라우저 월렛 연동과는 구분합니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록하며 업무 데모 흐름은 구현 목표입니다.
+
+2026-09-17 C의 1단계 결과로 [B↔C 내부 연결 계약](docs/BC_CONTRACT.md), `packages/shared/src/bc-contract.ts`의 공유 타입·Zod 스키마·고정 직렬화와 계약 검증 하네스를 추가했습니다. Rule·운행·후보/확정 상태·체인 결과의 연결 기준이며 업무 API·Core 계산·실제 증명·월렛·체인 구현 완료를 뜻하지 않습니다. 저장소 workspace·서버 설정·lockfile은 변경하지 않았습니다. 계약 검사만 실행하려면 PowerShell에서 `./scripts/check-bc-contract.ps1`을 실행합니다. Node.js 24와 npm, 패키지 설치용 인터넷이 필요하며 하네스는 임시 폴더에서 실행하고 서비스 키·LLM·체인 요청은 사용하지 않습니다.
+
+2026-09-18 C의 3단계로 [누적 Core 계산](docs/CORE_CALCULATION.md)을 추가했습니다.
+승인 Rule과 이전 확정 State를 읽어 누적 거리·시간·이벤트·점수·예상 할인율을
+계산하고 가입자용 설명을 반환합니다. 이전 누적 State와 체인 이력은 다음
+운행으로 유지하며 원본만 실제 체인 반영 확인 후 B가 삭제합니다.
+`./scripts/check-core.ps1`의 strict 타입 검사와 테스트 53개(Core 27·공유 계약 26)가
+통과했습니다. 이 3단계 검증은 순수 계산 범위이며 실제 회로/Merkle 검증은
+아래 4단계 결과를 따릅니다.
+
+C 4단계의 [상태 전이 증명 학습·구현 문서](docs/STATE_TRANSITION_PROOF.md)에
+Rule·Dataset·State 관계와 실제 회로/어댑터 규격을 정리했습니다.
+`./scripts/check-driving-state.ps1`은 전체 ZK 컴파일·타입·회로/회귀 검사를,
+`-SkipZk`는 키 생성 없는 빠른 검사를, `-Live`는 실제 로컬 배포·증명·운행
+확정을 실행합니다. 실행 완료 범위는 해당 문서의 검증 기록을 따릅니다.
+
+2026-09-18 새 하네스의 전체 컴파일·strict 타입 검사와 72개 테스트(회로 19,
+Core 27, 공유 계약 26)가 통과했습니다. 실제 로컬 증명/계약 제출 9회로
+초기화와 두 운행의 확정(revision 2)을 확인했고, 변조·누락·오래된 상태 9건은
+추가 증명 요청/제출 없이 거부됐습니다.
+[실행 증거·테스트한 소스와 ZK 키 해시](docs/evidence/driving-state-2026-09-18.json)를
+보관합니다. B의 DB 확정·원본 삭제, 운영용 BCAdapter 재시도/상태 조회,
+최종 신청 nullifier와 보험사 결과 공개 연결은 이번 운행 회로 범위에 포함되지 않습니다.
+
+추가로 `scripts/check-core-linux.sh`의 별도 Linux 런타임·빈 npm 캐시·새 설치
+환경에서 타입 검사와 53개 테스트를 통과했습니다. 명세에서 독립 작성한 Python
+기준 계산 332개와 결과가 일치했고, 잘못된 입력 15개도 거부했습니다.
+실행 방법과 한계는 위 Core 문서에 기록합니다.
+
+C 5단계의 [월렛 승인·운행 작업 제어](docs/WALLET_APPROVAL_JOBS.md)를 추가했습니다.
+단계별 승인 대기·취소, 제출 전 거래 ID 기록, 결과 불명 복구, 확정 결과 재조회와
+재시도 제한을 C 인터페이스로 구현하고 로컬 SDK 실행기에 연결합니다.
+검증 기록은 해당 문서를 따르며 B 서버/DB와 가입자 브라우저 월렛의 운영 통합은 별도입니다.
+전체 컴파일·타입 검사·88개 테스트와 실제 로컬 두 운행(revision 2)을 통과했습니다.
+개발자 승인 7회·proof/계약 제출 각 9회로 결과 반환 장애 복구와 확정 결과 재조회 시
+추가 제출이 없는 것을 확인했습니다. [별도 실행 증거](docs/evidence/wallet-jobs-2026-09-18.json)를 보관합니다.
+
+C 6단계의 [최종 결과 proof·nullifier와 로컬 브라우저/B 연결](docs/FINAL_EVALUATION.md)을 추가했습니다.
+독립 Claude 검토에서 재현한 witness 바인딩·동시 balance·취소 작업 종료 문제를 수정했습니다.
+v3 회로의 전체 ZK 컴파일·strict 타입 검사와 Windows/Linux 각각 102개 테스트,
+독립 기준 계산 332건·거부 사례 15건이 통과했습니다. 수정 전 v2의 로컬 연결 결과는
+[역사적 증거](docs/evidence/final-evaluation-2026-09-18-before-owner-fix.json)로 분리했습니다.
+v3 실제 지갑·DB·최종 평가 재검증은 Docker 시작 오류로 중단되어 아직 완료되지 않았습니다.
+[최신 검증 상태](docs/evidence/final-evaluation-2026-09-18.json)를 보관합니다.
+[Claude Midnight Expert 교차검증](docs/evidence/midnight-expert-review-2026-09-18.md)은 완료했습니다.
+일부 거래 제출 뒤 terminal failure의 체인 취소·작업 종료 연결은 미해결이며 현재 안전하게 scope를 막습니다.
+`./scripts/check-driving-state.ps1 -Live -BrowserIntegration`으로 연결 검사를 실행합니다.
+공개 local genesis를 쓰며 실제 가입자 Auth/Storage·제품 화면·보험사 결정·Preprod와 구분합니다.
 
 2026-09-18 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 여섯 테이블과 `special_contract_selections`를 정의합니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. 이 단계는 로그인 proxy, 신규 사용자 자동 provisioning, Rule/LLM, 주행·State/ZK/Midnight 구현을 포함하지 않습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
 
@@ -36,10 +89,13 @@ Midnight Korea Hackathon 2026을 위한 초기 저장소입니다. 현재 실행
 - 이메일 기반 로그인과 역할 구분을 MVP에 포함합니다. 인증은 Supabase Auth의 이메일·비밀번호 방식을 채택했고 정확한 API 계약은 구체화 전입니다.
 - 가입자용 자체 보관형 임베디드 월렛을 Midnight Wallet SDK로 구현할 계획입니다. 가입자 개인키를 서버에 저장하지 않으며 보험사는 별도 월렛 설치 없이 이용합니다. 실제 SDK·네트워크 연동은 아직 미구현이고 다중 기기 복구는 MVP에서 제외합니다.
 - Dataset Merkle Tree를 MVP에 적용할 계획입니다. Driver Merkle Tree는 필수 채택으로 확정하지 않았습니다.
-- 원본은 운행별 Midnight 검증과 트랜잭션 반영 확인 후 삭제하며, 실패 시 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 재시도 한도·최종 실패 시 정리 정책은 미정입니다.
-- 중복 제출은 Backend와 `nullifier`로 방지합니다. 미적용 후 점수 변화에 따른 재신청, 보험사 제공 결과의 최종 범위·정밀도와 데모 산식·수치는 미정입니다.
+- 원본은 운행별 Midnight 검증과 트랜잭션 반영 확인 후 삭제하며, 실패 시 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 일시적 실패는 최초 시도 외 3회(1·5·15분 간격) 자동 재시도하고, 소진 후 체인 실패가 확인된 원본은 최대 7일 보관 후 삭제하는 기준을 채택했습니다. 체인 결과 불명은 상태를 먼저 확인합니다. 실제 운영 구현은 후속 작업입니다.
+- 중복 제출은 Backend와 `nullifier`로 방지합니다. 미적용 후 새 운행으로 점수가 바뀌고 조건을 만족한 새 확정 상태의 재신청을 허용하며 심사 중·적용 완료 추가 신청은 막습니다. 보험사에는 정확한 점수·거리와 최소 평가/검증 결과를 제공하고 공개 원장에는 커밋먼트 등 최소 검증 정보를 두는 기준을 채택했습니다.
+- 2026-09-17 사용자 지시에 따라 교체 가능한 데모용 임시 산식을 작성했습니다. 100점에서 누적 과속·급가속·급제동 1회당 각각 2·1·3점을 차감하고 0점 하한을 적용합니다. 누적 500km·80점 이상이면 10%, 90점 이상이면 12%의 예상 할인율을 사용합니다. 두 운행 예시는 300km·92점(거리 미충족) → 누적 550km·87점(예상 10%)입니다. 실제 보험상품 규칙이나 구현·검증 완료를 뜻하지 않으며 승인된 임시 Rule만 사용합니다. 채택한 기준과 이유는 PROJECT_DIRECTION을 따릅니다.
 
 ## Verification boundaries
+
+가입자의 실제 운행 전체 제출을 요구하지 않고 반영할 운행을 선택하는 것을 서비스 전제로 합니다. 미반영 운행의 거리와 이벤트는 누적 평가에 포함되지 않습니다. 선택해 제출한 Dataset 안의 기록 누락·중복·변조 검증은 유지하며, 이를 실제 운행 전체의 제출 보장과 구분합니다.
 
 목표는 제출된 기록과 승인 규칙 사이의 계산 관계를 검증하는 것입니다. 입력 기록의 실제 운행 여부, 미제출 운행, 전체 운행의 완전성, 원본 삭제 사실 또는 보험사의 결과 재사용 방지까지 ZK가 보장하는 것은 아닙니다.
 
@@ -79,7 +135,7 @@ With the development server running, `GET http://localhost:3000/health` returns:
 
 ## Run and submission
 
-실행·컴파일·증명 생성 명령과 데모 절차는 구현 후 검증하여 추가할 예정입니다.
+작은 실제 상태 전이 계약의 실행 안내와 한계는 [C 2단계 로컬 기술 검증](docs/MIDNIGHT_LOCAL_PROBE.md)을 참고하세요. PowerShell에서 `./scripts/check-midnight-local.ps1 -CompileOnly`로 전체 컴파일·타입 검사를, `./scripts/check-midnight-local.ps1`로 로컬 배포·증명·상태 전이를 실행합니다. Windows Node.js 24·npm·Docker Desktop Linux engine·WSL2의 Compact compiler 0.31.1이 필요합니다. 업무 데모의 실행·제출 절차는 후속 구현에서 검증하여 추가할 예정입니다.
 
 2026-09-16 이전 채팅에서 새로 클론한 공개 `main` 커밋 `4445e9a67eaee6ba0e1c3e53cc52e82a83f11234`에는 문서 4개만 있었습니다. 키 없는 Gemini 모델 목록 REST 요청이 HTTP 403으로 거부된 것은 당시 확인 기록이며 생성 호출 성공을 뜻하지 않습니다.
 

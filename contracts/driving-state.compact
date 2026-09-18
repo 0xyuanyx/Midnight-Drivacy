@@ -1,0 +1,377 @@
+pragma language_version >= 0.23;
+import CompactStandardLibrary;
+
+// C 4단계 읽는 순서: initialize → beginTrip → appendRecord(기록 수만큼) → finishTrip.
+// 한 계약은 하나의 Rule과 평가 Scope를 고정한다. B는 보험사 승인·객체 권한을
+// 확인하고 이 계약을 선택한다. 회로는 제출 기록의 계산·상태 연결을 검증한다.
+// 실제 운행 여부, 미제출 기록, 원본 삭제 사실까지 증명하는 것은 아니다.
+// 상세한 예시 계산과 검증 범위: docs/STATE_TRANSITION_PROOF.md.
+
+// 회로와 Core가 공유하는 정수 단위: 거리 m, 시간 초, 나머지는 이벤트 횟수.
+// 이 값들은 opening으로만 제공하고 정확한 누적값을 공개 ledger에 저장하지 않는다.
+export struct Metrics {
+  distanceM: Uint<32>;
+  durationSeconds: Uint<32>;
+  speedingCount: Uint<32>;
+  accelerationCount: Uint<32>;
+  brakingCount: Uint<32>;
+}
+// opening은 해시를 재계산할 실제 내용이다. identity는 문자열 식별자의 digest,
+// 나머지 숫자는 회로가 직접 계산에 사용하는 계수·조건이다. 둘을 함께 해시한다.
+export struct RuleOpening {
+  identity: Bytes<32>;
+  version: Uint<32>;
+  initialScore: Uint<8>;
+  speedingPenalty: Uint<32>;
+  accelerationPenalty: Uint<32>;
+  brakingPenalty: Uint<32>;
+  minimumDistanceM: Uint<32>;
+  minimumScore: Uint<8>;
+  premiumMinimumScore: Uint<8>;
+  baseDiscountBps: Uint<16>;
+  premiumDiscountBps: Uint<16>;
+}
+// 이전 State의 비공개 누적값을 다음 운행으로 이어가기 위해 유지하는 내용.
+// salt를 포함한 해시만 공개한다. 다음 전이에도 필요하므로 원본 삭제와 구분한다.
+export struct StateOpening {
+  scope: Bytes<32>;
+  rule: Bytes<32>;
+  version: Uint<32>;
+  tripCount: Uint<32>;
+  totals: Metrics;
+  score: Uint<8>;
+  conditionsMet: Boolean;
+  expectedDiscountBps: Uint<16>;
+  datasetRoot: Bytes<32>;
+  salt: Bytes<32>;
+}
+// 모든 실제 leaf에 동일한 운행 식별값·기록 개수·salt를 포함한다.
+// 기록 개수만 줄이고 기존 Root를 그대로 사용하는 것을 막는 연결이다.
+export struct TripOpening {
+  identity: Bytes<32>;
+  recordCount: Uint<16>;
+  salt: Bytes<32>;
+}
+export struct RecordOpening {
+  index: Uint<16>;
+  metrics: Metrics;
+}
+// leaf에서 Root로 올라가는 10개 sibling과 방향. right=true이면 현재 노드가
+// 오른쪽 자식이다. 방향은 Root뿐 아니라 실제 leaf 위치 확인에도 사용한다.
+export struct InclusionPath {
+  siblings: Vector<10, Bytes<32>>;
+  right: Vector<10, Boolean>;
+}
+// 아직 확정하지 않은 비공개 누적값. 시작 State·목표 State·Root·운행·cursor를
+// 함께 묶어 다른 운행의 중간값을 끼워 넣지 못하게 한다.
+export struct PendingOpening {
+  previous: Bytes<32>;
+  target: Bytes<32>;
+  root: Bytes<32>;
+  trip: TripOpening;
+  cursor: Uint<16>;
+  totals: Metrics;
+  salt: Bytes<32>;
+}
+// 보험사에 비공개로 전달할 결과. 상세 이벤트/시간/원본과 State salt는 제외한다.
+// 별도의 result salt로 공개 커밋먼트에서 점수·거리를 추측 대조하는 것을 막는다.
+export struct ResultOpening {
+  scope: Bytes<32>;
+  rule: Bytes<32>;
+  state: Bytes<32>;
+  version: Uint<32>;
+  score: Uint<8>;
+  distanceM: Uint<32>;
+  conditionsMet: Boolean;
+  expectedDiscountBps: Uint<16>;
+  salt: Bytes<32>;
+}
+
+// witness는 TypeScript에서 비공개 값을 받는 통로이며 반환값을 믿는 검사가 아니다.
+// 아래 회로가 반환값의 해시·계산·순서를 각각 검사해야 한다.
+witness ownerSecret(): Bytes<32>;
+witness ruleOpening(): RuleOpening;
+witness previousOpening(): StateOpening;
+witness nextOpening(): StateOpening;
+witness pendingBefore(): PendingOpening;
+witness pendingAfter(): PendingOpening;
+witness recordOpening(): RecordOpening;
+witness inclusionPath(): InclusionPath;
+witness resultSalt(): Bytes<32>;
+
+// ledger는 공개 정보다. 정확한 거리·점수·원본·salt 대신 binding/commitment를 둔다.
+// recordCount/cursor/revision은 공개되는 처리 메타데이터다.
+export ledger ruleHash: Bytes<32>;
+export ledger scopeBinding: Bytes<32>;
+export ledger ownerBinding: Bytes<32>;
+// begin/append/cancel에서는 유지하고 initialize/finish에서만 확정값을 설정한다.
+export ledger stateCommitment: Bytes<32>;
+export ledger initialized: Boolean;
+export ledger active: Boolean;
+export ledger pendingCommitment: Bytes<32>;
+export ledger targetCommitment: Bytes<32>;
+// 가장 최근 시작한 운행의 Root다. genesis 기본값 또는 cancel 뒤 남은 값만으로
+// 확정을 판단하지 않는다. 확정 State 안의 Root와 stateCommitment도 확인해야 한다.
+export ledger datasetRoot: Bytes<32>;
+export ledger recordCount: Uint<16>;
+export ledger cursor: Uint<16>;
+export ledger revision: Counter;
+// 동일 확정 평가의 재제출 방지. 원본이나 정확한 결과는 Set에 넣지 않는다.
+export ledger usedEvaluations: Set<Bytes<32>>;
+export ledger evaluationNullifier: Bytes<32>;
+export ledger submittedState: Bytes<32>;
+export ledger resultCommitment: Bytes<32>;
+export ledger submissionRevision: Counter;
+
+// 배포 시 binding을 고정한다. 문자열 신원이나 보험사 승인 권한은 B의 매핑 책임.
+// disclose는 해당 값을 공개 ledger에 넣겠다는 명시적인 선언이다.
+constructor(registeredRule: Bytes<32>, scope: Bytes<32>, owner: Bytes<32>) {
+  ruleHash = disclose(registeredRule);
+  scopeBinding = disclose(scope);
+  ownerBinding = disclose(owner);
+}
+
+// 도메인 태그로 owner/Rule/State/record/node의 해시 용도를 구분한다.
+// 지속 상태에 쓸 값은 persistentHash로 만들며 TS 어댑터도 이 pure 회로를 호출한다.
+export circuit hashOwner(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "drivacy:owner:v1"), secret]);
+}
+export circuit hashRule(r: RuleOpening): Bytes<32> {
+  return persistentHash<[Bytes<32>, RuleOpening]>([pad(32, "drivacy:rule:v1"), r]);
+}
+export circuit hashState(s: StateOpening): Bytes<32> {
+  // salt까지 고정한다. 점수처럼 후보가 적은 내용을 추측해 대조하기 어렵게 한다.
+  return persistentHash<[Bytes<32>, StateOpening]>([pad(32, "drivacy:state:v1"), s]);
+}
+export circuit hashPending(p: PendingOpening): Bytes<32> {
+  return persistentHash<[Bytes<32>, PendingOpening]>([pad(32, "drivacy:pending:v1"), p]);
+}
+export circuit hashResult(r: ResultOpening): Bytes<32> {
+  return persistentHash<[Bytes<32>, ResultOpening]>([pad(32, "drivacy:result:v1"), r]);
+}
+export circuit hashEvaluation(secret: Bytes<32>, scope: Bytes<32>, rule: Bytes<32>, state: Bytes<32>): Bytes<32> {
+  // result salt를 넣지 않는다. 같은 평가에서 salt를 바꿔도 nullifier는 같아야 한다.
+  // State hash에 버전·평가기간/Scope·누적값이 묶여 있으므로 새 확정 상태는 구분된다.
+  return persistentHash<Vector<5, Bytes<32>>>([pad(32, "drivacy:evaluation:v1"), secret, scope, rule, state]);
+}
+export circuit hashRecord(t: TripOpening, r: RecordOpening): Bytes<32> {
+  // leaf에 순번과 계산할 집계값을 함께 넣어 포함 증명과 계산 입력을 연결한다.
+  return persistentHash<[Bytes<32>, TripOpening, RecordOpening]>([pad(32, "drivacy:record:v1"), t, r]);
+}
+export circuit hashNode(left: Bytes<32>, right: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "drivacy:node:v1"), left, right]);
+}
+export circuit emptyLeaf(): Bytes<32> {
+  return persistentHash<Bytes<32>>(pad(32, "drivacy:empty:v1"));
+}
+export circuit pathNode(child: Bytes<32>, sibling: Bytes<32>, right: Boolean): Bytes<32> {
+  return right ? hashNode(sibling, child) : hashNode(child, sibling);
+}
+export circuit pathRoot(leaf: Bytes<32>, path: InclusionPath): Bytes<32> {
+  // 각 층의 좌/우 순서를 지키며 부모를 재계산한다. 회로 크기가 컴파일 때
+  // 결정돼야 하므로 높이 10의 경로를 고정한 호출로 표현한다.
+  const h0 = pathNode(leaf, path.siblings[0], path.right[0]);
+  const h1 = pathNode(h0, path.siblings[1], path.right[1]);
+  const h2 = pathNode(h1, path.siblings[2], path.right[2]);
+  const h3 = pathNode(h2, path.siblings[3], path.right[3]);
+  const h4 = pathNode(h3, path.siblings[4], path.right[4]);
+  const h5 = pathNode(h4, path.siblings[5], path.right[5]);
+  const h6 = pathNode(h5, path.siblings[6], path.right[6]);
+  const h7 = pathNode(h6, path.siblings[7], path.right[7]);
+  const h8 = pathNode(h7, path.siblings[8], path.right[8]);
+  return pathNode(h8, path.siblings[9], path.right[9]);
+}
+export circuit pathIndex(path: InclusionPath): Uint<16> {
+  // 아래층부터 right 비트를 1,2,4,...,512로 합산하면 leaf의 위치가 된다.
+  // Root 일치만으로 끝내지 않고 record.index와 cursor도 이 위치에 연결한다.
+  return ((path.right[0] ? 1 : 0) + (path.right[1] ? 2 : 0)
+    + (path.right[2] ? 4 : 0) + (path.right[3] ? 8 : 0)
+    + (path.right[4] ? 16 : 0) + (path.right[5] ? 32 : 0)
+    + (path.right[6] ? 64 : 0) + (path.right[7] ? 128 : 0)
+    + (path.right[8] ? 256 : 0) + (path.right[9] ? 512 : 0)) as Uint<16>;
+}
+export circuit addMetrics(a: Metrics, b: Metrics): Metrics {
+  // 더 넓어진 덧셈 결과를 Uint32로 검사해 범위 초과를 거부한다.
+  // Field의 모듈러 연산으로 큰 값이 작은 값으로 돌아오는 계산을 사용하지 않는다.
+  return Metrics {
+    distanceM: (a.distanceM + b.distanceM) as Uint<32>,
+    durationSeconds: (a.durationSeconds + b.durationSeconds) as Uint<32>,
+    speedingCount: (a.speedingCount + b.speedingCount) as Uint<32>,
+    accelerationCount: (a.accelerationCount + b.accelerationCount) as Uint<32>,
+    brakingCount: (a.brakingCount + b.brakingCount) as Uint<32>
+  };
+}
+export circuit calculatedScore(r: RuleOpening, m: Metrics): Uint<8> {
+  // 이미 0점 하한을 적용한 이전 점수에서 빼지 않고 누적 이벤트로 재계산한다.
+  // 따라서 0점 이후에도 누적 이벤트가 유지된다. Uint 곱·합은 충분한 폭으로 계산한다.
+  const penalty = m.speedingCount * r.speedingPenalty
+    + m.accelerationCount * r.accelerationPenalty + m.brakingCount * r.brakingPenalty;
+  if (penalty >= r.initialScore) { return 0; }
+  else { return (r.initialScore - penalty) as Uint<8>; }
+}
+circuit authorize(): [] {
+  // 고정한 secret의 지식을 요구한다. Supabase 인증이나 가입자 월렛 승인을
+  // 이 검사로 대체하지 않으며 실제 월렛 승인 연결은 별도 SDK 작업이다.
+  assert(hashOwner(ownerSecret()) == ownerBinding, "Unauthorized state owner");
+}
+circuit checkRule(r: RuleOpening): [] {
+  // 제출한 계수가 그럴듯해도 등록 Hash와 다르면 거부한다.
+  assert(hashRule(r) == ruleHash, "Registered rule mismatch");
+  assert(r.version > 0 && r.initialScore == 100, "Unsupported rule");
+  assert(r.minimumScore <= 100 && r.premiumMinimumScore <= 100
+    && r.premiumMinimumScore >= r.minimumScore, "Invalid score thresholds");
+  assert(r.baseDiscountBps <= 10000 && r.premiumDiscountBps <= 10000
+    && r.premiumDiscountBps >= r.baseDiscountBps, "Invalid discount thresholds");
+}
+circuit checkResult(r: RuleOpening, s: StateOpening): [] {
+  // 서버가 보낸 결과를 그대로 수용하지 않고 회로가 누적값에서 다시 계산한다.
+  // conditionsMet=false도 정확한 계산이면 유효하다. 보험사 적용 결정과는 별개다.
+  const score = calculatedScore(r, s.totals);
+  const eligible = s.totals.distanceM >= r.minimumDistanceM && score >= r.minimumScore;
+  const discount = eligible ? (score >= r.premiumMinimumScore
+    ? r.premiumDiscountBps : r.baseDiscountBps) : 0;
+  // ledger 조회가 있는 비교를 각각 assert한다. private 조건의 단락 평가(&&)로
+  // 다음 ledger 조회 여부가 달라지는 정보 노출을 피하기 위한 구조다.
+  assert(s.scope == scopeBinding, "State scope mismatch");
+  assert(s.rule == ruleHash, "State rule mismatch");
+  assert(s.version == s.tripCount, "State version mismatch");
+  assert(s.score == score && s.conditionsMet == eligible
+    && s.expectedDiscountBps == discount, "Calculation result mismatch");
+}
+circuit checkPending(p: PendingOpening): [] {
+  // 비공개 누적값과 공개 처리 위치를 같이 검사해 중간값/운행 바꿔치기를 막는다.
+  assert(hashPending(p) == pendingCommitment, "Pending opening mismatch");
+  assert(p.previous == stateCommitment, "Pending previous mismatch");
+  assert(p.target == targetCommitment, "Pending target mismatch");
+  assert(p.root == datasetRoot, "Pending root mismatch");
+  assert(p.trip.recordCount == recordCount, "Pending count mismatch");
+  assert(p.cursor == cursor, "Pending cursor mismatch");
+}
+
+export circuit initialize(): [] {
+  // 임의의 높은 시작 점수·누적 거리를 가져오지 못하도록 0회·0집계부터 시작한다.
+  authorize();
+  assert(!initialized, "Already initialized");
+  const r = ruleOpening();
+  const s = previousOpening();
+  checkRule(r);
+  checkResult(r, s);
+  assert(s.version == 0 && s.tripCount == 0 && s.totals.distanceM == 0
+    && s.totals.durationSeconds == 0 && s.totals.speedingCount == 0
+    && s.totals.accelerationCount == 0 && s.totals.brakingCount == 0, "Invalid genesis");
+  // genesis는 실제 제출 기록 트리와 구분하는 empty sentinel을 사용한다.
+  assert(s.datasetRoot == emptyLeaf(), "Invalid genesis dataset");
+  stateCommitment = disclose(hashState(s));
+  initialized = true;
+}
+
+export circuit beginTrip(): [] {
+  // 준비 단계다. 아직 records를 합산하지 않았으므로 확정 State는 교체하지 않는다.
+  authorize();
+  assert(initialized && !active, "State not ready");
+  const r = ruleOpening();
+  const before = previousOpening();
+  const after = nextOpening();
+  const p = pendingAfter();
+  checkRule(r);
+  checkResult(r, before);
+  checkResult(r, after);
+  // 과거에 유효했던 opening도 최신 체인 커밋먼트와 다르면 재사용할 수 없다.
+  assert(hashState(before) == stateCommitment, "Stale previous state");
+  assert(after.version == (before.version + 1) as Uint<32>
+    && after.tripCount == (before.tripCount + 1) as Uint<32>, "Invalid next version");
+  // 첫 누적값은 이전 totals다. 목표 commitment와 Root도 시작 시점에 고정한다.
+  assert(p.previous == stateCommitment && p.target == hashState(after)
+    && p.root == after.datasetRoot && p.cursor == 0
+    && p.totals == before.totals, "Invalid initial accumulation");
+  assert(p.trip.recordCount > 0 && p.trip.recordCount <= 1024, "Invalid record count");
+  pendingCommitment = disclose(hashPending(p));
+  targetCommitment = disclose(p.target);
+  datasetRoot = disclose(p.root);
+  recordCount = disclose(p.trip.recordCount);
+  cursor = 0;
+  active = true;
+}
+
+export circuit appendRecord(): [] {
+  // 포함을 확인한 바로 그 기록을 더한다. 호스트가 별도로 계산한 합만 받지 않는다.
+  authorize();
+  assert(active && cursor < recordCount, "No remaining records");
+  const before = pendingBefore();
+  const after = pendingAfter();
+  const record = recordOpening();
+  const path = inclusionPath();
+  checkPending(before);
+  // 순번=cursor는 누락/중복을, 경로 위치=cursor는 다른 위치의 leaf 재사용을 막는다.
+  assert(record.index == cursor, "Record order mismatch");
+  assert(pathIndex(path) == cursor, "Merkle position mismatch");
+  assert(pathRoot(hashRecord(before.trip, record), path) == datasetRoot, "Dataset inclusion mismatch");
+  // 한 기록을 더하면서 운행·시작 상태·목표·Root를 변경할 수 없다.
+  assert(after.previous == before.previous && after.target == before.target
+    && after.root == before.root && after.trip == before.trip
+    && after.cursor == (before.cursor + 1) as Uint<16>, "Accumulation context mismatch");
+  assert(after.totals == addMetrics(before.totals, record.metrics), "Accumulation totals mismatch");
+  pendingCommitment = disclose(hashPending(after));
+  cursor = disclose(after.cursor);
+}
+
+export circuit finishTrip(): [] {
+  // 포함 증명 한 건의 성공만으로 전체 Dataset 계산을 인정하지 않는다.
+  // 예: 기록 2개 중 1개만 처리했다면 cursor=1, recordCount=2로 여기서 거부한다.
+  authorize();
+  assert(active && cursor == recordCount, "Incomplete dataset");
+  const p = pendingBefore();
+  const s = nextOpening();
+  const r = ruleOpening();
+  checkPending(p);
+  checkRule(r);
+  checkResult(r, s);
+  assert(hashState(s) == targetCommitment, "Target state mismatch");
+  assert(s.datasetRoot == datasetRoot, "Target dataset mismatch");
+  // 산식 자체는 맞는 후보라도 실제 records 합과 다르면 확정할 수 없다.
+  assert(s.totals == p.totals, "Final totals mismatch");
+  // 모든 관계를 확인한 뒤에만 새 State와 운행 횟수를 확정한다.
+  // 이 회로 요청의 성공과 실제 체인 반영 확인은 구분한다. 이후 DB 확정은 B가 맡는다.
+  stateCommitment = targetCommitment;
+  revision.increment(1);
+  active = false;
+  pendingCommitment = default<Bytes<32>>;
+  targetCommitment = default<Bytes<32>>;
+}
+
+export circuit cancelTrip(): [] {
+  authorize();
+  assert(active, "No active trip");
+  active = false;
+  pendingCommitment = default<Bytes<32>>;
+  targetCommitment = default<Bytes<32>>;
+  // 취소는 중간 처리만 해제한다. 이전 확정 State와 revision을 초기화하지 않는다.
+  // datasetRoot/count/cursor에 마지막 처리 메타데이터가 남아도 확정의 근거는 아니다.
+}
+
+export circuit submitEvaluation(): [] {
+  // witness는 같은 함수 이름이어도 호출마다 다른 값을 줄 수 있다.
+  // 소유자 검사를 통과한 바로 그 값을 nullifier에도 사용해 secret 바꿔치기를 막는다.
+  const secret = ownerSecret();
+  assert(hashOwner(secret) == ownerBinding, "Unauthorized state owner");
+  assert(initialized && !active, "Evaluation state not ready");
+  const s = previousOpening();
+  const r = ruleOpening();
+  checkRule(r);
+  checkResult(r, s);
+  assert(s.version > 0, "No confirmed trip");
+  assert(hashState(s) == stateCommitment, "Stale evaluation state");
+  const n = hashEvaluation(secret, s.scope, s.rule, hashState(s));
+  const publicNullifier = disclose(n);
+  assert(!usedEvaluations.member(publicNullifier), "Evaluation already submitted");
+  // 호스트의 결과가 아니라 검증한 State에서 보험사 결과를 직접 투영한다.
+  const result = ResultOpening { scope: s.scope, rule: s.rule, state: hashState(s),
+    version: s.version, score: s.score, distanceM: s.totals.distanceM,
+    conditionsMet: s.conditionsMet, expectedDiscountBps: s.expectedDiscountBps,
+    salt: resultSalt() };
+  usedEvaluations.insert(publicNullifier);
+  evaluationNullifier = publicNullifier;
+  submittedState = disclose(hashState(s));
+  resultCommitment = disclose(hashResult(result));
+  submissionRevision.increment(1);
+}

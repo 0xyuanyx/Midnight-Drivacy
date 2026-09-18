@@ -1,0 +1,204 @@
+{
+  "execution": "live",
+  "network": "undeployed",
+  "purpose": "step-6-final-evaluation-browser-backend-integration",
+  "compiler": "0.31.1",
+  "runtime": "0.16.0",
+  "onchainRuntime": "3.0.0",
+  "midnightJs": "4.1.1",
+  "walletSdk": "1.2.0",
+  "proofServer": "8.1.0",
+  "insuranceCalculationVerified": true,
+  "sharedRuntimeClassVerified": true,
+  "healthCheckedAt": "2026-09-18T07:37:00.556Z",
+  "contractAddress": "6850ca61f69832c6c252eaf057e6f0a24a531bfd8f545ee2c0efcfb73c99e803",
+  "adapterProfile": "drivacy-persistent-merkle10-c0311-r0160-v2-evaluation",
+  "ruleHash": "e5c62e71952a6d0115bf7dc3a00770222983be61d4a1181cafdba873e1eaf15c",
+  "deploy": {
+    "txId": "00207efd91d89d8e46fec6857359cc7635cc0a1939136c6852707d539acb984dd6",
+    "status": "SucceedEntirely",
+    "blockHash": "6fe8f0489c2639c37734a3ead618f5deaeaed5abe354d47f40be98ad0f97c2e9",
+    "blockHeight": 1032,
+    "blockTimestamp": 1789717032026
+  },
+  "lastAction": "submitEvaluation",
+  "initialize": {
+    "txId": "00873931f640f7b9d6ff2809e34aa76d1372e8d64457960b563ef4126c768fb2c0",
+    "status": "SucceedEntirely",
+    "blockHash": "142f02d8e990db0b328b08788d5495f41091d7458ea0410c59f7144e53c542e4",
+    "blockHeight": 1036,
+    "blockTimestamp": 1789717056001
+  },
+  "localBrowserVaultVerified": true,
+  "actualChainResultInterruptionRecoveredWithoutResubmission": true,
+  "transitions": [
+    {
+      "number": 1,
+      "begin": {
+        "txId": "00f92d18480f59bcc1feb7feb45bb23f0c190bec0db4a8935284ef6bc1b9240f21",
+        "status": "SucceedEntirely",
+        "blockHash": "16306ad95a7b410f27306249d38ce22aa056a700060c243b9e707f5a66b440f4",
+        "blockHeight": 1044,
+        "blockTimestamp": 1789717104000
+      },
+      "records": [
+        {
+          "txId": "0008bd63f4bf7410ce04d2912d5f296a7270d655cc7a45d5e86f40640083eee3c0",
+          "status": "SucceedEntirely",
+          "blockHash": "c80d7ddaf82335db4041ae37b96115f05a2a869c72be71a65ec53e62c07fd5f8",
+          "blockHeight": 1050,
+          "blockTimestamp": 1789717140000
+        }
+      ],
+      "finish": {
+        "txId": "00188c3d50cb9c14797b34b3557421977a42737b4c0c6905731a890ec4f3611fb8",
+        "status": "SucceedEntirely",
+        "blockHash": "c53727c616af3926b2e84e3ca6054570e78ec0f159f774fa47ef14f1c8a828ce",
+        "blockHeight": 1054,
+        "blockTimestamp": 1789717164000
+      },
+      "newStateCommitment": "3d8fdf65c1012d6d8a6d843de60a3acc1e82936def53448d956ac040b5f0d485",
+      "datasetRoot": "4edb26befb296114a25ba9f9439a33ebbb1aa667a887ed238437e2891da27f70",
+      "bcConsistencyGatePassed": true,
+      "persistedResultReloadedWithoutResubmission": true
+    },
+    {
+      "number": 2,
+      "begin": {
+        "txId": "00a3e0a9025b6901d48e3298af5cc5010a643d07617ccd317ee86d5986d3060c5b",
+        "status": "SucceedEntirely",
+        "blockHash": "298628bf8edecf987df09b8524095dcf20f001a38632239ff637775cad2b8226",
+        "blockHeight": 1059,
+        "blockTimestamp": 1789717194000
+      },
+      "records": [
+        {
+          "txId": "00e09f0dd1e6dd94a4392e2c35756f40e285b7a370f521bd43431ef278884c3e1a",
+          "status": "SucceedEntirely",
+          "blockHash": "6e3280064854fb2f6e16e7e7d870b716890f4cb10b0e3766312aa4b861e7f3da",
+          "blockHeight": 1065,
+          "blockTimestamp": 1789717230001
+        },
+        {
+          "txId": "000c0a48efb224444f9c14294e9e714761b06bf5ee7ee86edba6e09b124a3a9873",
+          "status": "SucceedEntirely",
+          "blockHash": "0e38456b0e9a6283761b121ba2b01962d34754a322c703919cc36aecd6d1cd73",
+          "blockHeight": 1071,
+          "blockTimestamp": 1789717266001
+        }
+      ],
+      "finish": {
+        "txId": "00b9a25121cba8a047afa26e09d6697a07b0c87a8809786180348221318cde2f32",
+        "status": "SucceedEntirely",
+        "blockHash": "f70adcfe9c5983891019f6203fe9e0c2c4740ff0b0ce00e097d69c2296a3277a",
+        "blockHeight": 1075,
+        "blockTimestamp": 1789717290001
+      },
+      "newStateCommitment": "3124573027b85f7f8f7b38186dbe015eec15759ac23576fb1c52b0fb1519e5ac",
+      "datasetRoot": "975a2e985e45d74ad3c83162004cb81daf440440ead1e6b0ef33ae71df37edab",
+      "bcConsistencyGatePassed": true,
+      "persistedResultReloadedWithoutResubmission": true
+    }
+  ],
+  "finalEvaluation": {
+    "receipt": {
+      "txId": "0018e4a3beb7018edc1b3bd213226fe3609e6bc40040bf9689196099ae71723371",
+      "status": "SucceedEntirely",
+      "blockHash": "5eb9eda4eab0d0d3e04bb1793c78cffb5b2a90ad5d0011eb1f86d1799cafb106",
+      "blockHeight": 1081,
+      "blockTimestamp": 1789717326001
+    },
+    "resultCommitment": "5701d9891810bc029c5c7f8e2832727648ba8f260a9d314e3f2bfd54eb8f9627",
+    "stateCommitment": "3124573027b85f7f8f7b38186dbe015eec15759ac23576fb1c52b0fb1519e5ac",
+    "nullifier": "064a4d7638b6a8a7ac66bb07790baf6a9f4e8d0d10591ce39f66541864dd56a5",
+    "privateOpeningVerified": true
+  },
+  "developerApprovalRequests": 9,
+  "walletApprovalJobInterfaceVerified": true,
+  "persistedResultReloadedWithoutResubmission": true,
+  "subscriberBrowserWalletVerified": false,
+  "backendDatabaseVerified": false,
+  "localBrowserWalletVerified": true,
+  "browserCancellationPreventedBalanceAndSubmission": true,
+  "cancelledTripJobTerminalWithoutSubmission": true,
+  "localBackendDatabaseVerified": true,
+  "actualLocalDatabaseFailureRecoveredWithoutResubmission": true,
+  "actualLocalOriginalFilesDeletedAfterDatabaseConfirmation": true,
+  "supabaseAuthAndStorageVerified": false,
+  "finalEvaluationProofAndNullifierVerified": true,
+  "completeDatasetVerified": true,
+  "twoCumulativeTransitionsVerified": true,
+  "contractReconnected": true,
+  "invalidRequestsRejectedBeforeProofOrSubmission": [
+    "score",
+    "rule",
+    "previous-opening",
+    "owner",
+    "trip-1-incomplete",
+    "trip-1-record",
+    "trip-2-incomplete",
+    "trip-2-record",
+    "stale-replay",
+    "duplicate-final-evaluation-with-new-salt"
+  ],
+  "successfulContractProofRequests": 11,
+  "contractProofRequests": 11,
+  "submittedContractTransactions": 10,
+  "finalRevision": 2,
+  "result": "passed",
+  "completedAt": "2026-09-18T07:42:21.623Z",
+  "browserBundleSha256": "9f82b1e764da37d9b012c542d7173569619e2c29d6d340b3f06d82efb3d8c973",
+  "sourceHashes": {
+    "packages/midnight/src/evaluation.ts": "396612ee1ceeacc253bfff60644bf8d2f566f18181d4913091c911612507b0be",
+    "packages/midnight/browser/seed-vault.ts": "f9475a8aa4ad71a1b08aff0274466377e1d0d8ce8477bb872bf5d123233c0f24",
+    "packages/midnight/src/trip-job.ts": "6f942a7f3b73c1185fe720e325981e3cde7a62a96703c08b6954bf4abd80aadf",
+    "apps/backend/src/chain-state/chain-finalizer.ts": "d8d01e2b73541fef6ade8e30ac1956d65fac74fcd87272ad9b288f0fdfc5e18a",
+    "packages/midnight/src/state-adapter.ts": "484d83205d0a4bb71e813d10ecce17c2a2ed37a816253a4ba16e564e569f0e39",
+    "packages/midnight/src/local-job-store.ts": "4b1480cbe2c4db795bc846f9986232188fe4b7cda78649f7ccce976c956c63a0",
+    "db/migrations/20260918060000_chain_state_confirmation.sql": "0d5905d0f7c17f0f555b1dd6864ba83f0c541f44491360e51fe78f61ab09569a",
+    "contracts/driving-state.compact": "cc9bab44f744fe0bf032e54d7ca03981db1cf27d40dc771f620566d994bbf43d"
+  },
+  "zkArtifactHashes": {
+    "packages/midnight/managed/driving-state/keys/beginTrip.prover": "f5ea51c9da8dd71ee2c54f30671a3d5a1fdd9ddde798f36e4fd7c05d4fe9e788",
+    "packages/midnight/managed/driving-state/zkir/beginTrip.zkir": "ac37ad17add00560ee2df606304f68375927bd86dbf5a33cd57f269dc289cff8",
+    "packages/midnight/managed/driving-state/keys/finishTrip.prover": "6fd167bd643f4d0f28a21bcb779785dde316ee950e7982744f7c5112796426f0",
+    "packages/midnight/managed/driving-state/zkir/initialize.zkir": "97ec683fdf0194749f06ae4cbe9ebde6751b0d9a1e41bbf1254dfb9bf01d7203",
+    "packages/midnight/managed/driving-state/keys/initialize.verifier": "bb9da2e55af8772850332a44ec3df7fd24081fda41f766c81542463f71bf5b4f",
+    "packages/midnight/managed/driving-state/keys/beginTrip.verifier": "0691c3d1ec93964759268fc4b02cb4ab5d339758f916ffd1ef844bdeecde2c5c",
+    "packages/midnight/managed/driving-state/keys/finishTrip.verifier": "0d9ad88b0634b88f26c18f40c3b5709482a52f02c6707f074d8cdf71df215353",
+    "packages/midnight/managed/driving-state/keys/initialize.prover": "a046c9ad4b04a4d390430c7ca45088d5bf2f8801f28f22529eafef24e9813b8e",
+    "packages/midnight/managed/driving-state/zkir/finishTrip.zkir": "78b6ccfa70cf61f77627908fc6404ba7121e227075c9bbb518e02534e68feb51",
+    "packages/midnight/managed/driving-state/keys/submitEvaluation.prover": "7b09c3ea6ad9056d64aa3c203b45d7b3b975e09d2a015c975c82fc2783220e7e",
+    "packages/midnight/managed/driving-state/zkir/appendRecord.zkir": "f3dc2175de52321db6a1f2e2021d08f6e12fe5a39aba00f25f996a31d0e8233b",
+    "packages/midnight/managed/driving-state/keys/cancelTrip.verifier": "9e585ae494ac31bd221005a1bd56637c01ff11b934285c7536266efe47ebb0cb",
+    "packages/midnight/managed/driving-state/keys/appendRecord.verifier": "26db7e7020173bf904e4a9ef36f1cee005b3ef3ae5f26755f756a79da80496d1",
+    "packages/midnight/managed/driving-state/zkir/submitEvaluation.zkir": "c84e666cc4f08c77105efa7c768b7587a70206389d8d1398950d4d2a473f8bee",
+    "packages/midnight/managed/driving-state/keys/cancelTrip.prover": "504407260ea109c649a7a559dc84873f0325831f71ee984ef6e720140b9b1197",
+    "packages/midnight/managed/driving-state/keys/appendRecord.prover": "c00e762f2ffce53373225a56e11c44b0a058d61050d61466c9ef536a7e28c050",
+    "packages/midnight/managed/driving-state/zkir/cancelTrip.zkir": "32e1a54beebb685fc31d5d96601a6d8eed19a15450870faadcb084de68ad0ac7",
+    "packages/midnight/managed/driving-state/keys/submitEvaluation.verifier": "0fb3b0f60097e227c27d87a0881a692cee15c06e0f8f73653c921df7dac7afb5"
+  },
+  "independentLinux": {
+    "testsPassed": 100,
+    "validOracleCases": 332,
+    "zkKeysGenerated": false,
+    "rejectedOracleCases": 15,
+    "runtimeChecksumVerified": true,
+    "freshCache": true,
+    "runtime": "24.14.1",
+    "freshDependencies": true
+  },
+  "remoteMigrationApplied": false,
+  "paidProviderCalls": 0,
+  "approvalReservationFollowup": {
+    "review": "pending",
+    "change": "Reserve approval ID synchronously before digest",
+    "liveBundleUsesReservationAfterDigest": true,
+    "fullChainScenarioReplayedAfterChange": false,
+    "latestStrictTypecheck": "passed",
+    "latestFreshBrowserVaultSmoke": "passed",
+    "sourceSha256": "e1353724e6cb0be24370b0cdf676d2443a907fb42336195e318eb0d4ab0368f4"
+  },
+  "providerCallScope": "Local application integration only; independent Claude review is separate",
+  "securityStatus": "superseded: vulnerable double ownerSecret witness read; passed result covers honest witness path only"
+}

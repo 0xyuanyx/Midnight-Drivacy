@@ -1,0 +1,43 @@
+{
+  "node": "v24.14.1",
+  "completedAt": "2026-09-18T03:09:37.0565099Z",
+  "suites": [
+    {
+      "file": "packages/core/test/calculation.test.ts",
+      "passedTests": 27
+    },
+    {
+      "file": "packages/shared/test/bc-contract.test.ts",
+      "passedTests": 26
+    }
+  ],
+  "sourceFiles": [
+    {
+      "file": "packages/core/src/calculation.ts",
+      "sha256": "98ad6fc05effc9a2033510809b5d6366fa8622d8661fa27b5ca12b6e0a7c770a"
+    },
+    {
+      "file": "packages/core/test/calculation.test.ts",
+      "sha256": "8a22db8b052f900f7f5fda1747c8fea018bc4ea3aad4c930a82e270547e024a5"
+    },
+    {
+      "file": "packages/shared/src/bc-contract.ts",
+      "sha256": "4a7c36d8148d8859f2898b298d3175d68ff4b1da0c0f3cbc652fefb4708567cf"
+    },
+    {
+      "file": "packages/shared/test/bc-contract.test.ts",
+      "sha256": "dfc2ffc48e1c88263dfe2e23ab6ff685c16bd35433e3968e1fa3cf2837b491af"
+    }
+  ],
+  "execution": "offline-fixture",
+  "tests": {
+    "total": 53,
+    "passed": 53,
+    "failed": 0
+  },
+  "insuranceCircuitProofVerified": false,
+  "typecheck": "passed",
+  "command": "./scripts/check-core.ps1",
+  "npm": "11.11.0",
+  "chainRequested": false
+}

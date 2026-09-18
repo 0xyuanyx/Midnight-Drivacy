@@ -1,0 +1,238 @@
+{
+  "command": "./scripts/check-driving-state.ps1 -Live",
+  "fullZkCompile": "passed",
+  "sourceFiles": [
+    {
+      "file": "contracts/driving-state.compact",
+      "sha256": "22c9efecb2919c65e63630c0a8de5c2f6cf4f2c968a6213f80eaee0830e8132e"
+    },
+    {
+      "file": "packages/midnight/src/state-adapter.ts",
+      "sha256": "657e27257c9e6f59f5f185678a766e3b07edcc9e18868bdf7ad69adfff595d7f"
+    },
+    {
+      "file": "packages/midnight/probe/driving-fixtures.ts",
+      "sha256": "794647feefa1a0f3850e9637adbb57e7aa9bc0714ff2c6a0550184eb4b1ca0a8"
+    },
+    {
+      "file": "packages/midnight/probe/driving-local.ts",
+      "sha256": "fbe23aeaeeaaa10858e94ea5aa2a1fbcb4e995b7cd3a26c838746eba91c75d6d"
+    },
+    {
+      "file": "packages/midnight/test/driving-state.test.ts",
+      "sha256": "490102ea6cef45a1aa63587fa66a50bf24c7b8199911ce47730f346ffe2fbec4"
+    },
+    {
+      "file": "packages/core/src/calculation.ts",
+      "sha256": "98ad6fc05effc9a2033510809b5d6366fa8622d8661fa27b5ca12b6e0a7c770a"
+    },
+    {
+      "file": "packages/core/test/calculation.test.ts",
+      "sha256": "8a22db8b052f900f7f5fda1747c8fea018bc4ea3aad4c930a82e270547e024a5"
+    },
+    {
+      "file": "packages/shared/src/bc-contract.ts",
+      "sha256": "4a7c36d8148d8859f2898b298d3175d68ff4b1da0c0f3cbc652fefb4708567cf"
+    },
+    {
+      "file": "packages/shared/test/bc-contract.test.ts",
+      "sha256": "dfc2ffc48e1c88263dfe2e23ab6ff685c16bd35433e3968e1fa3cf2837b491af"
+    }
+  ],
+  "boundaries": {
+    "rawSourceDeletionVerified": false,
+    "generatedCircuitTestsUseSyntheticFixtureReceipts": true,
+    "backendDbFinalizationExecuted": false,
+    "liveRunUsesActualLocalFinalizedReceipts": true,
+    "subscriberBrowserWalletE2EVerified": false,
+    "llmCalls": 0,
+    "preprodRequested": false,
+    "realInsurerApprovalVerified": false,
+    "productionBCAdapterImplemented": false,
+    "billedProviderCalls": 0
+  },
+  "dependencyLockSha256": "655125fa7c1148e2fcfa093bc6b6e1bd4bbafbe02a65f5d8a7d609fd9370be65",
+  "npm": "11.11.0",
+  "live": {
+    "execution": "live",
+    "network": "undeployed",
+    "purpose": "step-4-approved-rule-dataset-state",
+    "compiler": "0.31.1",
+    "runtime": "0.16.0",
+    "onchainRuntime": "3.0.0",
+    "midnightJs": "4.1.1",
+    "walletSdk": "1.2.0",
+    "proofServer": "8.1.0",
+    "insuranceCalculationVerified": true,
+    "sharedRuntimeClassVerified": true,
+    "healthCheckedAt": "2026-09-18T03:32:02.295Z",
+    "contractAddress": "6e4b7733668d33d0fe8117c5b589a9ec1b2af6357d4b6c9a11bcc1896cf33577",
+    "adapterProfile": "drivacy-persistent-merkle10-c0311-r0160-v1",
+    "ruleHash": "bf71ed344edb3b2d14625fc94720bdb245532dbaf1103e7630cf86e7c6014b4e",
+    "deploy": {
+      "txId": "00cbe40864a4edae4f9439033589a1c837b3ba225e31380cf8c102ad36ada08159",
+      "status": "SucceedEntirely",
+      "blockHash": "477055e8550df937374bd1ff2048b537e455dda860d88622022b0e81414b2702",
+      "blockHeight": 285,
+      "blockTimestamp": 1789702374001
+    },
+    "lastAction": "beginTrip",
+    "initialize": {
+      "txId": "0075ba52da6a3a0af011f7de5d041f81096a8d8ee1646795792b3c1e7d8985d0c2",
+      "status": "SucceedEntirely",
+      "blockHash": "15617dbfab85659175acff019cc5f47b04e840201c854ed501b5729a40dedbbd",
+      "blockHeight": 289,
+      "blockTimestamp": 1789702398001
+    },
+    "transitions": [
+      {
+        "number": 1,
+        "begin": {
+          "txId": "00eb9cb84b53a95bbac43a6e663741abacc033c753dafea01f5a01f330fe61bd44",
+          "status": "SucceedEntirely",
+          "blockHash": "1790d80be3a57d374e778fb854680f1f58e5ed731bf118828c52a9be9a6be7e2",
+          "blockHeight": 295,
+          "blockTimestamp": 1789702434001
+        },
+        "records": [
+          {
+            "txId": "000fe6e048f521eac2c4f3602351ad42297430ea9a04e1208faa61097421791f02",
+            "status": "SucceedEntirely",
+            "blockHash": "0e0e6051788aecde1df94df7da0f0c17b4c7f3968fb9cdeb21f0f79a6e524270",
+            "blockHeight": 304,
+            "blockTimestamp": 1789702488000
+          }
+        ],
+        "finish": {
+          "txId": "0067b598781cf0ecbe003df1c1de986b6700c2ae300876d4d1a54a2db8fe32cbb8",
+          "status": "SucceedEntirely",
+          "blockHash": "b82bdab669f6a30c9389d0310fc38786133cc0bbc34133bf99a1f2a8dab55a67",
+          "blockHeight": 309,
+          "blockTimestamp": 1789702518000
+        },
+        "newStateCommitment": "b5a22878bd2f6ad2cf2433e326146bc1dda0dbf07ff99d547c6841fbae4e4f97",
+        "datasetRoot": "8cf9de7fdc390204c084df28be84879f33a0ea9a65935e0a653efff1290f72bc",
+        "bcConsistencyGatePassed": true
+      },
+      {
+        "number": 2,
+        "begin": {
+          "txId": "00fc4079bb36484f6bb399b6c5655fc499f36a10e00d93b2535155cac20c413483",
+          "status": "SucceedEntirely",
+          "blockHash": "7ea9b1350b5b89079b2d7c77042e81e31bb4bbf7111d34a35416035a333d1c16",
+          "blockHeight": 314,
+          "blockTimestamp": 1789702548001
+        },
+        "records": [
+          {
+            "txId": "00c85c3a2af044bdbcd2b2efb79301204e0b13b41606e12a0a0c09e29db09e5ec9",
+            "status": "SucceedEntirely",
+            "blockHash": "fa9900c09ebf6ec603503cd3e9e835af0fcac4bb40d14d5e4542cf95192b2880",
+            "blockHeight": 321,
+            "blockTimestamp": 1789702590001
+          },
+          {
+            "txId": "00ac1e11dbe27a83aa6574c1fbd8228516d54f5e4d0add0ee8a54e8019daaa7386",
+            "status": "SucceedEntirely",
+            "blockHash": "8c4e0b3f873fbd3f34c348fd34750009d639c85f96272229d67f0c36bc824e28",
+            "blockHeight": 327,
+            "blockTimestamp": 1789702626001
+          }
+        ],
+        "finish": {
+          "txId": "00a8df90e7aa6f2190dcd03c9e62d70ee1fa5c157bb6d6a0249eae9ab786d1c4b4",
+          "status": "SucceedEntirely",
+          "blockHash": "8f3310cb84311de05ad89a409ce6c01dda6376b410c70a561a269dc3ab1bea2b",
+          "blockHeight": 331,
+          "blockTimestamp": 1789702650001
+        },
+        "newStateCommitment": "f73f6fc5acbaa0205319a79f5bda8041a894b8adea56fdb311a5ddaa16f88e19",
+        "datasetRoot": "e65fa168b3380a1a75af0c3d979cc8a01cf268152b7fca611e33c7a480691d1c",
+        "bcConsistencyGatePassed": true
+      }
+    ],
+    "completeDatasetVerified": true,
+    "twoCumulativeTransitionsVerified": true,
+    "contractReconnected": true,
+    "invalidRequestsRejectedBeforeProofOrSubmission": [
+      "score",
+      "rule",
+      "previous-opening",
+      "owner",
+      "trip-1-incomplete",
+      "trip-1-record",
+      "trip-2-incomplete",
+      "trip-2-record",
+      "stale-replay"
+    ],
+    "successfulContractProofRequests": 9,
+    "contractProofRequests": 9,
+    "submittedContractTransactions": 9,
+    "finalRevision": 2,
+    "result": "passed",
+    "completedAt": "2026-09-18T03:37:46.194Z"
+  },
+  "completedAt": "2026-09-18T03:37:46.194Z",
+  "typecheck": "passed",
+  "zkKeys": [
+    {
+      "file": "appendRecord.prover",
+      "sha256": "e9150c785d4edbd179d60f30db8de26a468b33e619f77e98b5b97108fab7167b",
+      "bytes": 38544481
+    },
+    {
+      "file": "appendRecord.verifier",
+      "sha256": "8426f9c5be917692f719c56493e122a47ad695e46d10b5f3aeb5cb47be96b984",
+      "bytes": 2119
+    },
+    {
+      "file": "beginTrip.prover",
+      "sha256": "bdc2879a646f53523c1637769e85bcab4af14cb3a3983d9bf33697c28d32bbe0",
+      "bytes": 19472320
+    },
+    {
+      "file": "beginTrip.verifier",
+      "sha256": "44c4bbffccb64b9a47714491c32942301cbf939344601c36850f04e99080d81a",
+      "bytes": 2119
+    },
+    {
+      "file": "cancelTrip.prover",
+      "sha256": "828a653869ce3493b3a961ca96f92c746e25b266436f4dd40ba354c38d087163",
+      "bytes": 2820185
+    },
+    {
+      "file": "cancelTrip.verifier",
+      "sha256": "14a90c4fe943ef03fd49625219755b98195c104d4bc98ef7dedb42860c7bb011",
+      "bytes": 2119
+    },
+    {
+      "file": "finishTrip.prover",
+      "sha256": "cfd23cd4f217de2ecf497096981285cf406de8b283b8ce4398564aef9bc705ae",
+      "bytes": 9983792
+    },
+    {
+      "file": "finishTrip.verifier",
+      "sha256": "889ec8d6a86c039cd5af30becbbeeada39112db005a59676dfa6883b8062312f",
+      "bytes": 2119
+    },
+    {
+      "file": "initialize.prover",
+      "sha256": "fd7c47d09708cb0259c48d4e53aabcda7d2b4b2333f46f62374b911eb8d0614c",
+      "bytes": 9968792
+    },
+    {
+      "file": "initialize.verifier",
+      "sha256": "97abab13f4c02ea5b56c890daf99c8574a069e76c4e8b8792e46a7face980d1c",
+      "bytes": 2119
+    }
+  ],
+  "node": "v24.14.1",
+  "tests": {
+    "failed": 0,
+    "total": 72,
+    "shared": 26,
+    "drivingCircuit": 19,
+    "core": 27,
+    "passed": 72
+  }
+}

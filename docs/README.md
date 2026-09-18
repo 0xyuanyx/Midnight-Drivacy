@@ -1,5 +1,8 @@
 # Drivacy 개발 결정 정리
 
+C 5단계의 [월렛 승인·운행 작업 제어와 학습 설명](WALLET_APPROVAL_JOBS.md)은
+단계별 승인·거래 ID 선기록·확정 결과 재조회·B의 DB 확정 책임을 설명한다.
+
 2026-09-18 논의한 운행 시작 버튼 기반 Backend 모의 기록 생성과 승인 최소 거리에
 맞춘 데모 구성은 [DRIVING_SIMULATION.md](DRIVING_SIMULATION.md)에 정리했다.
 생성기·API·화면은 미구현이며 구체적인 난수 범위·확률은 추천안이다.
@@ -7,6 +10,17 @@
 작성일: 2026-09-16 (KST) · 작성 브랜치: `feat`
 
 이 문서는 연결된 **Locate Google Sheets spreadsheet** 채팅의 사용자 지시·팀 답변과 이후 확정한 LLM 실행 방식을 개발 인수인계용으로 정리한다. 구현 완료 보고가 아니다. 방향의 기준 문서는 [PROJECT_DIRECTION.md](../PROJECT_DIRECTION.md)다.
+
+2026-09-17 후속 합의로 사용자가 C를 맡고 임시 산식·단위·공개 범위·재신청·재시도·실패 보관 기준을 채택했다. 아래는 2026-09-16 당시 기록이며 이미 채택한 값의 최신 기준은 PROJECT_DIRECTION을 따른다. 첫 내부 연결 계약과 공유 검증 스키마는 [BC_CONTRACT.md](BC_CONTRACT.md)에 정리했다.
+
+C 2단계의 작은 실제 Compact 계약, 고정 버전과 로컬 검증 실행 안내는 [MIDNIGHT_LOCAL_PROBE.md](MIDNIGHT_LOCAL_PROBE.md)를 따른다. 보험 계산 증명과 로컬 기술 검증의 범위를 구분한다.
+
+2026-09-18 C 3단계의 누적 계산 구현·실행 안내·검증 결과는
+[CORE_CALCULATION.md](CORE_CALCULATION.md)를 따른다. 이전 누적 State와
+체인 이력 유지에 관한 사용자 확인도 해당 문서와 PROJECT_DIRECTION에 반영했다.
+
+C 4단계의 Rule·Dataset·누적 State 증명 원리, 실제 회로/어댑터 규격과 실행
+안내는 [STATE_TRANSITION_PROOF.md](STATE_TRANSITION_PROOF.md)를 따른다.
 
 2026-09-16 후속 요청의 세 개발자 기능 분담안, 남은 결정사항과 공통 작업 원칙은 [TEAM_WORKING_PLAN.md](TEAM_WORKING_PLAN.md)에 정리하고 후속 위임으로 채택했다. 선정한 조합은 [TECH_STACK.md](TECH_STACK.md)를 따른다. 개발자는 프론트+백엔드 1명과 백엔드 위주 2명이다. 프론트 구현은 이번 분담 범위에서 제외하고 새 브랜치는 만들지 않는다.
 

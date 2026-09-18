@@ -1,0 +1,20 @@
+pragma language_version >= 0.23;
+
+import CompactStandardLibrary;
+
+// Step-2 local technology probe, not the insurance calculation contract.
+// Only sample commitment bytes and revision are stored; no openings supplied.
+export ledger stateCommitment: Bytes<32>;
+export ledger revision: Counter;
+
+constructor(initialCommitment: Bytes<32>) {
+  stateCommitment = disclose(initialCommitment);
+}
+
+export circuit advance(previousCommitment: Bytes<32>,
+                       nextCommitment: Bytes<32>): [] {
+  assert(disclose(previousCommitment) == stateCommitment, "Stale previous state");
+  assert(previousCommitment != nextCommitment, "State must change");
+  stateCommitment = disclose(nextCommitment);
+  revision.increment(1);
+}

@@ -1,0 +1,43 @@
+{
+  "execution": "live",
+  "network": "undeployed",
+  "purpose": "step-2-technology-probe",
+  "compiler": "0.31.1",
+  "runtime": "0.16.0",
+  "onchainRuntime": "3.0.0",
+  "midnightJs": "4.1.1",
+  "walletSdk": "1.2.0",
+  "proofServer": "8.1.0",
+  "insuranceCalculationVerified": false,
+  "sharedRuntimeClassVerified": true,
+  "healthCheckedAt": "2026-09-17T04:22:28.865Z",
+  "contractAddress": "0c6eb2c35f7ef8c2fbc3276a149f8b16905d0fafdbdafea36d8e374c4e76d875",
+  "deploy": {
+    "txId": "00b23a7ff80c86842b8a0ee45c402cdd82e12157705cf54c209971715c527bb6a4",
+    "status": "SucceedEntirely",
+    "blockHash": "ca14bf7a21c96e13dbbf13de5355c176dc467088ab78f53a16589e6175c1ba99",
+    "blockHeight": 143,
+    "blockTimestamp": 1789618962000
+  },
+  "firstTransition": {
+    "txId": "0009dc677a12458d96e6200ed9930f930aa2a479e322ee837fbd30c3dfbecae843",
+    "status": "SucceedEntirely",
+    "blockHash": "7b7afa604e7298db33d12fa377969713f1f4393b34082e34fee6072b3771c5a6",
+    "blockHeight": 146,
+    "blockTimestamp": 1789618980000
+  },
+  "secondTransition": {
+    "txId": "007bb575fcf80b39c9d777da1d847cf7282056083ab3ad3175ddf05f1c180bc0a6",
+    "status": "SucceedEntirely",
+    "blockHash": "1e3ba123d8a5db7a07f060b9ea221e0874d005489cb3d1d679955de48eb3e6b9",
+    "blockHeight": 149,
+    "blockTimestamp": 1789618998001
+  },
+  "staleStateRejectedBeforeSubmission": true,
+  "contractReconnected": true,
+  "successfulContractProofRequests": 3,
+  "submittedContractTransactions": 3,
+  "finalRevision": 2,
+  "result": "passed",
+  "completedAt": "2026-09-17T04:23:33.042Z"
+}

@@ -1,0 +1,256 @@
+{
+  "recordedAt": "2026-09-18T14:20:12.9051108+09:00",
+  "fullZkCompile": "passed",
+  "strictTypecheck": "passed",
+  "tests": {
+    "core": 27,
+    "total": 88,
+    "job": 16,
+    "circuits": 19,
+    "passed": 88,
+    "shared": 26
+  },
+  "liveVerification": "passed",
+  "sourceFiles": [
+    {
+      "sha256": "17e23aa99323f07995e3ad8b2448f3f90631d31fc9509241b194defa7b0f5cc6",
+      "file": "contracts/driving-state.compact"
+    },
+    {
+      "sha256": "1633fae18f47204c42cb6fcac1788fbdf02022353a2aa434e4b581831692f856",
+      "file": "packages/midnight/src/state-adapter.ts"
+    },
+    {
+      "sha256": "6f942a7f3b73c1185fe720e325981e3cde7a62a96703c08b6954bf4abd80aadf",
+      "file": "packages/midnight/src/trip-job.ts"
+    },
+    {
+      "sha256": "4b1480cbe2c4db795bc846f9986232188fe4b7cda78649f7ccce976c956c63a0",
+      "file": "packages/midnight/src/local-job-store.ts"
+    },
+    {
+      "sha256": "b8abca70deb6f7b22b931d8626a567221b7b31fe20c80c9e169d9edc3dd7ec9c",
+      "file": "packages/midnight/probe/driving-local.ts"
+    },
+    {
+      "sha256": "f8e7ce8f30e3de800a21aab9b441d9a57a3db587ea4f291fa62806c8be273fe0",
+      "file": "packages/midnight/test/trip-job.test.ts"
+    },
+    {
+      "sha256": "800084197c60828644d4548803d18b7c8f2bb7dcac1120c9e1f76baea1680935",
+      "file": "scripts/check-driving-state.ps1"
+    }
+  ],
+  "partialLive": {
+    "execution": "live",
+    "network": "undeployed",
+    "purpose": "step-5-wallet-approval-job-interface",
+    "compiler": "0.31.1",
+    "runtime": "0.16.0",
+    "onchainRuntime": "3.0.0",
+    "midnightJs": "4.1.1",
+    "walletSdk": "1.2.0",
+    "proofServer": "8.1.0",
+    "insuranceCalculationVerified": false,
+    "sharedRuntimeClassVerified": true,
+    "healthCheckedAt": "2026-09-18T03:59:17.05Z",
+    "contractAddress": "a91f1f771e53164f06b03a29152d61341cd8d174fc8117db858d233a83bb9d4b",
+    "adapterProfile": "drivacy-persistent-merkle10-c0311-r0160-v1",
+    "ruleHash": "bf71ed344edb3b2d14625fc94720bdb245532dbaf1103e7630cf86e7c6014b4e",
+    "deploy": {
+      "txId": "00e1e1ee74485e627ca0b7667e2f4bb4f592f5c8add5b318a2a41e9a6285b556ef",
+      "status": "SucceedEntirely",
+      "blockHash": "02cb8836cbe7da42f356c4266a3fc8f9e391f0f53cff5f020d2698bf25ab6cea",
+      "blockHeight": 551,
+      "blockTimestamp": 1789703970001
+    },
+    "lastAction": "appendRecord",
+    "initialize": {
+      "txId": "00d33d7d6bf16c9d9d24f96deccba848212960babc7829b9674bf25f532dccf460",
+      "status": "SucceedEntirely",
+      "blockHash": "2e139336d40158fa7120eca5f7d983900527995140a03d9924f3b06968015f9b",
+      "blockHeight": 555,
+      "blockTimestamp": 1789703994001
+    }
+  },
+  "boundaries": {
+    "billedProviderCalls": 0,
+    "subscriberBrowserWalletE2EVerified": false,
+    "llmCalls": 0,
+    "originalDeletionVerified": false,
+    "offlineJobTestsUseSyntheticReceipts": true,
+    "backendDatabaseVerified": false,
+    "preprodVerified": false,
+    "operationalBCAdapterComplete": false
+  },
+  "live": {
+    "execution": "live",
+    "network": "undeployed",
+    "purpose": "step-5-wallet-approval-job-interface",
+    "compiler": "0.31.1",
+    "runtime": "0.16.0",
+    "onchainRuntime": "3.0.0",
+    "midnightJs": "4.1.1",
+    "walletSdk": "1.2.0",
+    "proofServer": "8.1.0",
+    "insuranceCalculationVerified": true,
+    "sharedRuntimeClassVerified": true,
+    "healthCheckedAt": "2026-09-18T05:14:45.648Z",
+    "contractAddress": "576f18ccddd4edc80723ced714e00b63f0d00d4fa1bb46c87c39e95422a9b501",
+    "adapterProfile": "drivacy-persistent-merkle10-c0311-r0160-v1",
+    "ruleHash": "bf71ed344edb3b2d14625fc94720bdb245532dbaf1103e7630cf86e7c6014b4e",
+    "deploy": {
+      "txId": "00733fee7548e541a9f87c1ff406bf80feda5efcbbc06a10db921118487d90479f",
+      "status": "SucceedEntirely",
+      "blockHash": "24919ccf2a485abc4930038ba3fc97d91d923e62d7d736bf1148920f301f75bc",
+      "blockHeight": 578,
+      "blockTimestamp": 1789708500001
+    },
+    "lastAction": "beginTrip",
+    "initialize": {
+      "txId": "0033f136f1360ed46ab2d6bbc4f142b930f6f11ae25e5382fc56dd8b11d39d5219",
+      "status": "SucceedEntirely",
+      "blockHash": "df54922992533425581cfc95a00c1d8dc051010f9f8958f3c3482ffc8f184a5e",
+      "blockHeight": 582,
+      "blockTimestamp": 1789708524001
+    },
+    "actualChainResultInterruptionRecoveredWithoutResubmission": true,
+    "transitions": [
+      {
+        "number": 1,
+        "begin": {
+          "txId": "00aed21c0de3f5b3fc1c19d702d749b237f91c23e1025dc307a92ac6883522163c",
+          "status": "SucceedEntirely",
+          "blockHash": "03993cc7d273c76bce48f804064e2fb1120f6ae58c6472148fdd44b693f7bf96",
+          "blockHeight": 588,
+          "blockTimestamp": 1789708560000
+        },
+        "records": [
+          {
+            "txId": "00d7ef60d79a307e9294f5ab7b0bd395ee1e92864dafaeed90d6d2ad8dfa89efe7",
+            "status": "SucceedEntirely",
+            "blockHash": "a25e3b55ff8dc28cdb5982d0ff66499728a4dd08f7d9c13a76581b011ad0d8d0",
+            "blockHeight": 596,
+            "blockTimestamp": 1789708608001
+          }
+        ],
+        "finish": {
+          "txId": "0099d5b514574d5235ae39348c6b5a7af03976a52cd9ca6c7f36fc3152829e1d5d",
+          "status": "SucceedEntirely",
+          "blockHash": "d1f576c75c7353c8c61868856aedfe214592e0d8728dbb30cbc4354ecf82429f",
+          "blockHeight": 600,
+          "blockTimestamp": 1789708632001
+        },
+        "newStateCommitment": "6610adf191205ae70eb2a95f7f82e2369913fca4b457219cb34efbebeda6e01f",
+        "datasetRoot": "4529a3507062fb8b756b3add121773ace9dc376fd6d2a21e4c2a421e29388005",
+        "bcConsistencyGatePassed": true,
+        "persistedResultReloadedWithoutResubmission": true
+      },
+      {
+        "number": 2,
+        "begin": {
+          "txId": "00eb5946827be17f07c2f60b678db904c7cdc0689b45b0fee8409b10352f907ee9",
+          "status": "SucceedEntirely",
+          "blockHash": "63e54ec2b40e51c1b65a6974880a112cac56ab6c1ee94f5cc19fab41a6a1dca1",
+          "blockHeight": 605,
+          "blockTimestamp": 1789708662002
+        },
+        "records": [
+          {
+            "txId": "00740286583a2a1f23fa1a6c07f72040ab6e22a0a875e4ed443c92734c5fc33a27",
+            "status": "SucceedEntirely",
+            "blockHash": "c53fff0049182eeedcbf539c551f86e52c29f9bf1e5e1d98d43cb3ec4754ecc0",
+            "blockHeight": 611,
+            "blockTimestamp": 1789708698001
+          },
+          {
+            "txId": "007e682bff7170bddefd36829a0a372ffe8d2310a21b56c38f37e0f134e4c7f0c6",
+            "status": "SucceedEntirely",
+            "blockHash": "49e735c630f9fd3894082b647a968bfe1cf6749587a67338646ddb539b2edbe6",
+            "blockHeight": 617,
+            "blockTimestamp": 1789708734000
+          }
+        ],
+        "finish": {
+          "txId": "0026cc51405bb1c22922bf527060c8c00ebddb8983f79352af37e88419430f90ef",
+          "status": "SucceedEntirely",
+          "blockHash": "93de0233832aa0c36b71db192b54ff77d8e00a39c0c230f34f92f6205bbf98ad",
+          "blockHeight": 621,
+          "blockTimestamp": 1789708758001
+        },
+        "newStateCommitment": "0e1f313a9b3cb106ce4f87574b12a765a9a172d1da274b1d6d2861ab77bd250a",
+        "datasetRoot": "2e38eb75e2733a64d90add8fd451ae263906674c6fdf1574704def1f9b56c1dd",
+        "bcConsistencyGatePassed": true,
+        "persistedResultReloadedWithoutResubmission": true
+      }
+    ],
+    "developerApprovalRequests": 7,
+    "walletApprovalJobInterfaceVerified": true,
+    "persistedResultReloadedWithoutResubmission": true,
+    "subscriberBrowserWalletVerified": false,
+    "backendDatabaseVerified": false,
+    "completeDatasetVerified": true,
+    "twoCumulativeTransitionsVerified": true,
+    "contractReconnected": true,
+    "invalidRequestsRejectedBeforeProofOrSubmission": [
+      "score",
+      "rule",
+      "previous-opening",
+      "owner",
+      "trip-1-incomplete",
+      "trip-1-record",
+      "trip-2-incomplete",
+      "trip-2-record",
+      "stale-replay"
+    ],
+    "successfulContractProofRequests": 9,
+    "contractProofRequests": 9,
+    "submittedContractTransactions": 9,
+    "finalRevision": 2,
+    "result": "passed",
+    "completedAt": "2026-09-18T05:19:34.354Z"
+  },
+  "verificationMethod": "Fresh live directory reused assets from completed full ZK compile and locked dependencies. Strict typecheck passed after adding real-result interruption injection; full regression 88 passed. Interrupted/health-failed attempts are not counted as successful execution.",
+  "zkKeys": [
+    {
+      "file": "appendRecord.prover",
+      "sha256": "e9150c785d4edbd179d60f30db8de26a468b33e619f77e98b5b97108fab7167b"
+    },
+    {
+      "file": "appendRecord.verifier",
+      "sha256": "8426f9c5be917692f719c56493e122a47ad695e46d10b5f3aeb5cb47be96b984"
+    },
+    {
+      "file": "beginTrip.prover",
+      "sha256": "bdc2879a646f53523c1637769e85bcab4af14cb3a3983d9bf33697c28d32bbe0"
+    },
+    {
+      "file": "beginTrip.verifier",
+      "sha256": "44c4bbffccb64b9a47714491c32942301cbf939344601c36850f04e99080d81a"
+    },
+    {
+      "file": "cancelTrip.prover",
+      "sha256": "828a653869ce3493b3a961ca96f92c746e25b266436f4dd40ba354c38d087163"
+    },
+    {
+      "file": "cancelTrip.verifier",
+      "sha256": "14a90c4fe943ef03fd49625219755b98195c104d4bc98ef7dedb42860c7bb011"
+    },
+    {
+      "file": "finishTrip.prover",
+      "sha256": "cfd23cd4f217de2ecf497096981285cf406de8b283b8ce4398564aef9bc705ae"
+    },
+    {
+      "file": "finishTrip.verifier",
+      "sha256": "889ec8d6a86c039cd5af30becbbeeada39112db005a59676dfa6883b8062312f"
+    },
+    {
+      "file": "initialize.prover",
+      "sha256": "fd7c47d09708cb0259c48d4e53aabcda7d2b4b2333f46f62374b911eb8d0614c"
+    },
+    {
+      "file": "initialize.verifier",
+      "sha256": "97abab13f4c02ea5b56c890daf99c8574a069e76c4e8b8792e46a7face980d1c"
+    }
+  ]
+}

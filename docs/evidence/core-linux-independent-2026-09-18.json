@@ -1,0 +1,23 @@
+{
+  "execution": "offline-differential",
+  "oracle": "python-integer-reference",
+  "seed": 20260918,
+  "validCases": 332,
+  "rejectionCases": 15,
+  "result": "passed",
+  "platform": "linux",
+  "architecture": "x64",
+  "node": "v24.14.1",
+  "insuranceCircuitProofVerified": false,
+  "chainRequested": false,
+  "completedAt": "2026-09-18T03:24:26.939Z",
+  "environment": "WSL2 Linux, fresh /tmp runtime and npm cache",
+  "unitTestsPassed": 53,
+  "typecheck": "passed",
+  "samePhysicalHost": true,
+  "coreSourceSha256": "98ad6fc05effc9a2033510809b5d6366fa8622d8661fa27b5ca12b6e0a7c770a",
+  "harnessCorrections": [
+    "Explicit Node types for new differential runner",
+    "uint32 input overflow classified NUMERIC_RANGE_EXCEEDED; rejection retained"
+  ]
+}
