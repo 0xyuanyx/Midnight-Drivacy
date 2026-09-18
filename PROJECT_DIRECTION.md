@@ -39,6 +39,13 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - Auth 계정이 있어도 서비스 사용자 행이 없으면 `USER_NOT_INITIALIZED`, 역할 행이 없거나 유효하지 않으면 `ROLE_NOT_ASSIGNED`를 반환한다. 자동 사용자 생성이나 기본 `DRIVER` 역할 부여는 하지 않는다.
 - 이 단계에서 DB 스키마·RLS·GRANT·시드와 기존 migration은 변경하지 않았고, 별도 Express 로그인 API도 만들지 않았다. Frontend는 Supabase Auth로 로그인하고 얻은 Access Token만 Backend에 전달한다.
 
+### 동의·본인 보험계약·특약 선택 Backend — 2026-09-18 구현
+
+- DRIVER는 `GET`/`POST /consent`으로 현재 동의를 조회·기록한다. 동의 row가 없으면 `CONSENT_NOT_FOUND`를 반환하며, Shared `Consent`에 null timestamp를 만들지 않는다. 현재 MVP에는 철회·버전·이력이 없다.
+- DRIVER 전용 계약 API는 SQL 조회부터 `owner_user_id = req.authUser.id`을 포함한다. 타인 계약과 존재하지 않는 계약은 모두 `INSURANCE_CONTRACT_NOT_FOUND`로 처리한다.
+- 특약 자체 상태와 DRIVER의 현재 선택 상태는 `special_contract_selections`로 분리한다. 계약당 한 선택을 atomic UPSERT로 유지하고, 복합 FK 및 애플리케이션 검증으로 다른 계약 특약의 선택을 막는다. `is_eligible = true`인 특약만 선택할 수 있다.
+- `20260918025120_add_special_contract_selection`은 원격에 이미 적용된 migration의 저장소 동일본이다. 브라우저의 업무 DB 직접 접근, RLS/GRANT 변경, 실제 원격 fixture 입력은 하지 않았다. Rule/LLM·운행·증명·Midnight 작업은 범위 밖으로 유지한다.
+
 1. 예시 보험사 한 곳과 안전운전 특약 한 종을 사용한다.
 2. 예시 약관 한 종의 **LLM·Document Agent 규칙 초안 생성을 우선 시도**한다. 보험사 담당자가 초안을 수정·검토하고 최종 승인한다. 변환 실패 시 지원하는 규칙 값을 수기로 입력하며 동일한 검토·승인 경로를 사용한다. LLM 방식이 구현되지 않으면 제외하고 수기 입력 경로를 유지한다. 이는 기존의 수기 입력 전용 결정을 변경한 2026-09-16 합의다.
 3. 가입자는 해당 특약을 선택하고 **두 번 이상의 모의 운행**을 순차적으로 처리한다. 실제 GPS, 외부 내비게이션 및 실제 보험사 시스템 연동은 데모 범위 밖이다.

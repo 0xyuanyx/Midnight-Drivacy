@@ -2,13 +2,20 @@ import { createApp } from "./app.js";
 import { PgAuthRepository } from "./auth/auth-repository.js";
 import { createSupabaseAuthVerifier } from "./auth/supabase-auth.js";
 import { loadEnvironment } from "./config/env.js";
+import { PgConsentRepository } from "./consent/consent-repository.js";
+import { ConsentService } from "./consent/consent-service.js";
 import { createDatabasePool } from "./db/pool.js";
+import { PgInsuranceRepository } from "./insurance/insurance-repository.js";
+import { InsuranceService } from "./insurance/insurance-service.js";
 
 const { port, databaseUrl, supabaseUrl, supabasePublishableKey } = loadEnvironment();
 const pool = createDatabasePool(databaseUrl);
+const authRepository = new PgAuthRepository(pool);
 const app = createApp({
-  authRepository: new PgAuthRepository(pool),
+  authRepository,
   supabaseAuthVerifier: createSupabaseAuthVerifier(supabaseUrl, supabasePublishableKey),
+  consentService: new ConsentService(new PgConsentRepository(pool)),
+  insuranceService: new InsuranceService(new PgInsuranceRepository(pool)),
 });
 
 app.listen(port, () => {

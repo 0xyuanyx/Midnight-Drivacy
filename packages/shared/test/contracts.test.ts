@@ -4,6 +4,7 @@ import {
   InsuranceContractSchema,
   RoleSchema,
   SpecialContractSchema,
+  SpecialContractSelectionSchema,
   UserSchema,
 } from "../src/index.js";
 import { describe, expect, it } from "vitest";
@@ -47,6 +48,15 @@ describe("shared first-vertical contracts", () => {
       specialContracts: [specialContract],
     }).success).toBe(true);
     expect(InsuranceContractSchema.safeParse({ id: contractId }).success).toBe(false);
+  });
+
+  it("validates the minimal current special-contract selection", () => {
+    expect(SpecialContractSelectionSchema.safeParse({
+      insuranceContractId: contractId,
+      specialContractId: "special-1",
+      selectedAt: "2026-09-18T10:00:00.000Z",
+    }).success).toBe(true);
+    expect(SpecialContractSelectionSchema.safeParse({ insuranceContractId: contractId }).success).toBe(false);
   });
 
   it("validates the common API error shape", () => {
