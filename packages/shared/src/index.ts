@@ -3,6 +3,7 @@ export * from "./auth.js";
 export * from "./consent.js";
 export * from "./driving.js";
 export * from "./insurance.js";
+export * from "./rule-management.js";
 export * from "./bc-contract.js";
 
 export type HealthStatus = "ok";
