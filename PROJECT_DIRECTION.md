@@ -1,6 +1,6 @@
 # Drivacy 프로젝트 방향성
 
-마지막 업데이트: 2026-09-17 (KST)
+마지막 업데이트: 2026-09-18 (KST)
 
 이 문서는 팀과 개발 도구가 공유하는 현재 방향의 기준이다. 실제 구현·검증 결과는 README와 코드가 증명하며, 이 문서의 계획을 구현 완료로 표현하지 않는다.
 
@@ -31,6 +31,13 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - 브라우저의 업무 테이블 직접 접근은 허용하지 않으며 RLS 정책은 추가하지 않았다. 향후 Backend의 서버 전용 pg 실행 계정과 객체 단위 접근 제어 방식이 확정될 때 별도로 구성한다.
 - 이 적용은 DB 스키마 보존 단계이며 Supabase Auth 로그인, Backend pg 연결, 실제 계약 조회 API, Rule/State·주행·증명·Midnight 구현 완료를 뜻하지 않는다.
 - `Consent.consentedAt`은 Shared에서 필수 ISO 문자열이나 DB의 `consented_at`은 NULL을 허용한다. 동의 시각의 필수 정책은 후속 계약 결정으로 남긴다.
+
+### Supabase Auth Backend 인증 기반 — 2026-09-18 구현
+
+- Backend는 `Authorization: Bearer <access_token>`을 Supabase `auth.getUser(accessToken)`으로 검증한 뒤, 검증 결과의 UUID로 `public.users` 존재와 `public.user_roles.role`을 조회한다. Access Token을 단순 decode하거나 JWT metadata·클라이언트 입력으로 역할을 판단하지 않는다.
+- `GET /auth/me`은 검증된 `id`, `email`, DB 역할로 구성한 Shared `User`를 반환한다. `requireAuth`와 `requireRole` middleware는 이후 업무 API의 인증·역할 기반 권한 검사 토대다.
+- Auth 계정이 있어도 서비스 사용자 행이 없으면 `USER_NOT_INITIALIZED`, 역할 행이 없거나 유효하지 않으면 `ROLE_NOT_ASSIGNED`를 반환한다. 자동 사용자 생성이나 기본 `DRIVER` 역할 부여는 하지 않는다.
+- 이 단계에서 DB 스키마·RLS·GRANT·시드와 기존 migration은 변경하지 않았고, 별도 Express 로그인 API도 만들지 않았다. Frontend는 Supabase Auth로 로그인하고 얻은 Access Token만 Backend에 전달한다.
 
 1. 예시 보험사 한 곳과 안전운전 특약 한 종을 사용한다.
 2. 예시 약관 한 종의 **LLM·Document Agent 규칙 초안 생성을 우선 시도**한다. 보험사 담당자가 초안을 수정·검토하고 최종 승인한다. 변환 실패 시 지원하는 규칙 값을 수기로 입력하며 동일한 검토·승인 경로를 사용한다. LLM 방식이 구현되지 않으면 제외하고 수기 입력 경로를 유지한다. 이는 기존의 수기 입력 전용 결정을 변경한 2026-09-16 합의다.

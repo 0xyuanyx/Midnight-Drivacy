@@ -11,6 +11,11 @@
   },
   "dependencies": {
     "@drivacy/shared": "file:../../packages/shared",
-    "express": "^5.0.0"
+    "@supabase/supabase-js": "^2.116.0",
+    "express": "^5.0.0",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

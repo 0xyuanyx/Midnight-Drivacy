@@ -1,11 +1,14 @@
 export interface Environment {
   nodeEnv: string;
   port: number;
+  databaseUrl: string;
+  supabaseUrl: string;
+  supabasePublishableKey: string;
 }
 
 /**
- * Only non-secret process settings are accepted in this foundation. Service
- * credentials will be injected through deployment secret management later.
+ * Runtime configuration is checked before the server starts so a partially
+ * configured deployment cannot fail later with an ambiguous auth or DB error.
  */
 export const loadEnvironment = (): Environment => {
   const nodeEnv = process.env.NODE_ENV ?? "development";
@@ -16,5 +19,19 @@ export const loadEnvironment = (): Environment => {
     throw new Error("PORT must be an integer between 1 and 65535");
   }
 
-  return { nodeEnv, port };
+  const databaseUrl = requiredEnvironment("DATABASE_URL");
+  const supabaseUrl = requiredEnvironment("SUPABASE_URL");
+  const supabasePublishableKey = requiredEnvironment("SUPABASE_PUBLISHABLE_KEY");
+
+  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey };
+};
+
+const requiredEnvironment = (name: string): string => {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} must be configured before starting the backend`);
+  }
+
+  return value;
 };
