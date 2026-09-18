@@ -50,6 +50,21 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 
 사용자는 기능 분담의 **C(Core 계산·Midnight 검증)**를 맡기로 확정했다. C의 작업 범위와 B·A와의 연결 책임은 `docs/TEAM_WORKING_PLAN.md`의 채택한 분담을 따른다. A·B의 실명 연결은 미정이다.
 
+### Rule 관리 DB 기반 — 2026-09-18 적용 완료
+
+- Supabase 원격 DB에는 `insurer_memberships`, `rules`, `rule_versions`를 추가했으며, `20260918100823_add_rule_management` 및 `20260918100935_fix_rule_version_trigger_search_path` migration의 동일 SQL을 저장소에 보존한다.
+- `insurer_memberships`는 INSURER 역할과 실제 보험사 소속을 분리하며, 한 사용자가 여러 보험사에 소속될 수 있으므로 `user_id` 단독 UNIQUE를 두지 않는다. 현재 소속 행과 fixture는 생성하지 않았다.
+- 특약 하나에는 logical Rule 하나를 연결하고, 변경 이력과 실제 Rule 내용은 Rule Version으로 관리한다. Rule Version은 JSONB 객체 정의, `DRAFT`/`APPROVED` 상태와 승인 메타데이터를 보관한다.
+- DRAFT에서 APPROVED 전이는 허용하지만 승인된 Rule Version은 수정·삭제할 수 없다. 변경이 필요하면 새 Version을 만든다. Rule ID·Version·보험사·특약 연결은 관계형 데이터로 조립한다.
+- 현재 demo Rule 값은 실제 보험상품의 확정 규칙이 아닌 개발용 예시다. 세 신규 업무 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 회수하며, 브라우저 직접 DB 접근은 허용하지 않는다.
+- 이번 단계는 Rule 관리 DB 기반 적용 완료까지다. 실제 membership row, Rule Draft·수정·승인 API, Rule E2E, Rule Hash, Midnight 등록은 아직 구현되지 않았다.
+
+### 모의 주행 시작 계약과 migration 선행조건 — 2026-09-18 결정
+
+- 가입자의 운행 시작 요청은 보험계약, 선택 특약, 평가기간만 전달한다. 멱등성은 `Idempotency-Key` 헤더로 식별하며, Rule Version·직전 Confirmed State·거리·점수·이벤트·할인 결과를 클라이언트가 전달하지 않는다.
+- Backend가 로그인 사용자, 계약·특약, 평가기간, Active Rule Version과 직전 Confirmed State를 조회해 모의 기록을 한 번 생성하고 재시도에 재사용하는 방향이다. 이는 구현 계획이며 운행 API·생성기·Core·증명 경로는 아직 구현하지 않았다.
+- 현재 저장소에는 `TripSchema`, `CalculateTripRequest`, Rule Version, Confirmed State, State Transition, Processing Job의 확정 계약·테이블·PK가 없다. 따라서 `driving_sessions`/`processing_jobs` migration은 FK 없이 만들지 않고 선행 계약이 확정될 때까지 보류한다. 원격 Supabase에는 어떤 migration도 적용하지 않았다.
+
 1. 예시 보험사 한 곳과 안전운전 특약 한 종을 사용한다.
 2. 예시 약관 한 종의 **LLM·Document Agent 규칙 초안 생성을 우선 시도**한다. 보험사 담당자가 초안을 수정·검토하고 최종 승인한다. 변환 실패 시 지원하는 규칙 값을 수기로 입력하며 동일한 검토·승인 경로를 사용한다. LLM 방식이 구현되지 않으면 제외하고 수기 입력 경로를 유지한다. 이는 기존의 수기 입력 전용 결정을 변경한 2026-09-16 합의다.
 3. 가입자는 해당 특약을 선택하고 **두 번 이상의 모의 운행**을 순차적으로 처리한다. 2026-09-18 논의에 따라 주행 문서 업로드 대신 `운행 시작` 요청으로 Backend가 모의 기록을 생성하는 방향을 정리했다. 승인된 최소 거리와 이전 확정 누적 거리에 맞춰 데모 거리를 생성하고 시간·이벤트는 합리적인 관계를 갖도록 구성한다. 상세 비율·확률은 추천안이며 생성기·API·화면은 미구현이다. [모의 주행 설계](docs/DRIVING_SIMULATION.md)를 따른다. 실제 GPS, 외부 내비게이션 및 실제 보험사 시스템 연동은 데모 범위 밖이다.

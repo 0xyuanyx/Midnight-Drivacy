@@ -6,6 +6,14 @@
 
 개발용 demo fixture는 migration과 분리된 `db/seeds/dev_first_vertical.sql`에 있다. 실행 시 개발 DRIVER UUID를 명시적으로 넘겨야 하며, 실제 UUID나 인증정보를 저장소에 넣지 않는다.
 
+모의 주행 `driving_sessions` 및 `processing_jobs` migration은 아직 만들지 않았다. 현재 저장소에는 적용 Rule Version과 Confirmed State의 확정 테이블·PK·처리 job 계약이 없어, FK 없는 UUID 참조나 임의 Rule/State 구조를 추가하지 않는다.
+
+## Rule DB 기반
+
+`20260918100823_add_rule_management.sql`과 `20260918100935_fix_rule_version_trigger_search_path.sql`은 원격 Supabase에 이미 적용된 migration의 동일본이다. 전자는 `insurer_memberships`, `rules`, `rule_versions`를 추가하고, 후자는 승인본 변경 차단 trigger 함수의 `search_path`를 고정한다.
+
+`insurer_memberships`는 한 사용자가 여러 보험사에 소속될 수 있으므로 `user_id` 단독 UNIQUE를 두지 않는다. 특약 하나에는 논리적 Rule 하나만 연결하며, Rule Version은 그 Rule의 버전을 보관한다. 버전 정의는 JSONB 객체로만 저장하고 `DRAFT` 또는 `APPROVED` 상태를 사용한다. 승인본은 갱신·삭제할 수 없지만 DRAFT에서 APPROVED로의 전이는 가능하다. Rule Hash·Midnight 연동은 이 migration에 포함하지 않는다.
+
 ## DB Row와 Shared API 계약 매핑
 
 DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한을 검사한 뒤 다음 JOIN 및 변환을 수행할 예정이며, 이 문서는 향후 API 구현을 지시하지 않는다.
@@ -28,8 +36,8 @@ DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한
 
 - Shared `Consent.consentedAt`은 필수 ISO 8601 문자열이지만, DB `consents.consented_at`은 원격 적용본대로 NULL을 허용한다. 동의 시각을 반드시 기록할지 확정한 뒤 API 경계 또는 후속 Migration에서 조정한다.
 - DB ID는 UUID이고 Shared ID는 비어 있지 않은 문자열이다. UUID는 문자열로 표현 가능하며, API UUID 엄격 검증을 채택할 근거가 아직 없어 Shared는 변경하지 않는다.
-- INSURER 계정과 `insurers` 행의 연결, 서버 전용 pg 실행 계정/권한, 동의 종류·버전·철회 및 사용자 삭제 정책은 미정이다. MVP는 보험계약당 현재 특약 선택 하나를 유지하며, 선택 이력과 복수 선택 확장은 후속 결정 사항이다.
+- INSURER 계정과 `insurers` 행의 연결은 `insurer_memberships` 스키마로 표현할 수 있지만, 현재 fixture·소속 행은 만들지 않았다. 서버 전용 pg 실행 계정/권한, 동의 종류·버전·철회 및 사용자 삭제 정책은 미정이다. MVP는 보험계약당 현재 특약 선택 하나를 유지하며, 선택 이력과 복수 선택 확장은 후속 결정 사항이다.
 
 ## 권한 경계
 
-일곱 업무 테이블은 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 회수했다. 브라우저 직접 정책은 만들지 않았으며, 서버 전용 접근 방식과 권한은 후속 단계에서 결정한다. Connection String·비밀번호·Supabase Secret은 이 저장소나 이 문서에 기록하지 않는다.
+열 업무 테이블은 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 회수했다. 브라우저 직접 정책은 만들지 않았으며, 서버 전용 접근 방식과 권한은 후속 단계에서 결정한다. Connection String·비밀번호·Supabase Secret은 이 저장소나 이 문서에 기록하지 않는다.

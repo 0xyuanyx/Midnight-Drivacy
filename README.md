@@ -69,7 +69,7 @@ v3 실제 지갑·DB·최종 평가 재검증은 Docker 시작 오류로 중단�
 `./scripts/check-driving-state.ps1 -Live -BrowserIntegration`으로 연결 검사를 실행합니다.
 공개 local genesis를 쓰며 실제 가입자 Auth/Storage·제품 화면·보험사 결정·Preprod와 구분합니다.
 
-2026-09-18 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 여섯 테이블과 `special_contract_selections`를 정의합니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. 이 단계는 로그인 proxy, 신규 사용자 자동 provisioning, Rule/LLM, 주행·State/ZK/Midnight 구현을 포함하지 않습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
+2026-09-18 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. 모의 주행 시작 Shared 요청은 계약·특약·평가기간과 `Idempotency-Key` 규약만 정의하며, 실제 운행 API·Trip 생성·Rule/State/Core/증명 처리는 아직 구현하지 않았습니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 일곱 테이블과 `insurer_memberships`, `rules`, `rule_versions`를 정의합니다. Rule DB 기반은 적용됐지만 Rule API·Shared Rule DTO·Rule Hash·LLM·Midnight 연동은 구현되지 않았습니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. 이 단계는 로그인 proxy, 신규 사용자 자동 provisioning, 주행·State/ZK/Midnight 구현을 포함하지 않습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
 
 ## Planned demo
 
@@ -108,8 +108,8 @@ an npm workspace, a strict TypeScript Express 5 service, a Zod-backed shared
 contract package, a `GET /health` endpoint, automated health and contract
 testing, and a production Dockerfile. It connects Supabase Auth and Postgres
 for the implemented first-vertical authentication, consent, contract, and
-special-contract selection APIs. Insurance rules, trips, and Midnight remain
-unimplemented.
+special-contract selection APIs. The applied Rule database foundation is stored
+as migrations, while Rule APIs, trips, and Midnight remain unimplemented.
 
 Requirements: Node.js 24 LTS and npm.
 

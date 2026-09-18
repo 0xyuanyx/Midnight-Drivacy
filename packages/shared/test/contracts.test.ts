@@ -2,6 +2,7 @@ import {
   ApiErrorSchema,
   ConsentSchema,
   InsuranceContractSchema,
+  StartDrivingSessionRequestSchema,
   RoleSchema,
   SpecialContractSchema,
   SpecialContractSelectionSchema,
@@ -57,6 +58,18 @@ describe("shared first-vertical contracts", () => {
       selectedAt: "2026-09-18T10:00:00.000Z",
     }).success).toBe(true);
     expect(SpecialContractSelectionSchema.safeParse({ insuranceContractId: contractId }).success).toBe(false);
+  });
+
+  it("accepts only client-selectable simulated-driving start inputs", () => {
+    const request = {
+      insuranceContractId: "1c8bb808-e7f3-4e49-9a5b-67501f9454d6",
+      specialContractId: "58710811-b501-44f6-bced-8c0f5e646e65",
+      evaluationPeriod: "2026-Q3",
+    };
+
+    expect(StartDrivingSessionRequestSchema.safeParse(request).success).toBe(true);
+    expect(StartDrivingSessionRequestSchema.safeParse({ ...request, ruleVersionId: "client-value" }).success).toBe(false);
+    expect(StartDrivingSessionRequestSchema.safeParse({ ...request, insuranceContractId: "not-a-uuid" }).success).toBe(false);
   });
 
   it("validates the common API error shape", () => {
