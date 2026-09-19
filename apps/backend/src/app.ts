@@ -4,6 +4,8 @@ import type { AuthDependencies } from "./auth/auth-service.js";
 import type { ConsentService } from "./consent/consent-service.js";
 import type { InsuranceService } from "./insurance/insurance-service.js";
 import type { RuleService } from "./rule/rule-service.js";
+import type { RuleRegistrationService } from "./rule-registration/rule-registration-service.js";
+import { createRuleRegistrationRouter } from "./routes/rule-registration.js";
 import { createRuleRouter } from "./routes/rules.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { requestId } from "./middleware/request-id.js";
@@ -16,6 +18,7 @@ export interface BackendDependencies extends AuthDependencies {
   consentService?: ConsentService;
   insuranceService?: InsuranceService;
   ruleService?: RuleService;
+  ruleRegistrationService?: RuleRegistrationService;
 }
 
 /**
@@ -37,6 +40,7 @@ export const createApp = (dependencies?: BackendDependencies): express.Express =
       app.use(createInsuranceRouter(dependencies, dependencies.insuranceService));
     }
     if (dependencies.ruleService) app.use(createRuleRouter(dependencies, dependencies.ruleService));
+    if (dependencies.ruleRegistrationService) app.use(createRuleRegistrationRouter(dependencies, dependencies.ruleRegistrationService));
   }
   app.use(notFoundHandler);
   app.use(errorHandler);

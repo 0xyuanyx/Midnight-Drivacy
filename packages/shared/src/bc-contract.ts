@@ -50,6 +50,19 @@ export const RegisteredRuleSchema = ApprovedRuleSchema.extend({
   adapterProfile: id, network: z.enum(["fixture", "local", "preprod"]),
   chainContractAddress: chainValue, registrationTransactionId: chainValue,
 }).strict();
+export const ChainDeploymentRefSchema = z.object({
+  network: z.enum(["fixture", "local", "preprod"]), adapterProfile: id,
+  chainContractAddress: chainValue,
+}).strict();
+export const DeployRuleRequestSchema = z.object({
+  scope: ScopeSchema, approvedRule: ApprovedRuleSchema,
+}).strict();
+export const DeployRuleResultSchema = z.object({
+  deploymentTransactionId: chainValue, registeredRule: RegisteredRuleSchema,
+}).strict();
+export const UpdateRuleRequestSchema = z.object({
+  scope: ScopeSchema, deployment: ChainDeploymentRefSchema, approvedRule: ApprovedRuleSchema,
+}).strict();
 const ruleRef = z.object({ id, version: uint32.min(1), ruleHash: chainValue }).strict();
 
 const metrics = z.object({
@@ -199,6 +212,10 @@ export type TripProcessingResult = z.infer<typeof TripProcessingResultSchema>;
 export type Scope = z.infer<typeof ScopeSchema>;
 export type ApprovedRule = z.infer<typeof ApprovedRuleSchema>;
 export type RegisteredRule = z.infer<typeof RegisteredRuleSchema>;
+export type ChainDeploymentRef = z.infer<typeof ChainDeploymentRefSchema>;
+export type DeployRuleRequest = z.infer<typeof DeployRuleRequestSchema>;
+export type DeployRuleResult = z.infer<typeof DeployRuleResultSchema>;
+export type UpdateRuleRequest = z.infer<typeof UpdateRuleRequestSchema>;
 export type Trip = z.infer<typeof TripSchema>;
 export type State = z.infer<typeof StateSchema>;
 export type ChainConfirmation = z.infer<typeof ChainConfirmationSchema>;
@@ -229,7 +246,8 @@ export function canFinalizeState(input: unknown, requestInput: unknown): boolean
 
 // Type signatures for later C implementations; no chain/proof implementation here.
 export interface BCAdapter {
-  registerRule(input: ApprovedRule): Promise<RegisteredRule>;
+  deployRule(input: DeployRuleRequest): Promise<DeployRuleResult>;
+  updateRule(input: UpdateRuleRequest): Promise<RegisteredRule>;
   calculateTrip(input: CalculateTripRequest): Promise<CandidateState>;
   processTrip(input: CalculateTripRequest, candidate: CandidateState): Promise<TripProcessingResult>;
   getTripStatus(operationId: string): Promise<TripProcessingResult>;

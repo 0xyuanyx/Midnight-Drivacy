@@ -30,6 +30,12 @@ State·체인 이력은 다음 운행으로 유지하고, B가 반영 확인 후
 
 ## Rule
 
+### Subscriber-scope Rule registration (2026-09-19)
+
+Each subscriber scope has its own Chain Contract. `BCAdapter.deployRule({ scope, approvedRule })` is used only when that scope has no deployment; it returns a `DeployRuleResult` containing the deployment transaction ID and the confirmed registered rule. `BCAdapter.updateRule({ scope, deployment, approvedRule })` updates a later approved Rule version on the existing contract.
+
+`ChainDeploymentRef` binds an update to its existing network, adapter profile, and contract address. A Rule-version change never creates a new evaluation period, Scope, or deployment, and it does not reset accumulated State or remove earlier registration history. B assembles Scope only after authorization and DB relationship checks; C remains responsible for the real hash, deployment/update transaction, and confirmation.
+
 `ApprovedRule`는 `approval: approved`와 `rule`로 구성한다. 승인 메타데이터의 진위·보험사 권한은 B가 검사한다. `RegisteredRule`에는 추가로 `registration: chain-confirmed`, `ruleHash`, `adapterProfile`, `network`, `chainContractAddress`, `registrationTransactionId`가 필요하다. C의 실제 등록 결과를 받아 B가 저장한다. 초안·등록 대기·실패는 운행 계산 요청에서 받지 않는다.
 
 | Rule 필드 | 의미 | 임시 Rule v1 |

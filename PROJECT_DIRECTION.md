@@ -82,6 +82,12 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 
 ## 문제 제시 기준 — 2026-09-17 확정
 
+### 가입자별 Chain Rule registration 기반 — 2026-09-19 확정
+
+- 가입자·보험계약·특약 조합의 evaluation scope는 특약 최초 선택 시점부터 보험계약 종료일까지 이어지는 누적 평가 범위다. 시작·종료 날짜는 KST 기준으로 만들고 Backend가 최초 생성한 evaluation period ID는 Rule version 변경에도 유지한다.
+- 가입자 Scope마다 별도 Chain Contract를 사용한다. 최초 APPROVED Rule은 `deployRule`로 배포하고, 이후 APPROVED version은 동일 deployment에 `updateRule`로 등록한다. v1 registration과 누적 State·운행 흐름은 삭제하거나 초기화하지 않는다.
+- 실제 C adapter가 연결되기 전 B는 Fake Adapter로 오케스트레이션만 검증한다. B는 Rule Hash, Compact/Midnight deploy·update transaction, 실제 chain confirmation을 생성하거나 완료로 주장하지 않는다.
+
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 
 ## 향후 검증 방식 — 2026-09-18 확정

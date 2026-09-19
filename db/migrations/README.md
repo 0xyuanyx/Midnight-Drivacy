@@ -16,6 +16,16 @@
 
 ## DB Row와 Shared API 계약 매핑
 
+## 가입자별 Rule registration 기반
+
+`20260918120239_add_rule_registrations.sql`과 `20260918120817_align_rule_registration_with_subscriber_scope.sql`은 원격 Supabase에 적용된 이력을 그대로 보존한다. 후자는 최초 registration 구조를 가입자별 Scope와 Chain Contract 모델로 정렬한다.
+
+- `evaluation_scopes`는 특약을 선택한 가입자의 누적 평가 범위다. 시작일은 `selected_at`, 종료일은 보험계약 `coverage_ends_at`을 KST 날짜로 저장하며, period ID는 최초 생성 뒤 Rule version 변경에도 유지한다.
+- `chain_scope_deployments`는 가입자 Scope·network·adapter profile별 Chain Contract다.
+- `rule_registrations`는 동일 Chain Contract에 등록된 Rule version 이력이다.
+
+Rule 변경은 평가 Scope나 누적 State를 초기화하지 않고, 기존 deployment와 v1 registration을 보존한 채 새 version registration만 추가한다. 신규 세 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 부여하지 않는다.
+
 DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한을 검사한 뒤 다음 JOIN 및 변환을 수행할 예정이며, 이 문서는 향후 API 구현을 지시하지 않는다.
 
 | DB 원본 | Shared 출력 |

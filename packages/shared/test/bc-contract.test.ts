@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CalculateTripRequestSchema, CandidateStateSchema, RuleSchema,
+  CalculateTripRequestSchema, CandidateStateSchema, DeployRuleRequestSchema, DeployRuleResultSchema, RuleSchema, UpdateRuleRequestSchema,
   TripProcessingResultSchema, canFinalizeState, serializeRule, serializeState, serializeDatasetRecord,
 } from "../src/bc-contract.js";
 
@@ -73,6 +73,13 @@ function result(execution: "fixture" | "live" = "fixture") {
 }
 
 describe("B↔C internal contract", () => {
+  it("models first deployment separately from an update on an existing contract", () => {
+    const approvedRule = { approval: "approved", rule };
+    const registeredRule = { ...approvedRule, registration: "chain-confirmed", ruleHash: "fixture-rule-hash", adapterProfile: "fixture-adapter", network: "fixture", chainContractAddress: "fixture-contract", registrationTransactionId: "register-tx" };
+    expect(DeployRuleRequestSchema.safeParse({ scope, approvedRule }).success).toBe(true);
+    expect(DeployRuleResultSchema.safeParse({ deploymentTransactionId: "deploy-tx", registeredRule }).success).toBe(true);
+    expect(UpdateRuleRequestSchema.safeParse({ scope, approvedRule, deployment: { network: "fixture", adapterProfile: "fixture-adapter", chainContractAddress: "fixture-contract" } }).success).toBe(true);
+  });
   it("accepts the two sequential fixtures with explicit candidate states", () => {
     expect(CalculateTripRequestSchema.parse(request()).previous.state.score).toBe(100);
     expect(CandidateStateSchema.parse(candidate()).state).toMatchObject({ score: 92, conditionsMet: false });

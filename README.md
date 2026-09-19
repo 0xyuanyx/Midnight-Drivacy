@@ -73,6 +73,10 @@ v3 실제 지갑·DB·최종 평가 재검증은 Docker 시작 오류로 중단�
 
 ## Planned demo
 
+### 2026-09-19 subscriber-scope Rule registration foundation
+
+The repository preserves the applied Supabase migrations for `evaluation_scopes`, `chain_scope_deployments`, and `rule_registrations`. The Backend has the authorization and orchestration boundary for an approved Rule: it creates or reuses a subscriber Scope, deploys only when there is no existing deployment, and otherwise updates the existing contract for a new Rule version. This is covered with a Fake Adapter only. It does not implement a Rule hash, a production C adapter, Compact/Midnight deployment or update transaction, or chain confirmation.
+
 1. 예시 약관의 LLM 규칙 초안 생성을 우선 시도하고, 보험사가 수정·검토해 승인합니다. 변환 실패 시 수기 입력 후 같은 승인 경로를 사용합니다.
 2. 가입자가 해당 특약을 선택하고 `운행 시작`을 눌러 Backend가 생성한 모의 기록으로 두 번 이상의 운행을 순서대로 처리합니다. 승인된 최소 거리와 이전 확정 누적 거리에 맞춘 거리·시간·이벤트 생성은 [모의 주행 설계](docs/DRIVING_SIMULATION.md)를 따릅니다. 생성기·운행 시작 API·진행 화면은 아직 미구현이며 상세 난수 범위는 추천안입니다.
 3. Dataset Merkle Tree로 제출 기록과 계산 입력을 연결하고, 운행별 승인 규칙 계산과 이전·신규 상태의 관계를 증명합니다. Midnight 검증과 체인 반영 확인 후에만 DB 신규 상태를 확정하며, 실패·미확정 시 이전 확정 상태를 유지합니다.
