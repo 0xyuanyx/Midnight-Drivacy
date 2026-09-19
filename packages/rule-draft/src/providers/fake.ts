@@ -14,11 +14,12 @@ function emptyCandidate(): RuleDraftCandidate {
 
 // Deterministic, no-network provider for tests, local dev, and manual fallback
 // when no real provider is configured. Returns a fixed candidate (all fields
-// null by default) regardless of input.
+// null by default) regardless of input. No model is called, so `model` is null.
 export function createFakeProvider(candidate: RuleDraftCandidate = emptyCandidate()): DraftProvider {
   return {
+    name: "fake",
     async extract() {
-      return candidate;
+      return { candidate, model: null };
     },
   };
 }

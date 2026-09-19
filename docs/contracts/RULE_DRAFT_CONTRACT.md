@@ -66,7 +66,8 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
     "hardBrakePenaltyPoints": "급제동 1회당 3점 감점",
     "hardAccelPenaltyPoints": null
   },
-  "issues": ["MISSING_FIELDS"]
+  "issues": ["MISSING_FIELDS"],
+  "provider": { "name": "gemini", "model": "gemini-3.8-flash" }
 }
 ```
 
@@ -92,7 +93,8 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
     "hardBrakePenaltyPoints": null,
     "hardAccelPenaltyPoints": null
   },
-  "issues": ["UNVERIFIED_EXTRACTION"]
+  "issues": ["UNVERIFIED_EXTRACTION"],
+  "provider": { "name": "gemini", "model": "gemini-3.7-flash" }
 }
 ```
 
@@ -110,6 +112,18 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
 | `PROVIDER_TIMEOUT` | **신규 제안** | Provider 호출이 타임아웃(기본 20s, P2-3 제안값)됨 |
 | `PDF_NO_TEXT` | **신규 제안** | PDF에서 추출 가능한 텍스트가 없음(OCR 미지원) |
 | `PDF_TOO_LARGE` | **신규 제안** | PDF 크기·페이지 수가 한도 초과(P1-2 한도표 참조) |
+
+### 3.4 `provider` 메타 필드 (P2-9, 확정 — 2026-09-19 사용자 결정)
+
+모든 `RuleDraftResult`(`draft`·`manual_required` 공통)에 `provider: { name: "gemini" | "fake", model: string | null }`가 포함된다. A 패키지 내부 DTO이므로 B·C 합의 대상이 아니다.
+
+| 상황 | `model` 값 |
+| --- | --- |
+| 정상 초안(`draft`) 또는 호출 후 검증 실패(`UNVERIFIED_EXTRACTION` 등) | 실제로 응답한 모델 ID. 기본 모델의 재시도(503·429·네트워크)가 모두 실패해 `GEMINI_FALLBACK_MODELS`의 모델이 응답했다면 그 폴백 모델 ID |
+| 호출 후 전부 실패(`PROVIDER_UNAVAILABLE`·`PROVIDER_TIMEOUT`·4xx 등 `EXTRACTION_FAILED`) | 마지막으로 시도한 모델 ID |
+| 호출 전 실패(`EMPTY_INPUT`·`INPUT_TOO_LONG`) 또는 `fake` provider | `null` |
+
+모델 ID는 provider가 호출마다 반환한다(`DraftProvider.extract()` → `{ candidate, model }`). 공유 provider 인스턴스의 상태로 읽지 않으므로 동시 요청끼리 모델 정보가 섞이지 않는다. `GEMINI_FALLBACK_MODELS` 기본값(`gemini-3.7-flash,gemini-3.5-flash`)은 현행 유지(503은 모델과 무관하게 발생함을 실측으로 확인했다).
 
 ---
 

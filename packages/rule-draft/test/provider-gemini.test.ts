@@ -55,7 +55,7 @@ describe("createGeminiProvider().extract", () => {
 
     const provider = createGeminiProvider({ apiKey: "key", model: "gemini-3.8-flash", fetchImpl });
     const result = await provider.extract("policy text");
-    expect(result).toEqual(candidate);
+    expect(result).toEqual({ candidate, model: "gemini-3.8-flash" });
   });
 
   it("[G2 수정] API 키를 URL 쿼리스트링이 아니라 헤더로 보낸다", async () => {
@@ -92,6 +92,10 @@ describe("createGeminiProvider().extract", () => {
       model: "gemini-3.8-flash",
       fetchImpl,
       timeoutMs: 1,
+      // [P2-8] Timeouts are retried (same as 503/429/network errors), then
+      // fall back to other models. Use near-zero backoff so this test stays
+      // fast even though every attempt (primary retries + 2 fallbacks) times out.
+      retryDelaysMs: [1, 1, 1],
     });
 
     let error: unknown;
@@ -123,5 +127,96 @@ describe("createGeminiProvider().extract", () => {
     const fetchImpl = async () => jsonResponse({ candidates: [] });
     const provider = createGeminiProvider({ apiKey: "key", model: "gemini-3.8-flash", fetchImpl });
     await expect(provider.extract("policy text")).rejects.toThrow(/no structured text/u);
+  });
+});
+
+// [P2-8] 503 재시도 + 폴백 모델 체인. 실제 백오프 지연은 retryDelaysMs로 근접 0으로 줄여 테스트를 빠르게 유지한다.
+describe("createGeminiProvider().extract 재시도/폴백 (P2-8)", () => {
+  it("4xx는 즉시 실패하고 재시도하지 않는다", async () => {
+    let callCount = 0;
+    const fetchImpl = async () => {
+      callCount += 1;
+      return jsonResponse({ error: "bad request" }, false, 400);
+    };
+    const provider = createGeminiProvider({
+      apiKey: "key",
+      model: "gemini-3.8-flash",
+      fetchImpl,
+      retryDelaysMs: [1, 1, 1],
+    });
+
+    await expect(provider.extract("policy text")).rejects.toThrow(/status 400/u);
+    expect(callCount).toBe(1);
+  });
+
+  it("503 후 재시도에서 성공하면 같은 모델의 결과를 반환한다", async () => {
+    let callCount = 0;
+    const fetchImpl = async () => {
+      callCount += 1;
+      if (callCount === 1) return jsonResponse({ error: "unavailable" }, false, 503);
+      return jsonResponse({
+        candidates: [{ content: { parts: [{ text: JSON.stringify(candidate) }] } }],
+      });
+    };
+    const provider = createGeminiProvider({
+      apiKey: "key",
+      model: "gemini-3.8-flash",
+      fetchImpl,
+      retryDelaysMs: [1, 1, 1],
+    });
+
+    const result = await provider.extract("policy text");
+    expect(result).toEqual({ candidate, model: "gemini-3.8-flash" });
+    expect(callCount).toBe(2);
+  });
+
+  it("기본 모델과 모든 폴백 모델이 계속 503이면 PROVIDER_UNAVAILABLE로 실패한다", async () => {
+    const calledModels: string[] = [];
+    const fetchImpl = async (url: string) => {
+      calledModels.push(url);
+      return jsonResponse({ error: "unavailable" }, false, 503);
+    };
+    const provider = createGeminiProvider({
+      apiKey: "key",
+      model: "gemini-3.8-flash",
+      fallbackModels: ["gemini-3.7-flash", "gemini-3.5-flash"],
+      fetchImpl,
+      retryDelaysMs: [1, 1, 1],
+    });
+
+    let error: unknown;
+    try {
+      await provider.extract("policy text");
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(RuleDraftProviderError);
+    expect((error as RuleDraftProviderError).code).toBe("PROVIDER_UNAVAILABLE");
+    expect((error as RuleDraftProviderError).model).toBe("gemini-3.5-flash");
+    // 기본 모델 4회(최초 1 + 재시도 3) + 폴백 2개 모델 각 1회 = 6회
+    expect(calledModels.filter((url) => url.includes("gemini-3.8-flash")).length).toBe(4);
+    expect(calledModels.some((url) => url.includes("gemini-3.7-flash"))).toBe(true);
+    expect(calledModels.some((url) => url.includes("gemini-3.5-flash"))).toBe(true);
+  });
+
+  it("기본 모델이 모두 실패해도 폴백 모델이 성공하면 그 모델의 결과를 반환한다", async () => {
+    const fetchImpl = async (url: string) => {
+      if (url.includes("gemini-3.7-flash")) {
+        return jsonResponse({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(candidate) }] } }],
+        });
+      }
+      return jsonResponse({ error: "unavailable" }, false, 503);
+    };
+    const provider = createGeminiProvider({
+      apiKey: "key",
+      model: "gemini-3.8-flash",
+      fallbackModels: ["gemini-3.7-flash", "gemini-3.5-flash"],
+      fetchImpl,
+      retryDelaysMs: [1, 1, 1],
+    });
+
+    const result = await provider.extract("policy text");
+    expect(result).toEqual({ candidate, model: "gemini-3.7-flash" });
   });
 });

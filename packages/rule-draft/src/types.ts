@@ -36,6 +36,19 @@ export type RuleDraftEvidence = z.infer<typeof RuleDraftEvidenceSchema>;
 export const RuleDraftStateSchema = z.enum(["draft", "manual_required"]);
 export type RuleDraftState = z.infer<typeof RuleDraftStateSchema>;
 
+// P2-9 (confirmed 2026-09-19): which provider/model produced the draft. `model`
+// is the model that actually answered (a fallback model if the primary one was
+// retried out), or the last model attempted when every attempt failed. It is
+// null when no model was called (input rejected before the call, fake provider).
+export const RuleDraftProviderNameSchema = z.enum(["gemini", "fake"]);
+export type RuleDraftProviderName = z.infer<typeof RuleDraftProviderNameSchema>;
+
+export const RuleDraftProviderMetaSchema = z.object({
+  name: RuleDraftProviderNameSchema,
+  model: z.string().nullable(),
+});
+export type RuleDraftProviderMeta = z.infer<typeof RuleDraftProviderMetaSchema>;
+
 // No `approved`, `ruleHash`, or `version` fields here by design (P1-1 §1):
 // those belong to B's approval schema, not this draft module.
 export const RuleDraftResultSchema = z.object({
@@ -44,6 +57,7 @@ export const RuleDraftResultSchema = z.object({
   values: RuleDraftValuesSchema,
   evidence: RuleDraftEvidenceSchema,
   issues: z.array(z.string()),
+  provider: RuleDraftProviderMetaSchema,
 });
 export type RuleDraftResult = z.infer<typeof RuleDraftResultSchema>;
 
@@ -52,4 +66,10 @@ export interface RuleDraftCandidate {
   evidence: Partial<Record<RuleDraftFieldName, string | null>>;
 }
 
-export type RuleDraftExtractor = (policyText: string) => Promise<RuleDraftCandidate>;
+// What a provider hands back to createRuleDraft: the candidate plus the model
+// that produced it. Returned per call (not read from provider state) so
+// concurrent calls on one shared provider can't see each other's model.
+export interface RuleDraftExtraction {
+  candidate: RuleDraftCandidate;
+  model: string | null;
+}
