@@ -12,6 +12,8 @@ describe("loadEnvironment", () => {
       DATABASE_URL: "postgresql://user:password@localhost:5432/drivacy",
       SUPABASE_URL: "https://example.supabase.co",
       SUPABASE_PUBLISHABLE_KEY: "publishable-key",
+      MIDNIGHT_NETWORK: "fixture",
+      MIDNIGHT_ADAPTER_PROFILE: "test-adapter",
     };
   });
 
@@ -34,6 +36,8 @@ describe("loadEnvironment", () => {
       databaseUrl: process.env.DATABASE_URL,
       supabaseUrl: process.env.SUPABASE_URL,
       supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY,
+      midnightNetwork: "fixture",
+      midnightAdapterProfile: "test-adapter",
     });
   });
 });

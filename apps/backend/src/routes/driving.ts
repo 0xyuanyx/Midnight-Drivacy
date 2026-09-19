@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { z } from "zod";
+import { IdempotencyKeySchema, StartDrivingSessionRequestSchema } from "@drivacy/shared";
+import type { AuthDependencies } from "../auth/auth-service.js";
+import { AppError } from "../errors/app-error.js";
+import { createRequireAuth } from "../middleware/require-auth.js";
+import { requireRole } from "../middleware/require-role.js";
+import type { DrivingService } from "../driving/driving-service.js";
+const uuid=z.uuid();
+export const createDrivingRouter=(auth:AuthDependencies,service:DrivingService)=>{const r=Router(),driver=[createRequireAuth(auth),requireRole("DRIVER")];const session=(value:string|string[])=>{const p=uuid.safeParse(value);if(!p.success)throw new AppError("INVALID_REQUEST","Driving session ID must be a UUID",400);return p.data;};r.post("/driving-sessions",...driver,async(q,p)=>{const input=StartDrivingSessionRequestSchema.safeParse(q.body),key=IdempotencyKeySchema.safeParse(q.header("Idempotency-Key"));if(!input.success||!key.success)throw new AppError("INVALID_REQUEST","Driving session request is invalid",400);p.json(await service.start(q.authUser!.id,input.data,key.data));});r.get("/driving-sessions/:sessionId",...driver,async(q,p)=>p.json(await service.get(session(q.params.sessionId),q.authUser!.id)));r.post("/driving-sessions/:sessionId/end",...driver,async(q,p)=>p.json(await service.end(session(q.params.sessionId),q.authUser!.id)));return r;};

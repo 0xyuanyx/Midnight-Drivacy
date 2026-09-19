@@ -5,6 +5,8 @@
 이 문서는 문서 업로드 대신 백엔드에서 모의 주행기록을 생성하는 방향을 정리한다.
 생성기·운행 시작 API·진행 화면의 구현 완료 보고가 아니다.
 
+새 운행은 단순 APPROVED Rule이 아니라 현재 runtime Scope Deployment에서 chain-confirmed 등록 후 `current_rule_version_id`로 지정된 Rule을 사용한다. 생성한 운행은 그 Rule Version을 고정하며 이후 갱신으로 과거 운행의 기준을 바꾸지 않는다.
+
 ## 이번에 정리한 방향
 
 - 가입자가 `운행 시작`을 누르면 백엔드에서 합리적인 범위의 모의 주행기록을 생성한다.

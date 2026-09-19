@@ -26,6 +26,10 @@
 
 `rule_registrations_rule_version_id_idx`는 Rule version 기준 registration 조회를 위한 인덱스이며, 원격 적용 구조와 동일하게 보존한다.
 
+`20260919131613_add_current_rule_version_to_chain_deployments.sql`과 `20260919131643_index_current_rule_registration_fk.sql`은 현재 runtime Deployment의 실제 chain-confirmed 적용 Rule을 명시한다. `current_rule_version_id`는 단순 APPROVED Rule이 아니라 같은 Deployment의 `rule_registrations` 이력에 존재하는 version만 가리킬 수 있다.
+
+`20260919125224_add_driving_simulation_sessions.sql`은 모의 운행 metadata인 `driving_sessions`와 비공개 원본인 `driving_segments`를 추가한다. Session은 Scope·생성 당시 Rule Version·Idempotency-Key와 연결하고, Segment의 contiguous 순서가 후속 Core/Merkle 입력이 된다. DB `bigint` metric은 Backend에서 Shared uint32 number로 범위를 검증해 변환한다.
+
 Rule 변경은 평가 Scope나 누적 State를 초기화하지 않고, 기존 deployment와 v1 registration을 보존한 채 새 version registration만 추가한다. 신규 세 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 부여하지 않는다.
 
 DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한을 검사한 뒤 다음 JOIN 및 변환을 수행할 예정이며, 이 문서는 향후 API 구현을 지시하지 않는다.

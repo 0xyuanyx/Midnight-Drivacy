@@ -1,0 +1,16 @@
+import { DrivingSessionResponseSchema, RuleSchema, type AdapterRuntime, type DrivingSessionResponse, type Trip } from "@drivacy/shared";
+import { AppError } from "../errors/app-error.js";
+import { toRuleVersionNumber } from "../rule/rule-service.js";
+import type { ConfirmedDrivingStateReader } from "./confirmed-state-reader.js";
+import { generateTrip, type RandomProvider } from "./driving-generator.js";
+import type { DrivingRepository, DrivingSessionRow } from "./driving-repository.js";
+
+const iso=(value:Date|string|null)=>value instanceof Date?value.toISOString():value;
+export class DrivingService { public constructor(private readonly repo:DrivingRepository,private readonly runtime:AdapterRuntime,private readonly states:ConfirmedDrivingStateReader,private readonly random?:RandomProvider) {}
+  private async response(row:DrivingSessionRow):Promise<DrivingSessionResponse>{const trip:Trip={id:row.tripId,source:"simulated",collectionEnabled:true,datasetSalt:row.datasetSalt,records:await this.repo.records(row.id)};const parsed=DrivingSessionResponseSchema.safeParse({sessionId:row.id,status:row.status,startedAt:iso(row.startedAt),endedAt:iso(row.endedAt),trip});if(!parsed.success)throw new AppError("INTERNAL_SERVER_ERROR","Stored driving session data is invalid",500);return parsed.data;}
+  public async start(user:string,input:{insuranceContractId:string;specialContractId:string;evaluationPeriod:string},key:string){const target=await this.repo.findTarget(user,input.insuranceContractId,input.specialContractId,input.evaluationPeriod,this.runtime);if(!target)throw new AppError("DRIVING_SCOPE_NOT_FOUND","Driving scope was not found",404);const existing=await this.repo.findByKey(target.scopeId,key);if(existing)return this.response(existing);if(!target.ruleVersionId)throw new AppError("RULE_NOT_REGISTERED","No chain-confirmed Rule is currently applied",409);if(target.ruleStatus!=="APPROVED"||!target.ruleVersion||!target.ruleId||!target.insurerId||!target.ruleDefinition)throw new AppError("RULE_NOT_REGISTERED","Current Rule is not available",409);
+    const previous=await this.states.getConfirmedDistanceM(target.scopeId);if(previous===undefined&&await this.repo.hasSession(target.scopeId))throw new AppError("CONFIRMED_STATE_UNAVAILABLE","A confirmed state is required for a subsequent driving session",409);
+    const rule=RuleSchema.safeParse({id:target.ruleId,version:toRuleVersionNumber(target.ruleVersion),insurerId:target.insurerId,endorsementId:target.specialContractId,...(target.ruleDefinition as object)});if(!rule.success)throw new AppError("INTERNAL_SERVER_ERROR","Stored Rule data is invalid",500);const trip=generateTrip(rule.data,previous??0,this.random);const row=await this.repo.createSession({evaluationScopeId:target.scopeId,ruleVersionId:target.ruleVersionId,tripId:trip.id,datasetSalt:trip.datasetSalt,idempotencyKey:key,startedAt:new Date()},trip);return this.response(row);}
+  public async get(id:string,user:string){const row=await this.repo.findOwned(id,user);if(!row)throw new AppError("DRIVING_SESSION_NOT_FOUND","Driving session was not found",404);return this.response(row);}
+  public async end(id:string,user:string){const row=await this.repo.endOwned(id,user);if(!row)throw new AppError("DRIVING_SESSION_NOT_FOUND","Driving session was not found",404);return this.response(row);}
+}

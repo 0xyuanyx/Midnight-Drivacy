@@ -38,6 +38,8 @@ Each subscriber scope has its own Chain Contract. `BCAdapter.deployRule({ scope,
 
 The registration service receives an `AdapterRuntime` (`network`, `adapterProfile`) and selects deployments by that complete identity. Deployments for other runtimes may coexist for the same Scope and are neither ambiguous nor eligible for reuse. Before an external adapter call, B takes a PostgreSQL transaction-scoped advisory lock keyed by evaluation scope and target Rule version; the database unique constraint alone would only reject the later insert, after a duplicate chain side effect.
 
+An APPROVED Rule Version is not automatically the current Rule for a Scope. A Deployment's `current_rule_version_id` changes only in the same DB transaction that persists its chain-confirmed registration/update. New simulated trips use that current version for their runtime and retain it permanently after creation.
+
 `ApprovedRule`는 `approval: approved`와 `rule`로 구성한다. 승인 메타데이터의 진위·보험사 권한은 B가 검사한다. `RegisteredRule`에는 추가로 `registration: chain-confirmed`, `ruleHash`, `adapterProfile`, `network`, `chainContractAddress`, `registrationTransactionId`가 필요하다. C의 실제 등록 결과를 받아 B가 저장한다. 초안·등록 대기·실패는 운행 계산 요청에서 받지 않는다.
 
 | Rule 필드 | 의미 | 임시 Rule v1 |

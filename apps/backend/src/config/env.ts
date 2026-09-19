@@ -4,6 +4,8 @@ export interface Environment {
   databaseUrl: string;
   supabaseUrl: string;
   supabasePublishableKey: string;
+  midnightNetwork: "fixture" | "local" | "preprod";
+  midnightAdapterProfile: string;
 }
 
 /**
@@ -22,8 +24,11 @@ export const loadEnvironment = (): Environment => {
   const databaseUrl = requiredEnvironment("DATABASE_URL");
   const supabaseUrl = requiredEnvironment("SUPABASE_URL");
   const supabasePublishableKey = requiredEnvironment("SUPABASE_PUBLISHABLE_KEY");
+  const midnightNetwork = requiredEnvironment("MIDNIGHT_NETWORK");
+  if (midnightNetwork !== "fixture" && midnightNetwork !== "local" && midnightNetwork !== "preprod") throw new Error("MIDNIGHT_NETWORK must be fixture, local, or preprod");
+  const midnightAdapterProfile = requiredEnvironment("MIDNIGHT_ADAPTER_PROFILE");
 
-  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey };
+  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile };
 };
 
 const requiredEnvironment = (name: string): string => {

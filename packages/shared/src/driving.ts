@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TripSchema } from "./bc-contract.js";
 
 /**
  * Idempotency is carried in the Idempotency-Key request header rather than
@@ -18,6 +19,13 @@ export const StartDrivingSessionRequestSchema = z.object({
   evaluationPeriod: z.string().trim().min(1),
 }).strict();
 export type StartDrivingSessionRequest = z.infer<typeof StartDrivingSessionRequestSchema>;
+
+export const DrivingSessionStatusSchema = z.enum(["GENERATED", "ENDED"]);
+export const DrivingSessionResponseSchema = z.object({
+  sessionId: z.uuid(), status: DrivingSessionStatusSchema, startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime().nullable(), trip: TripSchema,
+}).strict();
+export type DrivingSessionResponse = z.infer<typeof DrivingSessionResponseSchema>;
 
 // Trip, processing, Rule, and State contracts are intentionally not defined here:
 // this repository has no confirmed source schema or persistence keys for them yet.
