@@ -22,6 +22,7 @@ ALTER TABLE public.rule_registrations
 ALTER TABLE public.rule_registrations ALTER COLUMN chain_scope_deployment_id SET NOT NULL;
 ALTER TABLE public.rule_registrations ADD CONSTRAINT rule_registrations_deployment_rule_unique
   UNIQUE (chain_scope_deployment_id, rule_version_id);
+CREATE INDEX rule_registrations_rule_version_id_idx ON public.rule_registrations(rule_version_id);
 
 ALTER TABLE public.chain_scope_deployments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.chain_scope_deployments FROM PUBLIC, anon, authenticated;

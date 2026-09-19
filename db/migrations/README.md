@@ -24,6 +24,8 @@
 - `chain_scope_deployments`는 가입자 Scope·network·adapter profile별 Chain Contract다.
 - `rule_registrations`는 동일 Chain Contract에 등록된 Rule version 이력이다.
 
+`rule_registrations_rule_version_id_idx`는 Rule version 기준 registration 조회를 위한 인덱스이며, 원격 적용 구조와 동일하게 보존한다.
+
 Rule 변경은 평가 Scope나 누적 State를 초기화하지 않고, 기존 deployment와 v1 registration을 보존한 채 새 version registration만 추가한다. 신규 세 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 부여하지 않는다.
 
 DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한을 검사한 뒤 다음 JOIN 및 변환을 수행할 예정이며, 이 문서는 향후 API 구현을 지시하지 않는다.

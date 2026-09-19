@@ -54,6 +54,9 @@ export const ChainDeploymentRefSchema = z.object({
   network: z.enum(["fixture", "local", "preprod"]), adapterProfile: id,
   chainContractAddress: chainValue,
 }).strict();
+export const AdapterRuntimeSchema = z.object({
+  network: z.enum(["fixture", "local", "preprod"]), adapterProfile: id,
+}).strict();
 export const DeployRuleRequestSchema = z.object({
   scope: ScopeSchema, approvedRule: ApprovedRuleSchema,
 }).strict();
@@ -213,6 +216,7 @@ export type Scope = z.infer<typeof ScopeSchema>;
 export type ApprovedRule = z.infer<typeof ApprovedRuleSchema>;
 export type RegisteredRule = z.infer<typeof RegisteredRuleSchema>;
 export type ChainDeploymentRef = z.infer<typeof ChainDeploymentRefSchema>;
+export type AdapterRuntime = z.infer<typeof AdapterRuntimeSchema>;
 export type DeployRuleRequest = z.infer<typeof DeployRuleRequestSchema>;
 export type DeployRuleResult = z.infer<typeof DeployRuleResultSchema>;
 export type UpdateRuleRequest = z.infer<typeof UpdateRuleRequestSchema>;
