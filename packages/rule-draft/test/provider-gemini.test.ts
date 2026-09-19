@@ -4,20 +4,24 @@ import type { RuleDraftCandidate } from "../src/types.js";
 
 const candidate: RuleDraftCandidate = {
   values: {
+    speedingPenalty: 2,
+    accelerationPenalty: null,
+    brakingPenalty: 3,
     minimumDistanceM: 100_000,
     minimumScore: 80,
-    discountPercent: 10,
-    speedingPenaltyPoints: 2,
-    hardBrakePenaltyPoints: 3,
-    hardAccelPenaltyPoints: null,
+    premiumMinimumScore: null,
+    baseDiscountBps: 1_000,
+    premiumDiscountBps: null,
   },
   evidence: {
+    speedingPenalty: "과속 1회당 2점",
+    accelerationPenalty: null,
+    brakingPenalty: "급제동 1회당 3점",
     minimumDistanceM: "누적 100km 이상",
     minimumScore: "최종 점수 80점 이상",
-    discountPercent: "보험료 10% 할인",
-    speedingPenaltyPoints: "과속 1회당 2점",
-    hardBrakePenaltyPoints: "급제동 1회당 3점",
-    hardAccelPenaltyPoints: null,
+    premiumMinimumScore: null,
+    baseDiscountBps: "보험료 10% 할인",
+    premiumDiscountBps: null,
   },
 };
 

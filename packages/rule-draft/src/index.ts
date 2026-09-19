@@ -11,6 +11,8 @@ export {
 } from "./providers/gemini.js";
 export {
   RULE_DRAFT_FIELD_NAMES,
+  RULE_DRAFT_FORMULA,
+  RULE_DRAFT_INITIAL_SCORE,
   RuleDraftEvidenceSchema,
   RuleDraftProviderMetaSchema,
   RuleDraftProviderNameSchema,

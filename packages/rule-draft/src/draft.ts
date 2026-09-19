@@ -2,6 +2,9 @@ import { RULE_DRAFT_ISSUE_CODES, type RuleDraftIssueCode } from "./issues.js";
 import type { DraftProvider } from "./provider.js";
 import {
   RULE_DRAFT_FIELD_NAMES,
+  RULE_DRAFT_FORMULA,
+  RULE_DRAFT_INITIAL_SCORE,
+  RuleDraftValuesSchema,
   type RuleDraftCandidate,
   type RuleDraftEvidence,
   type RuleDraftFieldName,
@@ -13,18 +16,23 @@ import {
 // Exported so src/pdf.ts can reject over-length extracted text with the same
 // limit before it ever reaches createRuleDraft.
 export const INPUT_MAX_LENGTH = 20_000;
-const DISTANCE_UPPER_BOUND_M = 2_000_000;
-const SCORE_OR_PERCENT_UPPER_BOUND = 100;
 
-// Distance is stored/verified in meters (D2), but source policy text quotes it in km
-// (e.g. "100km"). A quote grounds a value if its number matches directly, or matches
-// after km->m conversion.
-const KM_TO_M = 1_000;
+// Values are stored in B's units (distance in m, discount in bps; D2 and
+// RuleDraftInputSchema), but policy text quotes them in its own units ("100km",
+// "10%"). Evidence stays in the source unit, so a quoted number grounds a value
+// only after converting by the unit written next to it.
+const DISTANCE_UNIT_SCALE: Record<string, number> = { km: 1_000, "㎞": 1_000, 킬로미터: 1_000, m: 1, 미터: 1 };
+const DISCOUNT_UNIT_SCALE: Record<string, number> = { "%": 100, 퍼센트: 100, bps: 1 };
+const DISCOUNT_FIELDS: readonly RuleDraftFieldName[] = ["baseDiscountBps", "premiumDiscountBps"];
+
+function withConstants(extracted: Record<RuleDraftFieldName, number | null>): RuleDraftValues {
+  return { formula: RULE_DRAFT_FORMULA, initialScore: RULE_DRAFT_INITIAL_SCORE, ...extracted };
+}
 
 function manualDraft(issue: RuleDraftIssueCode, provider: RuleDraftProviderMeta): RuleDraftResult {
-  const blankValues = Object.fromEntries(
-    RULE_DRAFT_FIELD_NAMES.map((name) => [name, null]),
-  ) as RuleDraftValues;
+  const blankValues = withConstants(
+    Object.fromEntries(RULE_DRAFT_FIELD_NAMES.map((name) => [name, null])) as Record<RuleDraftFieldName, null>,
+  );
   const blankEvidence = Object.fromEntries(
     RULE_DRAFT_FIELD_NAMES.map((name) => [name, null]),
   ) as RuleDraftEvidence;
@@ -43,16 +51,24 @@ function normalizedWhitespace(value: string): string {
 }
 
 function supportedValue(name: RuleDraftFieldName, value: number | null): boolean {
-  if (value === null) return true;
-  if (!Number.isInteger(value)) return false;
-  if (value < 0) return false;
-  if (name === "minimumDistanceM") return value <= DISTANCE_UPPER_BOUND_M;
-  return value <= SCORE_OR_PERCENT_UPPER_BOUND;
+  return RuleDraftValuesSchema.shape[name].safeParse(value).success;
 }
 
-function quoteNumbers(quote: string): number[] {
-  const matches = quote.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/gu) ?? [];
-  return matches.map((match) => Number(match.replaceAll(",", "")));
+const QUOTE_NUMBER = /(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*(km|㎞|킬로미터|미터|m|%|퍼센트|bps)?/giu;
+
+function quoteNumbers(quote: string): Array<{ number: number; unit: string | undefined }> {
+  return [...quote.matchAll(QUOTE_NUMBER)].map((match) => ({
+    number: Number((match[1] ?? "").replaceAll(",", "")),
+    unit: match[2]?.toLowerCase(),
+  }));
+}
+
+// Factor from the quoted unit to the stored unit, or null if the unit cannot
+// ground this field (e.g. a bare "10" or "10km" for a discount).
+function unitScale(name: RuleDraftFieldName, unit: string | undefined): number | null {
+  if (name === "minimumDistanceM") return unit === undefined ? null : (DISTANCE_UNIT_SCALE[unit] ?? null);
+  if (DISCOUNT_FIELDS.includes(name)) return unit === undefined ? null : (DISCOUNT_UNIT_SCALE[unit] ?? null);
+  return unit === undefined ? 1 : null;
 }
 
 function groundedInSource(
@@ -63,11 +79,11 @@ function groundedInSource(
 ): boolean {
   if (typeof quote !== "string" || !quote.trim()) return false;
   if (!normalizedWhitespace(source).includes(normalizedWhitespace(quote))) return false;
-  const numbers = quoteNumbers(quote);
-  if (name === "minimumDistanceM") {
-    return numbers.some((number) => number === value || number * KM_TO_M === value);
-  }
-  return numbers.some((number) => number === value);
+  return quoteNumbers(quote).some(({ number, unit }) => {
+    const scale = unitScale(name, unit);
+    // "12.5%" -> 1250 bps: compare with a tolerance for float products.
+    return scale !== null && Math.abs(number * scale - value) < 1e-6;
+  });
 }
 
 // Provider (src/providers/*) and pdf (src/pdf.ts) adapters throw distinct
@@ -135,9 +151,11 @@ export async function createRuleDraft(policyText: string, provider: DraftProvide
     }
   }
 
-  const values = Object.fromEntries(
-    RULE_DRAFT_FIELD_NAMES.map((name) => [name, candidate.values[name] ?? null]),
-  ) as RuleDraftValues;
+  const values = withConstants(
+    Object.fromEntries(
+      RULE_DRAFT_FIELD_NAMES.map((name) => [name, candidate.values[name] ?? null]),
+    ) as Record<RuleDraftFieldName, number | null>,
+  );
   const evidence = Object.fromEntries(
     RULE_DRAFT_FIELD_NAMES.map((name) => [name, candidate.evidence[name] ?? null]),
   ) as RuleDraftEvidence;

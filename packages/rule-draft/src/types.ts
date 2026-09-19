@@ -1,36 +1,48 @@
+import { RuleDraftInputSchema } from "@drivacy/shared";
 import { z } from "zod";
 
-// Field names and ranges per docs/contracts/RULE_DRAFT_CONTRACT.md (P1-1).
-// minimumDistanceM range upper bound (2,000,000) is a proposal, not yet confirmed with B/C.
+// P2-10: field names, units and ranges come from B's RuleDraftInputSchema in
+// @drivacy/shared (packages/shared/src/rule-management.ts). This module only
+// wraps them as nullable; it keeps no range constants of its own.
+// Only these fields are extracted from the policy text (each needs evidence).
+// `formula`/`initialScore` are fixed constants, not extracted (see below), and
+// `effectiveFrom`/`effectiveTo` are left to the insurer.
 export const RULE_DRAFT_FIELD_NAMES = [
+  "speedingPenalty",
+  "accelerationPenalty",
+  "brakingPenalty",
   "minimumDistanceM",
   "minimumScore",
-  "discountPercent",
-  "speedingPenaltyPoints",
-  "hardBrakePenaltyPoints",
-  "hardAccelPenaltyPoints",
+  "premiumMinimumScore",
+  "baseDiscountBps",
+  "premiumDiscountBps",
 ] as const;
 
 export type RuleDraftFieldName = (typeof RULE_DRAFT_FIELD_NAMES)[number];
 
+// Constants B's schema requires as literals. The LLM never chooses them.
+export const RULE_DRAFT_FORMULA = "cumulative-event-deduction-v1" as const;
+export const RULE_DRAFT_INITIAL_SCORE = 100 as const;
+
+// RuleDraftInputSchema carries cross-field refinements, so Zod refuses
+// `.partial()`/`.pick()` on it. Reuse each field schema from `.shape` instead.
+// Cross-field checks (premium >= base) run when B validates the full input.
+const inputShape = RuleDraftInputSchema.shape;
+
 export const RuleDraftValuesSchema = z.object({
-  minimumDistanceM: z.number().int().min(0).max(2_000_000).nullable(),
-  minimumScore: z.number().int().min(0).max(100).nullable(),
-  discountPercent: z.number().int().min(0).max(100).nullable(),
-  speedingPenaltyPoints: z.number().int().min(0).max(100).nullable(),
-  hardBrakePenaltyPoints: z.number().int().min(0).max(100).nullable(),
-  hardAccelPenaltyPoints: z.number().int().min(0).max(100).nullable(),
+  formula: inputShape.formula,
+  initialScore: inputShape.initialScore,
+  ...(Object.fromEntries(
+    RULE_DRAFT_FIELD_NAMES.map((name) => [name, inputShape[name].nullable()]),
+  ) as { [K in RuleDraftFieldName]: z.ZodNullable<(typeof inputShape)[K]> }),
 });
 export type RuleDraftValues = z.infer<typeof RuleDraftValuesSchema>;
 
-export const RuleDraftEvidenceSchema = z.object({
-  minimumDistanceM: z.string().nullable(),
-  minimumScore: z.string().nullable(),
-  discountPercent: z.string().nullable(),
-  speedingPenaltyPoints: z.string().nullable(),
-  hardBrakePenaltyPoints: z.string().nullable(),
-  hardAccelPenaltyPoints: z.string().nullable(),
-});
+export const RuleDraftEvidenceSchema = z.object(
+  Object.fromEntries(RULE_DRAFT_FIELD_NAMES.map((name) => [name, z.string().nullable()])) as {
+    [K in RuleDraftFieldName]: z.ZodNullable<z.ZodString>;
+  },
+);
 export type RuleDraftEvidence = z.infer<typeof RuleDraftEvidenceSchema>;
 
 export const RuleDraftStateSchema = z.enum(["draft", "manual_required"]);

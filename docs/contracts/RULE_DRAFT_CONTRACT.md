@@ -1,6 +1,6 @@
-# Rule 초안 DTO·단위 제안서 (P1-1)
+# Rule 초안 DTO·단위 계약 (P1-1 제안 → P2-10 필드 확정)
 
-작성일: 2026-09-18 (KST). 작성자: A(Rule 초안 담당) 관점. 이 문서는 **제안서**이며 `packages/shared`를 수정하지 않는다. B·C 합의 후 확정한다.
+작성일: 2026-09-18 (KST), 갱신: 2026-09-19 (P2-10). 작성자: A(Rule 초안 담당) 관점. `packages/shared`를 수정하지 않는다. §2 필드는 B `RuleDraftInputSchema`에 맞춰 확정했고, 나머지 절의 `제안`·`미정` 라벨은 그대로 유효하다.
 라벨: `확정`(팀 결정 §1.3 또는 `docs/PLAN_DECISIONS.md` D1~D4에 근거) / `제안`(A 권고, 상대 확인 대기) / `미정`.
 
 ---
@@ -25,46 +25,58 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
 
 ---
 
-## 2. 후보 필드 (제안, 전부 정수)
+## 2. 초안 필드 (확정 — P2-10, B `RuleDraftInputSchema` 정렬)
 
-**확정(D2, `docs/PLAN_DECISIONS.md`)**: 내부 저장·해시·회로 입력은 정수만(거리 m, 점수 0~100, 할인 정수 %, 감점 정수 점). 화면 표시만 km로 환산한다. 원문 단위(km 등)를 정수 m로 변환하는 책임은 A 초안 모듈이 지며, 원문 근거는 원단위 그대로 보존한다.
+**확정(2026-09-19)**: 초안 `values`의 필드명·단위·범위는 B가 확정한 `@drivacy/shared`의 `RuleDraftInputSchema`(`packages/shared/src/rule-management.ts`)를 그대로 따른다. rule-draft는 각 필드 스키마를 `.shape`에서 가져와 `nullable()`로 감쌀 뿐 자체 범위 상수를 두지 않는다(shared 파일은 수정하지 않음). 거리 정수 m는 D2와 같고, 할인은 D2의 정수 % 대신 B 스키마의 bps(1bp = 0.01%)와 2단계 구조를 따른다.
 
-| 필드명 | 타입 | 범위 | 단위 | 상태 |
+| 필드명 | 타입 | 범위(B 스키마) | 단위 | 채우는 방법 |
 | --- | --- | --- | --- | --- |
-| `minimumDistanceM` | integer | 0 ~ 2,000,000 | 미터 | 확정(D2) — 필드명·정수 m은 D2, 상한값 2,000,000은 **제안**(원본 `rule-draft.mjs`의 1,000,000km 상한을 m 단위로 재검토한 값, 근거 재확인 필요) |
-| `minimumScore` | integer | 0 ~ 100 | 점 | 확정(D2) |
-| `discountPercent` | integer | 0 ~ 100 | % | 확정(D2, 정수 %). 소수 할인율이 필요하면 대안으로 `discountBasisPoints`(0~10,000, 1bp=0.01%) 병기 — **제안**, C·B 확인 필요 |
-| `speedingPenaltyPoints` | integer | 0 ~ 100 | 점 | 확정(D2) |
-| `hardBrakePenaltyPoints` | integer | 0 ~ 100 | 점 | 확정(D2) |
-| `hardAccelPenaltyPoints` | integer | 0 ~ 100 | 점 | **제안(신규 필드)** — 근거: D4(확정)가 보험사 공개 항목으로 "항목별 가감점"을 명시하며 급가속을 감점 항목에 포함하는 방향과 일치. §1.2 원본 5개 필드에는 없던 필드이므로 B·C 확인 필요 |
+| `formula` | literal | `"cumulative-event-deduction-v1"` | - | 상수. LLM이 뽑지 않음, `manual_required`에도 채움 |
+| `initialScore` | literal | `100` | 점 | 상수. LLM이 뽑지 않음, `manual_required`에도 채움 |
+| `speedingPenalty` | integer \| null | 0 ~ 2^32-1 | 과속 1회당 감점 | 원문 추출 + 근거 대조 |
+| `accelerationPenalty` | integer \| null | 0 ~ 2^32-1 | 급가속 1회당 감점 | 원문 추출 + 근거 대조 |
+| `brakingPenalty` | integer \| null | 0 ~ 2^32-1 | 급제동 1회당 감점 | 원문 추출 + 근거 대조 |
+| `minimumDistanceM` | integer \| null | 0 ~ 2^32-1 | 미터 | 원문 추출. 원문 km는 ×1000 |
+| `minimumScore` | integer \| null | 0 ~ 100 | 점 | 원문 추출(기본 단계 기준 점수) |
+| `premiumMinimumScore` | integer \| null | 0 ~ 100 | 점 | 원문 추출(2단계 기준 점수). 약관에 2단계가 없으면 `null` → 보험사가 채움 |
+| `baseDiscountBps` | integer \| null | 0 ~ 10,000 | bps | 원문 추출. 원문 "10%"는 1000 |
+| `premiumDiscountBps` | integer \| null | 0 ~ 10,000 | bps | 원문 추출(2단계 할인). 약관에 2단계가 없으면 `null` → 보험사가 채움 |
 
-각 필드는 `evidence: string | null` 쌍을 가진다(원문 근거 문구, 원단위 그대로 보존 — 예: "최소 100km 이상"). `evidence`가 `null`이면 해당 필드 `values`도 `null`이어야 한다(§1.2 검증 로직 승계, **확정** 근거는 원본 코드 동작).
+- `effectiveFrom`·`effectiveTo`(B 스키마 optional)는 초안에 포함하지 않는다. 보험사가 저장 시 입력한다.
+- 교차 조건(`premiumMinimumScore >= minimumScore`, `premiumDiscountBps >= baseDiscountBps`)은 초안에서 검사하지 않는다. B가 전체 입력을 `RuleDraftInputSchema`로 검증할 때 적용된다. 모든 필드가 채워진 초안의 `values`는 그대로 `RuleDraftInputSchema`를 통과한다(테스트로 확인).
+- 추출 필드 8개는 각각 `evidence: string | null` 쌍을 가진다. 근거 문구는 **원단위 그대로** 보존하고(예: "누적 100km 이상", "보험료 10% 할인"), 대조는 근거 속 숫자 바로 뒤의 단위로 환산해 한다: 거리 `km`·`㎞`·`킬로미터` ×1000 / `m`·`미터` ×1, 할인 `%`·`퍼센트` ×100 / `bps` ×1, 점수·감점은 단위 없는 숫자만. 단위가 없는 거리·할인 근거는 m/km·%/bps를 판별할 수 없으므로 `UNVERIFIED_EXTRACTION`이다. `evidence`가 `null`이면 `values`도 `null`이어야 한다.
 
 ---
 
 ## 3. 응답 예시
 
-### 3.1 `draft` (일부 필드만 채워짐)
+### 3.1 `draft` (단일 단계 약관 — premium 필드 null)
 
 ```json
 {
   "state": "draft",
   "reviewRequired": true,
   "values": {
+    "formula": "cumulative-event-deduction-v1",
+    "initialScore": 100,
+    "speedingPenalty": 5,
+    "accelerationPenalty": null,
+    "brakingPenalty": 3,
     "minimumDistanceM": 100000,
     "minimumScore": 80,
-    "discountPercent": 10,
-    "speedingPenaltyPoints": 5,
-    "hardBrakePenaltyPoints": 3,
-    "hardAccelPenaltyPoints": null
+    "premiumMinimumScore": null,
+    "baseDiscountBps": 1000,
+    "premiumDiscountBps": null
   },
   "evidence": {
+    "speedingPenalty": "과속 1회당 5점 감점",
+    "accelerationPenalty": null,
+    "brakingPenalty": "급제동 1회당 3점 감점",
     "minimumDistanceM": "최소 100km 이상 주행",
     "minimumScore": "안전운전 점수 80점 이상",
-    "discountPercent": "보험료 10% 할인",
-    "speedingPenaltyPoints": "과속 1회당 5점 감점",
-    "hardBrakePenaltyPoints": "급제동 1회당 3점 감점",
-    "hardAccelPenaltyPoints": null
+    "premiumMinimumScore": null,
+    "baseDiscountBps": "보험료 10% 할인",
+    "premiumDiscountBps": null
   },
   "issues": ["MISSING_FIELDS"],
   "provider": { "name": "gemini", "model": "gemini-3.8-flash" }
@@ -78,20 +90,26 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
   "state": "manual_required",
   "reviewRequired": true,
   "values": {
+    "formula": "cumulative-event-deduction-v1",
+    "initialScore": 100,
+    "speedingPenalty": null,
+    "accelerationPenalty": null,
+    "brakingPenalty": null,
     "minimumDistanceM": null,
     "minimumScore": null,
-    "discountPercent": null,
-    "speedingPenaltyPoints": null,
-    "hardBrakePenaltyPoints": null,
-    "hardAccelPenaltyPoints": null
+    "premiumMinimumScore": null,
+    "baseDiscountBps": null,
+    "premiumDiscountBps": null
   },
   "evidence": {
+    "speedingPenalty": null,
+    "accelerationPenalty": null,
+    "brakingPenalty": null,
     "minimumDistanceM": null,
     "minimumScore": null,
-    "discountPercent": null,
-    "speedingPenaltyPoints": null,
-    "hardBrakePenaltyPoints": null,
-    "hardAccelPenaltyPoints": null
+    "premiumMinimumScore": null,
+    "baseDiscountBps": null,
+    "premiumDiscountBps": null
   },
   "issues": ["UNVERIFIED_EXTRACTION"],
   "provider": { "name": "gemini", "model": "gemini-3.7-flash" }
@@ -105,9 +123,9 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
 | `EMPTY_INPUT` | §1.2 원본 | 입력 텍스트가 비어 있음 |
 | `INPUT_TOO_LONG` | §1.2 원본 | 텍스트 20,000자 초과 |
 | `EXTRACTION_FAILED` | §1.2 원본 | Provider 호출 자체가 예외를 던짐 |
-| `UNVERIFIED_EXTRACTION` | §1.2 원본 | 값이 범위를 벗어나거나 원문 근거와 숫자가 일치하지 않음 |
-| `NO_SUPPORTED_FIELDS` | §1.2 원본 | 지원 필드 전부 `null` |
-| `MISSING_FIELDS` | §1.2 원본 | 일부 필드만 채워짐(경고성, `draft` 상태에서도 발생 가능) |
+| `UNVERIFIED_EXTRACTION` | §1.2 원본 | 값이 B 스키마 범위를 벗어나거나 원문 근거와 숫자·단위가 일치하지 않음 |
+| `NO_SUPPORTED_FIELDS` | §1.2 원본 | 추출 필드 8개 전부 `null` |
+| `MISSING_FIELDS` | §1.2 원본 | 추출 필드 일부만 채워짐(경고성, `draft` 상태에서도 발생 가능. 단일 단계 약관은 premium 필드 때문에 항상 발생) |
 | `PROVIDER_UNAVAILABLE` | **신규 제안** | Gemini API 키 미설정 또는 Provider 초기화 실패 → `manual_required`로 전환 |
 | `PROVIDER_TIMEOUT` | **신규 제안** | Provider 호출이 타임아웃(기본 20s, P2-3 제안값)됨 |
 | `PDF_NO_TEXT` | **신규 제안** | PDF에서 추출 가능한 텍스트가 없음(OCR 미지원) |
@@ -133,10 +151,10 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
 
 | 항목 | A 권고 | 상태 |
 | --- | --- | --- |
-| 단위 | 위 §2 표(정수 m/점/%) | 미정 — D2로 필드 개념은 확정됐으나 회로 입력 폭(bit width)·Field 타입 매핑은 C 확인 필요 |
-| 범위 | 위 §2 표 | 미정 — `minimumDistanceM` 상한 2,000,000은 A 임시값, C·B 재검토 필요 |
-| 반올림 | 소수 할인이 필요할 경우 절삭(내림) 권고, 근거: 보험사에 불리하지 않은 방향 | 미정 |
-| 직렬화 순서 | §2 표의 필드 나열 순서(minimumDistanceM → minimumScore → discountPercent → speedingPenaltyPoints → hardBrakePenaltyPoints → hardAccelPenaltyPoints) 권고 | 미정 — 해시 입력 순서는 C가 회로 설계에서 최종 결정 |
+| 단위 | 위 §2 표(정수 m/점/bps) | 확정(P2-10) — B `RuleDraftInputSchema`·C `bc-contract.ts`와 같은 필드 |
+| 범위 | 위 §2 표 | 확정(P2-10) — B 스키마 범위 사용, A 임시 상한 2,000,000 폐기 |
+| 반올림 | 하지 않음. bps로 소수 둘째 자리 %까지 정수 표현(12.5% → 1250). 그보다 작은 소수는 정수가 아니어서 `UNVERIFIED_EXTRACTION` | 확정(P2-10 구현) |
+| 직렬화 순서 | A는 정하지 않음 | 확정 — Rule Hash 입력 순서는 C `packages/shared/src/bc-contract.ts`가 정의 |
 | 해시 입력 | Rule 초안 자체는 해시 입력에 포함되지 않음(승인 후 `ruleHash`는 B·C 영역) | 미정 |
 
 ---
@@ -152,12 +170,12 @@ manual_required ─► (보험사가 빈 초안에 직접 입력) ─► 동일�
 
 ---
 
-## 6. 참고 — feat 설계 문서의 미구현 연결점
+## 6. 참고 — feat 설계 문서의 연결점
 
-`origin/feat:docs/DRIVING_SIMULATION.md`의 "기존 코드와 연결하는 위치" 절은 `packages/shared/src/bc-contract.ts`, `packages/core/src/calculation.ts`, `packages/midnight/src/state-adapter.ts`, `packages/midnight/src/trip-job.ts`를 언급하지만 §1.1 확인 결과 **이 파일들은 현재 저장소에 존재하지 않는 설계상 경로**다. 이 문서의 Rule 초안 계약은 위 파일들의 존재를 전제하지 않으며, 향후 C·B 구현 시점에 재확인이 필요하다.
+P1-1 작성 시점에는 없던 `packages/shared/src/bc-contract.ts`, `packages/core/src/calculation.ts`, `packages/midnight/src/state-adapter.ts`, `packages/midnight/src/trip-job.ts`가 2026-09-19 원격 `feat`에 추가됐다(B·C 구현). 이 문서의 초안 필드는 B `RuleDraftInputSchema`와 1:1이며, 초안 자체는 해시·계산·증명 입력이 아니다(승인 후 B·C 영역).
 
 ---
 
 ## 미검증 항목
 
-실제 Gemini 호출, 실제 PDF 추출, 승인 API 존재 여부 — 모두 미구현. 이 문서는 계약 제안이며 구현이 아니다.
+P2-10 필드(8개 추출 + 상수 2개)로 바꾼 뒤 실제 Gemini 호출은 하지 않았다(`GEMINI_TRIAL_LOG.md`의 기록은 P2-10 이전 6필드 기준). 실제 약관 PDF, rule-draft → B `rules` API 연결(P2-6)은 미검증·미구현.

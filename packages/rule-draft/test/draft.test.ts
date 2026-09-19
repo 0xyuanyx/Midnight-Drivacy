@@ -1,37 +1,51 @@
+import { readFileSync } from "node:fs";
+import { RuleDraftInputSchema } from "@drivacy/shared";
 import { describe, expect, it } from "vitest";
 import { createRuleDraft } from "../src/draft.js";
 import { RuleDraftPdfError } from "../src/pdf.js";
 import type { DraftProvider } from "../src/provider.js";
 import { createGeminiProvider, RuleDraftProviderError } from "../src/providers/gemini.js";
-import type { RuleDraftCandidate } from "../src/types.js";
+import { RULE_DRAFT_FIELD_NAMES, type RuleDraftCandidate, type RuleDraftFieldName } from "../src/types.js";
 
 // Ported from backend/rule-draft/rule-draft.test.mjs (main, untracked) per P2-2.
-// Field names/units updated to the P1-1 proposal (docs/contracts/RULE_DRAFT_CONTRACT.md)
-// and D2 (docs/PLAN_DECISIONS.md): minimumDistanceKm -> minimumDistanceM (integer meters).
-// The two OpenAI-adapter tests from the original file are out of scope here (provider
-// adapters belong to P2-3); this file covers createRuleDraft only.
+// P2-10: field names/units follow B's RuleDraftInputSchema (@drivacy/shared):
+// distance in integer meters, discounts in bps, two discount tiers.
 
-const policy =
-  "안전운전 특약: 평가기간 누적 100km 이상, 최종 점수 80점 이상이면 보험료 10% 할인. 과속 1회당 2점, 급제동 1회당 3점 감점.";
+// Synthetic two-tier rider (not a real policy).
+const policy = readFileSync(new URL("./fixtures/synthetic-rider.txt", import.meta.url), "utf8");
 
 const extracted: RuleDraftCandidate = {
   values: {
+    speedingPenalty: 2,
+    accelerationPenalty: 4,
+    brakingPenalty: 3,
     minimumDistanceM: 100_000,
     minimumScore: 80,
-    discountPercent: 10,
-    speedingPenaltyPoints: 2,
-    hardBrakePenaltyPoints: 3,
-    hardAccelPenaltyPoints: null,
+    premiumMinimumScore: 90,
+    baseDiscountBps: 1_000,
+    premiumDiscountBps: 1_500,
   },
   evidence: {
+    speedingPenalty: "과속 1회당 2점",
+    accelerationPenalty: "급가속 1회당 4점",
+    brakingPenalty: "급제동 1회당 3점",
     minimumDistanceM: "누적 100km 이상",
     minimumScore: "최종 점수 80점 이상",
-    discountPercent: "보험료 10% 할인",
-    speedingPenaltyPoints: "과속 1회당 2점",
-    hardBrakePenaltyPoints: "급제동 1회당 3점",
-    hardAccelPenaltyPoints: null,
+    premiumMinimumScore: "최종 점수 90점 이상",
+    baseDiscountBps: "보험료 10% 할인",
+    premiumDiscountBps: "보험료 15% 할인",
   },
 };
+
+// A candidate with only the given fields filled (value + evidence), rest null.
+function only(fields: Partial<Record<RuleDraftFieldName, [number, string]>>): RuleDraftCandidate {
+  const candidate: RuleDraftCandidate = { values: {}, evidence: {} };
+  for (const name of RULE_DRAFT_FIELD_NAMES) {
+    candidate.values[name] = fields[name]?.[0] ?? null;
+    candidate.evidence[name] = fields[name]?.[1] ?? null;
+  }
+  return candidate;
+}
 
 // Wraps a bare extract function as a fake provider (no model is called).
 function via(extract: (policyText: string) => Promise<RuleDraftCandidate>): DraftProvider {
@@ -42,44 +56,39 @@ function via(extract: (policyText: string) => Promise<RuleDraftCandidate>): Draf
 }
 
 describe("createRuleDraft", () => {
-  it("문구에 근거한 수치만 승인 전 초안으로 돌려준다", async () => {
+  it("2단계 할인 약관의 근거 있는 수치를 B 스키마 필드명 그대로 초안으로 돌려준다", async () => {
     const result = await createRuleDraft(policy, via(async () => extracted));
     expect(result.state).toBe("draft");
     expect(result.reviewRequired).toBe(true);
-    expect(result.values).toEqual(extracted.values);
+    expect(result.values).toEqual({
+      formula: "cumulative-event-deduction-v1",
+      initialScore: 100,
+      ...extracted.values,
+    });
     expect(result.evidence).toEqual(extracted.evidence);
-    expect(result.issues).toEqual(["MISSING_FIELDS"]);
+    expect(result.issues).toEqual([]);
     expect("approved" in result).toBe(false);
+    // 1:1 with B's schema: a fully filled draft is a valid RuleDraftInput as-is.
+    expect(RuleDraftInputSchema.safeParse(result.values).success).toBe(true);
   });
 
-  it("약관에 없는 값은 null로 두어 수기 검토할 수 있다", async () => {
-    const result = await createRuleDraft("누적 100km 이상 운행해야 합니다.", via(async () => ({
-      values: {
-        ...extracted.values,
-        minimumScore: null,
-        discountPercent: null,
-        speedingPenaltyPoints: null,
-        hardBrakePenaltyPoints: null,
-      },
-      evidence: {
-        ...extracted.evidence,
-        minimumDistanceM: "누적 100km 이상",
-        minimumScore: null,
-        discountPercent: null,
-        speedingPenaltyPoints: null,
-        hardBrakePenaltyPoints: null,
-      },
+  it("단일 단계 약관이면 premium 필드는 null로 두어 보험사가 채우게 한다", async () => {
+    const singleTier = "누적 100km 이상, 최종 점수 80점 이상이면 보험료 10% 할인.";
+    const result = await createRuleDraft(singleTier, via(async () => only({
+      minimumDistanceM: [100_000, "누적 100km 이상"],
+      minimumScore: [80, "최종 점수 80점 이상"],
+      baseDiscountBps: [1_000, "보험료 10% 할인"],
     })));
     expect(result.state).toBe("draft");
-    expect(result.values.minimumDistanceM).toBe(100_000);
-    expect(result.values.minimumScore).toBeNull();
+    expect(result.values.baseDiscountBps).toBe(1_000);
+    expect(result.values.premiumMinimumScore).toBeNull();
+    expect(result.values.premiumDiscountBps).toBeNull();
     expect(result.issues).toEqual(["MISSING_FIELDS"]);
   });
 
   it("천 단위 쉼표가 있는 원문 숫자도 검증한다 (m 단위 직접 표기)", async () => {
-    const result = await createRuleDraft("누적 1,000,000m 이상 운행해야 합니다.", via(async () => ({
-      values: { minimumDistanceM: 1_000_000, minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
-      evidence: { minimumDistanceM: "누적 1,000,000m 이상", minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
+    const result = await createRuleDraft("누적 1,000,000m 이상 운행해야 합니다.", via(async () => only({
+      minimumDistanceM: [1_000_000, "누적 1,000,000m 이상"],
     })));
     expect(result.state).toBe("draft");
     expect(result.values.minimumDistanceM).toBe(1_000_000);
@@ -99,6 +108,14 @@ describe("createRuleDraft", () => {
     })));
     expect(result.state).toBe("manual_required");
     expect(result.issues).toEqual(["UNVERIFIED_EXTRACTION"]);
+  });
+
+  it("수동 입력 초안도 formula·initialScore 상수는 채우고 추출 필드는 비운다", async () => {
+    const result = await createRuleDraft(" ", via(async () => extracted));
+    expect(result.state).toBe("manual_required");
+    expect(result.values.formula).toBe("cumulative-event-deduction-v1");
+    expect(result.values.initialScore).toBe(100);
+    expect(RULE_DRAFT_FIELD_NAMES.every((name) => result.values[name] === null)).toBe(true);
   });
 
   it("공급자 오류는 약관 내용을 노출하지 않고 수동 입력 초안을 제공한다", async () => {
@@ -123,23 +140,55 @@ describe("createRuleDraft", () => {
     expect(calls).toBe(0);
   });
 
+  it("[범위] B 스키마 범위를 벗어난 값(점수 101)은 수동 입력으로 전환한다", async () => {
+    const result = await createRuleDraft("최종 점수 101점 이상", via(async () => only({
+      minimumScore: [101, "최종 점수 101점 이상"],
+    })));
+    expect(result.state).toBe("manual_required");
+    expect(result.issues).toEqual(["UNVERIFIED_EXTRACTION"]);
+  });
+
   it("[단위] 원문 km 표기는 m 단위 값과 일치하면 승인 전 초안으로 인정한다", async () => {
-    const result = await createRuleDraft("누적 250km 이상 운행해야 합니다.", via(async () => ({
-      values: { minimumDistanceM: 250_000, minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
-      evidence: { minimumDistanceM: "누적 250km 이상", minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
+    const result = await createRuleDraft("누적 250km 이상 운행해야 합니다.", via(async () => only({
+      minimumDistanceM: [250_000, "누적 250km 이상"],
     })));
     expect(result.state).toBe("draft");
     expect(result.values.minimumDistanceM).toBe(250_000);
   });
 
   it("[단위] 원문 km 표기와 m 단위 값이 어긋나면 수동 입력으로 전환한다", async () => {
-    const result = await createRuleDraft("누적 250km 이상 운행해야 합니다.", via(async () => ({
-      // 250km should convert to 250,000m; 25,000m is a wrong conversion.
-      values: { minimumDistanceM: 25_000, minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
-      evidence: { minimumDistanceM: "누적 250km 이상", minimumScore: null, discountPercent: null, speedingPenaltyPoints: null, hardBrakePenaltyPoints: null, hardAccelPenaltyPoints: null },
+    // 250km should convert to 250,000m; 25,000m and an unconverted 250 are wrong.
+    for (const wrong of [25_000, 250]) {
+      const result = await createRuleDraft("누적 250km 이상 운행해야 합니다.", via(async () => only({
+        minimumDistanceM: [wrong, "누적 250km 이상"],
+      })));
+      expect(result.state).toBe("manual_required");
+      expect(result.issues).toEqual(["UNVERIFIED_EXTRACTION"]);
+    }
+  });
+
+  it("[단위] 단위 없는 거리 근거는 m/km를 알 수 없어 수동 입력으로 전환한다", async () => {
+    const result = await createRuleDraft("누적 100000 이상 운행해야 합니다.", via(async () => only({
+      minimumDistanceM: [100_000, "누적 100000 이상"],
     })));
     expect(result.state).toBe("manual_required");
     expect(result.issues).toEqual(["UNVERIFIED_EXTRACTION"]);
+  });
+
+  it("[bps] 원문 10%를 변환 없이 10으로 내면 수동 입력으로 전환한다", async () => {
+    const result = await createRuleDraft("보험료 10% 할인", via(async () => only({
+      baseDiscountBps: [10, "보험료 10% 할인"],
+    })));
+    expect(result.state).toBe("manual_required");
+    expect(result.issues).toEqual(["UNVERIFIED_EXTRACTION"]);
+  });
+
+  it("[bps] 소수 퍼센트(12.5%)도 1250bps로 근거 대조한다", async () => {
+    const result = await createRuleDraft("보험료 12.5% 할인", via(async () => only({
+      baseDiscountBps: [1_250, "보험료 12.5% 할인"],
+    })));
+    expect(result.state).toBe("draft");
+    expect(result.values.baseDiscountBps).toBe(1_250);
   });
 
   it("[G2 수정] provider가 PROVIDER_UNAVAILABLE을 던지면 그 코드로 수동 입력 전환한다", async () => {
@@ -172,18 +221,6 @@ describe("createRuleDraft", () => {
     }));
     expect(result.state).toBe("manual_required");
     expect(result.issues).toEqual(["PDF_TOO_LARGE"]);
-  });
-
-  it("[급가속] hardAccelPenaltyPoints도 근거 검증을 통과하면 채워진다", async () => {
-    const policyWithHardAccel = `${policy} 급가속 1회당 4점 감점.`;
-    const result = await createRuleDraft(policyWithHardAccel, via(async () => ({
-      ...extracted,
-      values: { ...extracted.values, hardAccelPenaltyPoints: 4 },
-      evidence: { ...extracted.evidence, hardAccelPenaltyPoints: "급가속 1회당 4점" },
-    })));
-    expect(result.state).toBe("draft");
-    expect(result.values.hardAccelPenaltyPoints).toBe(4);
-    expect(result.issues).toEqual([]);
   });
 });
 
