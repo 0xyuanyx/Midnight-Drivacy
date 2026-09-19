@@ -28,6 +28,19 @@
 - 근거 검증 통과 여부: 통과 — `state=draft`에 도달했다는 것은 채워진 5개 필드 모두 원문 근거(quote)와 숫자가 일치해 `draft.ts`의 `groundedInSource` 검증을 통과했다는 의미. `hardAccelPenaltyPoints`는 입력 원문에 해당 문구가 없어 `null`로 남고 `MISSING_FIELDS`만 경고성으로 표시됨(정상 동작, 실패 아님).
 - 진단: 이전 실행에서 관찰된 503은 일시적 과부하였음이 확인됨. `gemini-3.8-flash` 모델 ID 자체는 유효하며 실제로 구조화 출력을 정상 반환함.
 
+## 2026-09-20 (재검증, P2-10 8필드 fixture)
+
+- 배경: P2-10에서 추출 필드를 B `RuleDraftInputSchema` 8개로 바꾸고 fixture를 2단계(80점 10%/90점 15%, 급가속 포함)로 보강한 뒤 같은 스크립트로 재실행.
+- 입력: `packages/rule-draft/test/fixtures/synthetic-rider.txt` (새 8필드 가상 약관)
+- 키: `.env`의 `GEMINI_API_KEY` 사용 (값 미기록)
+- 결과:
+  | 시도 모델 | 결과 | 응답 시간 | state | 채워진 필드 수 | issues |
+  | --- | --- | --- | --- | --- | --- |
+  | `gemini-3.8-flash` (기본) | 실패 → 폴백 | - | - | - | - |
+  | `gemini-3.5-flash` (폴백) | 성공 | 56,251ms (전체) | **draft** | 8/8 | 없음 |
+- 근거 검증 통과 여부: 통과 (`state=draft`, issues 없음)
+- 진단: 폴백 체인이 실제 호출에서 동작함을 확인. 응답 시간은 기본 모델 재시도를 포함한 전체 시간이라 데모 시 대기 UI가 필요함.
+
 ## 미결정 질문
 
 - ~~`gemini-3.8-flash` 모델 ID가 맞는지~~ → 확인됨(정상 응답), 모델명 변경 불필요.
