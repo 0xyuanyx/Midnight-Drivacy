@@ -301,6 +301,38 @@ async function main() {
       assert.deepEqual(ledgerSnapshot(await indexed()), before);
       if (backend) await backend.abandon(request);
       browserCancellationChecked = true;
+
+      // beginTrip이 이미 원장에 반영된 뒤 다음 단계 승인이 취소되면 DB scope만 풀 수 없다.
+      // 가입자가 별도 cancelTrip을 승인하고 실제 receipt를 확인한 뒤에만 B가 abandoned로 닫는다.
+      const submittedRequest = { ...demoRequest(previous, registeredRule,
+        { ...demoTrip(1, randomSalt()), id: "cancelled-after-begin-trip" }),
+      operationId: "operation-cancelled-after-begin", idempotencyKey: "idempotency-cancelled-after-begin" };
+      const submittedTrip = prepareTrip(submittedRequest, ownerSecret, randomSalt(), randomSalt());
+      if (backend) await backend.stage(submittedRequest);
+      const submittedJob = new TripJob(submittedRequest, submittedTrip.candidate, jobStore, developerApproval);
+      const executeAction = (action: Action, ps: DrivingPrivateState) => async (hooks: TransactionHooks) => {
+        jobHooks = hooks;
+        try { return (await call(action, ps)).public; }
+        finally { jobHooks = undefined; }
+      };
+      await submittedJob.runStep("beginTrip", executeAction("beginTrip", submittedTrip.initial),
+        tx => ({ transactionId: tx.txId, blockId: tx.blockHash }));
+      assert.equal((await indexed()).active, true);
+      cancelNextBrowserApproval = true;
+      await assert.rejects(() => submittedJob.runStep("appendRecord:0",
+        executeAction("appendRecord", submittedTrip.steps[0]!),
+        tx => ({ transactionId: tx.txId, blockId: tx.blockHash })), /APPROVAL_CANCELLED/);
+      assert.equal(await canAbandonTrip(jobStore, submittedRequest.operationId), false);
+      if (backend) await backend.expectAbandonBlocked(submittedRequest);
+      const cancelTx = await submittedJob.cancelAfterSubmission(executeAction("cancelTrip", submittedTrip.final),
+        tx => ({ transactionId: tx.txId, blockId: tx.blockHash }));
+      assert(cancelTx.transactionId && cancelTx.blockId);
+      const cancelledLedger = await indexed();
+      assert.equal(cancelledLedger.active, false);
+      assert.deepEqual(cancelledLedger.stateCommitment, decode(previous.state.stateCommitment));
+      assert.equal(await canAbandonTrip(jobStore, submittedRequest.operationId), true);
+      if (backend) await backend.abandon(submittedRequest);
+      evidence.submittedTripCancelledOnChainBeforeBackendScopeRelease = true;
     }
     const transitions: unknown[] = [];
     for (const number of [1, 2] as const) {
@@ -438,13 +470,13 @@ async function main() {
       compiledContract, contractAddress: address, privateStateId: "driving",
       initialPrivateState: bootstrapPrivateState(previous.state, demoRule, ownerSecret),
     });
-    assert.equal(submittedContractTransactions, 10);
-    // 배포 1 + 초기화 1 + 첫 운행 3 + 두 번째 운행 4 + 최종 평가 1 = 10회.
+    assert.equal(submittedContractTransactions, browserWallet ? 12 : 10);
+    // 기본 10회에 브라우저 연결 검사는 beginTrip + cancelTrip 2회를 추가한다.
     // 변조/중복 요청은 이 횟수를 늘리지 않아야 한다.
     // 취소 검사도 proof까지는 실제 생성하지만 기기 월렛에서 balance/submit을 하지 않는다.
-    assert.equal(successfulProofRequests, browserWallet ? 11 : 10);
-    assert.equal(contractProofRequests, browserWallet ? 11 : 10);
-    assert.equal(developerApprovals, browserWallet ? 9 : 7);
+    assert.equal(successfulProofRequests, browserWallet ? 14 : 10);
+    assert.equal(contractProofRequests, browserWallet ? 14 : 10);
+    assert.equal(developerApprovals, browserWallet ? 12 : 7);
     evidence.developerApprovalRequests = developerApprovals;
     evidence.walletApprovalJobInterfaceVerified = true;
     evidence.persistedResultReloadedWithoutResubmission = true;
@@ -476,7 +508,7 @@ async function main() {
   } finally { if (browserWallet) await browserWallet.stop(); if (backend) await backend.stop(); await wallet.stop(); }
 }
 
-main().catch(error => {
+main().catch(() => {
   evidence.result = "failed";
   // Provider messages can contain proof inputs; never copy them to evidence/logs.
   evidence.failure = "LOCAL_DRIVING_VERIFICATION_FAILED";

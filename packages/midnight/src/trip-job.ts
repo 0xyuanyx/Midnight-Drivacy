@@ -5,7 +5,7 @@ import {
   type ChainConfirmation, type TripProcessingResult,
 } from "../../shared/src/bc-contract.js";
 
-export type TripStep = "beginTrip" | `appendRecord:${number}` | "finishTrip";
+export type TripStep = "beginTrip" | `appendRecord:${number}` | "finishTrip" | "cancelTrip";
 export interface ApprovalRequest {
   approvalRequestId: string; operationId: string; tripId: string;
   network: string; chainContractAddress: string; step: TripStep;
@@ -19,13 +19,14 @@ export interface WalletApproval {
 export interface StepReceipt { transactionId: string; blockId: string }
 export interface StepJournal {
   step: TripStep; approvalRequestId: string;
-  phase: "proving" | "awaiting" | "approved" | "submitting" | "submitted" | "confirmed" | "cancelled";
+  phase: "proving" | "awaiting" | "approved" | "submitting" | "submitted" | "confirmed" | "cancelled" | "rejected";
   transactionId?: string; receipt?: StepReceipt;
 }
+type FailedTripResult = Extract<TripProcessingResult, { status: "failed" }>;
 export interface JobJournal {
   operationId: string; scopeKey: string; idempotencyKey: string; fingerprint: string;
   result: TripProcessingResult; steps: StepJournal[];
-  retries: number; nextRetryAt?: number;
+  retries: number; nextRetryAt?: number; terminalFailure?: FailedTripResult;
 }
 export interface TransactionHooks {
   balance<R>(run: () => Promise<R>): Promise<R>;
@@ -45,6 +46,18 @@ export class JobBlocked extends Error {
 }
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
+function canReleaseJournal(job: JobJournal): boolean {
+  if (job.result.status !== "failed" || job.result.error.retryable) return false;
+  const tripTransactions = job.steps.filter(step => step.step !== "cancelTrip" && step.transactionId);
+  // 제출 의도가 전혀 없거나 모든 거래가 원장에서 확정 거부됐다면 체인 pending 상태가 없다.
+  if (tripTransactions.every(step => step.phase === "rejected")) return true;
+  if (tripTransactions.some(step => step.phase !== "confirmed" && step.phase !== "rejected")) return false;
+  // finishTrip이 확정됐다면 취소가 아니라 확정 결과 복구가 우선이다.
+  if (tripTransactions.some(step => step.step === "finishTrip" && step.phase === "confirmed")) return false;
+  const cancellation = [...job.steps].reverse().find(step => step.step === "cancelTrip");
+  return cancellation?.phase === "confirmed";
+}
+
 // B는 작업 ID만으로 확정 결과를 재조회한다. 원본/candidate를 다시 전송하지 않는다.
 // 호출자 인증·객체 권한은 외부 B↔C API에서 처리하며 이 함수는 내부 저장소 조회만 한다.
 export async function getTripStatus(store: JobJournalStore, operationId: string): Promise<TripProcessingResult> {
@@ -60,8 +73,7 @@ export async function canAbandonTrip(store: JobJournalStore, operationId: string
   if (!initial) return false;
   return store.withLock(initial.scopeKey, async () => {
     const job = await store.read(operationId);
-    return Boolean(job && job.result.status === "failed" && !job.result.error.retryable
-      && job.steps.every(step => !step.transactionId));
+    return Boolean(job && canReleaseJournal(job));
   });
 }
 
@@ -104,9 +116,7 @@ export class TripJob {
     if (others.some(j => j.idempotencyKey === this.request.idempotencyKey)) throw new JobBlocked("IDEMPOTENCY_CONFLICT");
     // 같은 이전 State로 다른 운행을 동시에 시작하면 둘 다 유효한 후보를 만들 수 있다.
     // 확정/실패 여부를 모르는 기존 작업은 먼저 복구한다. B도 별도 DB claim/CAS가 필요하다.
-    if (others.some(j => j.result.status !== "chain-confirmed"
-      && !(j.result.status === "failed" && j.result.error.code !== "TEMPORARY_FAILURE"
-        && j.steps.every(s => !s.transactionId)))) {
+    if (others.some(j => j.result.status !== "chain-confirmed" && !canReleaseJournal(j))) {
       throw new JobBlocked("SCOPE_BUSY");
     }
     const journal: JobJournal = { operationId: this.request.operationId, scopeKey: this.scopeKey,
@@ -128,6 +138,7 @@ export class TripJob {
 
   async runStep<T>(step: TripStep, execute: (hooks: TransactionHooks) => Promise<T>, receipt: (value: T) => StepReceipt): Promise<StepReceipt> {
     return this.store.withLock(this.scopeKey, async () => {
+      if (step === "cancelTrip") throw new JobBlocked("USE_CANCEL_AFTER_SUBMISSION");
       const journal = await this.load();
       const old = journal.steps.find(s => s.step === step);
       // 이미 확정된 단계는 receipt만 반환한다. 다시 서명하거나 제출하지 않는다.
@@ -263,7 +274,113 @@ export class TripJob {
       const entry = journal.steps.find(s => s.step === step);
       if (!entry || entry.transactionId !== transactionId || entry.phase === "confirmed"
         || journal.result.status === "chain-confirmed") throw new JobBlocked("RECEIPT_MISMATCH");
+      entry.phase = "rejected";
       journal.result = this.result({ status: "failed", error: { code: "CHAIN_REJECTED", retryable: false, transactionId } });
+      await this.store.write(journal);
+    });
+  }
+
+  /**
+   * 앞 단계가 체인에 반영된 terminal 운행을 가입자 승인 cancelTrip으로 닫는다.
+   * B는 이 receipt가 저장되고 canAbandonTrip이 true가 된 뒤에만 DB scope를 해제한다.
+   */
+  async cancelAfterSubmission<T>(execute: (hooks: TransactionHooks) => Promise<T>,
+    receipt: (value: T) => StepReceipt): Promise<StepReceipt> {
+    return this.store.withLock(this.scopeKey, async () => {
+      const journal = await this.load();
+      const existing = [...journal.steps].reverse().find(step => step.step === "cancelTrip");
+      if (existing?.phase === "confirmed") return existing.receipt!;
+      if (existing) throw new JobBlocked("CANCELLATION_RECOVERY_REQUIRED");
+      if (journal.result.status !== "failed" || journal.result.error.retryable) {
+        throw new JobBlocked("CANCELLATION_NOT_ALLOWED");
+      }
+      const tripTransactions = journal.steps.filter(step => step.transactionId);
+      if (!tripTransactions.some(step => step.phase === "confirmed")
+        || tripTransactions.some(step => step.phase !== "confirmed" && step.phase !== "rejected")
+        || tripTransactions.some(step => step.step === "finishTrip" && step.phase === "confirmed")) {
+        throw new JobBlocked("CANCELLATION_NOT_READY");
+      }
+      const terminalFailure = journal.result;
+      journal.terminalFailure = terminalFailure;
+      const entry: StepJournal = { step: "cancelTrip", approvalRequestId: randomUUID(), phase: "proving" };
+      journal.steps.push(entry);
+      journal.result = this.result({ status: "proving" });
+      await this.store.write(journal);
+      let balancing = false;
+      try {
+        const value = await execute({
+          balance: async run => {
+            if (entry.phase !== "proving" || balancing) throw new JobBlocked("BALANCE_ORDER");
+            balancing = true;
+            entry.phase = "awaiting";
+            journal.result = this.result({ status: "awaiting-wallet-approval", approvalRequestId: entry.approvalRequestId });
+            await this.store.write(journal);
+            const decision = await this.approval.request({ approvalRequestId: entry.approvalRequestId,
+              operationId: this.request.operationId, tripId: this.request.trip.id,
+              network: this.request.approvedRule.network,
+              chainContractAddress: this.request.approvedRule.chainContractAddress, step: "cancelTrip",
+              previousStateCommitment: this.candidate.previousStateCommitment,
+              newStateCommitment: this.candidate.previousStateCommitment });
+            if (decision !== "approved") {
+              entry.phase = "cancelled";
+              journal.result = terminalFailure;
+              await this.store.write(journal);
+              throw new JobBlocked("APPROVAL_CANCELLED");
+            }
+            const balanced = await run();
+            entry.phase = "approved";
+            await this.store.write(journal);
+            return balanced;
+          },
+          submit: async (transactionId, run) => {
+            if (entry.phase !== "approved" || !transactionId) throw new JobBlocked("SUBMIT_WITHOUT_APPROVAL");
+            entry.phase = "submitting";
+            entry.transactionId = transactionId;
+            journal.result = this.result({ status: "chain-unknown", transactionId });
+            await this.store.write(journal);
+            const submitted = await run();
+            entry.phase = "submitted";
+            journal.result = this.result({ status: "submitted", transactionId });
+            await this.store.write(journal);
+            return submitted;
+          },
+        });
+        const observed = receipt(value);
+        if (entry.phase !== "submitted" || observed.transactionId !== entry.transactionId || !observed.blockId) {
+          throw new JobBlocked("RECEIPT_MISMATCH");
+        }
+        entry.phase = "confirmed";
+        entry.receipt = observed;
+        journal.result = terminalFailure;
+        await this.store.write(journal);
+        return observed;
+      } catch (error) {
+        if (entry.transactionId) {
+          journal.result = this.result({ status: "chain-unknown", transactionId: entry.transactionId });
+        } else {
+          journal.result = terminalFailure;
+        }
+        await this.store.write(journal);
+        throw error;
+      }
+    });
+  }
+
+  /** 결과 불명 cancelTrip의 실제 성공 receipt를 조회한 뒤 재제출 없이 종료한다. */
+  async recoverCancellation(observed: StepReceipt): Promise<void> {
+    await this.store.withLock(this.scopeKey, async () => {
+      const journal = await this.load();
+      const entry = [...journal.steps].reverse().find(step => step.step === "cancelTrip");
+      if (!entry?.transactionId || entry.transactionId !== observed.transactionId || !observed.blockId
+        || !journal.terminalFailure) throw new JobBlocked("RECEIPT_MISMATCH");
+      if (entry.phase === "confirmed") {
+        if (entry.receipt?.blockId !== observed.blockId) throw new JobBlocked("RECEIPT_MISMATCH");
+        return;
+      }
+      if (entry.phase !== "submitting" && entry.phase !== "submitted") throw new JobBlocked("RECOVERY_REQUIRED");
+      entry.phase = "confirmed";
+      entry.receipt = observed;
+      journal.result = journal.terminalFailure;
       await this.store.write(journal);
     });
   }

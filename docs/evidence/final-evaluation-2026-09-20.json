@@ -1,0 +1,60 @@
+{
+  "adapterProfile": "drivacy-persistent-merkle10-c0311-r0160-v3-evaluation-owner",
+  "result": "passed",
+  "execution": "live",
+  "network": "undeployed",
+  "fullZkCompilationCircuits": 6,
+  "strictTypecheck": "passed",
+  "testsPassed": 106,
+  "localBrowserWalletVerified": true,
+  "localBackendDatabaseVerified": true,
+  "submittedTripCancelledOnChainBeforeBackendScopeRelease": true,
+  "actualChainResultInterruptionRecoveredWithoutResubmission": true,
+  "actualLocalDatabaseFailureRecoveredWithoutResubmission": true,
+  "actualLocalOriginalFilesDeletedAfterDatabaseConfirmation": true,
+  "concurrentBrowserBalanceAllowedExactlyOnce": true,
+  "twoCumulativeTransitionsVerified": true,
+  "finalRevision": 2,
+  "finalEvaluationProofAndNullifierVerified": true,
+  "invalidRequestsRejectedBeforeProofOrSubmission": 10,
+  "successfulContractProofRequests": 14,
+  "submittedContractTransactions": 12,
+  "developerApprovalRequests": 12,
+  "deploy": {
+    "txId": "00a486dceabd4cddd23a1156e8a21945d43d662932c876a9dfda9e8a8f60e3751a",
+    "status": "SucceedEntirely",
+    "blockHash": "cd9bd23c28548b99f7709c9e25b893059712f1604a688901f1802f971b514c77",
+    "blockHeight": 1345
+  },
+  "initialize": {
+    "txId": "0000ac9537e51864fc76b568f60f3752d4417cd441d0533bae150a8072c1e22a4f",
+    "status": "SucceedEntirely",
+    "blockHash": "a6aac534e5f07d43129f046f3b1b7882b797c2577df9cddd674acf661d6e5baa",
+    "blockHeight": 1350
+  },
+  "finalEvaluation": {
+    "txId": "004743fe4285f1a6523c728c16f1f62f3e8f962369c308f45ea5bd46524c23f828",
+    "status": "SucceedEntirely",
+    "blockHash": "a47cbbd4d86299ad528fb2e0779afafa72d95720a70c3f07a173db5b7104ff80",
+    "blockHeight": 1413,
+    "stateCommitment": "0028c1c036a369a465abad1ae9c6b09c4863ad494fb610cc625bd4d21869aae9",
+    "resultCommitment": "504cb17da46ae8075b151b743bf10085b4ad799f66dcedebdd71680e4d189fa8",
+    "nullifier": "4c4acd840a38507545625fcd40ab7228d82ad911f3fafdaefcf0f5bc7d3d29c2"
+  },
+  "sourceHashes": {
+    "contracts/driving-state.compact": "85b82cc686227a95cd58a6ef662ce5344f415845cf009db0287b6d7cd4427af2",
+    "packages/midnight/src/trip-job.ts": "438aa9c017f43f27f3b20d09b0a430941e914c640586a72fef5a621247c06ad9",
+    "packages/midnight/probe/driving-local.ts": "40eedeada3d7f1fdcaf91f67b366ef510a2614f498b427e591f8fcea3dbf79fc",
+    "packages/midnight/probe/backend-local.ts": "5052ff86de9741d82812cf45f80364794820ff99fdc0f4afd81dd91ddcb2214f",
+    "apps/backend/src/chain-state/chain-finalizer.ts": "a6836101dc2412d57fde066a8ded18d571cfb440ef5dfaebb5a9715db5dacf17",
+    "packages/midnight/test/trip-job.test.ts": "736bb8c2c4e5385ca9a280fd60b621370c22a165d1eda295a5595e355fa6af8e"
+  },
+  "verificationBoundaries": {
+    "subscriberBrowserWalletVerified": false,
+    "supabaseAuthAndStorageVerified": false,
+    "remoteMigrationApplied": false,
+    "preprodVerified": false,
+    "productUiVerified": false
+  },
+  "completedAt": "2026-09-20T09:16:16.456Z"
+}

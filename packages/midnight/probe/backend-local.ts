@@ -72,6 +72,11 @@ export async function startBackendProbe(reader: (id: string) => Promise<TripProc
       await assert.rejects(() => service.createJob(actor, request, fileURLToPath(sourcePath(request.operationId))), /JOB_ABANDONED/);
       await assert.rejects(() => service.deleteConfirmedSource(actor, request.operationId), /DB_NOT_CONFIRMED/);
     },
+    async expectAbandonBlocked(request: CalculateTripRequest) {
+      await assert.rejects(() => service.abandonJob(actor, request.operationId), /ABANDONMENT_NOT_SAFE/);
+      const row = await pool.query("SELECT status FROM chain_jobs WHERE operation_id=$1", [request.operationId]);
+      assert.equal(row.rows[0].status, "pending");
+    },
     async finish(request: CalculateTripRequest, injectFailure: boolean): Promise<ConfirmedState> {
       await assert.rejects(() => service.abandonJob(actor, request.operationId), /ABANDONMENT_NOT_SAFE/);
       const oldToken = await service.claim(actor, request.operationId);

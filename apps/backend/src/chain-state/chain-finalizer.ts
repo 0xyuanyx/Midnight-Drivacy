@@ -48,6 +48,22 @@ export class ChainFinalizer {
       [scope.contractId, actor.id, scope.insurerId, scope.endorsementId]);
     if (result.rowCount !== 1) throw new FinalizationBlocked("NOT_AUTHORIZED");
   }
+  private async readChainStatus(operationId: string): Promise<TripProcessingResult> {
+    try {
+      return TripProcessingResultSchema.parse(await this.chain.getTripStatus(operationId));
+    } catch {
+      // C 통신 오류와 신뢰 경계를 통과하지 못한 payload를 내부 worker의 한 가지 복구 상태로 노출한다.
+      throw new FinalizationBlocked("CHAIN_STATUS_UNAVAILABLE");
+    }
+  }
+  private async loadRequest(sourceKey: string): Promise<CalculateTripRequest> {
+    try {
+      return CalculateTripRequestSchema.parse(await this.source.load(sourceKey));
+    } catch {
+      // 원본/요청 payload 손상은 체인 실패가 아니며 임의 재제출이나 DB 확정으로 이어지면 안 된다.
+      throw new FinalizationBlocked("SOURCE_PAYLOAD_INVALID");
+    }
+  }
   /** Rule 승인/계약 binding은 B의 신뢰된 등록 경로에서 전달한다. 스키마의 approved 문자열은 승인 증거가 아니다. */
   async registerInitial(actor: User, registeredInput: RegisteredRule, confirmedInput: ConfirmedState): Promise<void> {
     const registered = RegisteredRuleSchema.parse(registeredInput);
@@ -118,9 +134,9 @@ export class ChainFinalizer {
     if (actor.role !== "DRIVER" || !initialJob) throw new FinalizationBlocked("NOT_AUTHORIZED");
     if (initialJob.status === "db-confirmed") return TripProcessingResultSchema.parse(initialJob.confirmed_result);
     if (initialJob.status !== "pending") throw new FinalizationBlocked("JOB_NOT_PENDING");
-    const result = TripProcessingResultSchema.parse(await this.chain.getTripStatus(operationId));
+    const result = await this.readChainStatus(operationId);
     if (result.status !== "chain-confirmed") return undefined;
-    const request = CalculateTripRequestSchema.parse(await this.source.load(initialJob.source_key));
+    const request = await this.loadRequest(initialJob.source_key);
     if (!canFinalizeState(result, request) || request.operationId !== operationId || request.trip.id !== initialJob.trip_id
       || createHash("sha256").update(JSON.stringify(request)).digest("hex") !== initialJob.request_hash
       || request.previous.state.stateCommitment !== initialJob.previous_commitment
@@ -156,9 +172,7 @@ export class ChainFinalizer {
     const initial = lookup.rows[0];
     if (!initial) throw new FinalizationBlocked("NOT_AUTHORIZED");
     if (initial.status === "abandoned") return;
-    const result = TripProcessingResultSchema.parse(await this.chain.getTripStatus(operationId).catch(() => {
-      throw new FinalizationBlocked("CHAIN_STATUS_UNAVAILABLE");
-    }));
+    const result = await this.readChainStatus(operationId);
     const safe = result.status === "failed" && !result.error.retryable
       && await this.chain.canAbandonTrip(operationId).catch(() => { throw new FinalizationBlocked("CHAIN_STATUS_UNAVAILABLE"); });
     if (!safe) {

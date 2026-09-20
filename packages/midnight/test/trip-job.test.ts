@@ -74,6 +74,39 @@ describe("wallet approval and C job lifecycle (offline synthetic receipts)", () 
     await expect(cancelled.runStep("appendRecord:0", s.execute("appendRecord:0"), r => r)).rejects.toThrow("APPROVAL_CANCELLED");
     expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(false);
   }));
+  it("releases a submitted terminal job only after an approved on-chain cancellation", () => using(async s => {
+    await s.run("beginTrip");
+    const cancelled = new TripJob(s.request, s.prepared.candidate, s.store, {
+      async request() { return "cancelled" as const; },
+    });
+    await expect(cancelled.runStep("appendRecord:0", s.execute("appendRecord:0"), r => r))
+      .rejects.toThrow("APPROVAL_CANCELLED");
+    expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(false);
+    await s.job.cancelAfterSubmission(s.execute("cancelTrip"), r => r);
+    expect(await s.job.getStatus()).toMatchObject({ status: "failed", error: { code: "APPROVAL_CANCELLED" } });
+    expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(true);
+    expect(s.counts()).toEqual({ approvals: 2, balances: 2, submissions: 2 });
+  }));
+  it("recovers an ambiguous cancellation receipt without resubmitting", () => using(async s => {
+    await s.run("beginTrip");
+    const cancelled = new TripJob(s.request, s.prepared.candidate, s.store, {
+      async request() { return "cancelled" as const; },
+    });
+    await expect(cancelled.runStep("appendRecord:0", s.execute("appendRecord:0"), r => r))
+      .rejects.toThrow("APPROVAL_CANCELLED");
+    const cancelReceipt = s.observed("cancelTrip");
+    await expect(s.job.cancelAfterSubmission(async hooks => {
+      await hooks.balance(async () => ({}));
+      return hooks.submit(cancelReceipt.transactionId, async () => { throw new Error("Connection lost after cancel"); });
+    }, r => r as never)).rejects.toThrow("Connection lost after cancel");
+    expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(false);
+    const reloaded = new TripJob(s.request, s.prepared.candidate,
+      new LocalJobStore(join(s.directory, "jobs.json")), s.approval);
+    await reloaded.recoverCancellation(cancelReceipt);
+    expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(true);
+    await reloaded.cancelAfterSubmission(async () => { throw new Error("Resent"); }, r => r as never);
+    expect(s.counts().submissions).toBe(1);
+  }));
   it("persists approval waiting so status can be read while execution is locked", () => using(async s => {
     let release!: (value: "approved") => void;
     let requested!: () => void;
@@ -177,6 +210,7 @@ describe("wallet approval and C job lifecycle (offline synthetic receipts)", () 
     expect((await s.job.getStatus()).status).toBe("chain-unknown");
     await s.job.rejectStep("beginTrip", s.observed("beginTrip").transactionId);
     expect(await s.job.getStatus()).toMatchObject({ status: "failed", error: { code: "CHAIN_REJECTED", retryable: false } });
+    expect(await canAbandonTrip(s.store, s.request.operationId)).toBe(true);
     await expect(s.job.recoverStep("beginTrip", s.observed("beginTrip"))).rejects.toThrow("TERMINAL_JOB");
   }));
   it("does not send when recording the transaction ID fails", () => using(async s => {

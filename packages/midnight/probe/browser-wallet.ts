@@ -3,7 +3,7 @@
 import { createServer } from "node:http";
 import { readFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dirname, basename } from "node:path";
+import { dirname } from "node:path";
 import { build } from "esbuild";
 import { polyfillNode } from "esbuild-plugin-polyfill-node";
 import { chromium } from "playwright";

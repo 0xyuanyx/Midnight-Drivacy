@@ -1,6 +1,6 @@
 # Drivacy 프로젝트 방향성
 
-마지막 업데이트: 2026-09-18 (KST)
+마지막 업데이트: 2026-09-20 (KST)
 
 이 문서는 팀과 개발 도구가 공유하는 현재 방향의 기준이다. 실제 구현·검증 결과는 README와 코드가 증명하며, 이 문서의 계획을 구현 완료로 표현하지 않는다.
 
@@ -241,7 +241,9 @@ genesis·모의 계약·원본 파일을 사용한다. 원격 Supabase migration
 가입자 provisioning/Auth/Storage·제품 화면·Preprod는 별도 검증 범위다.
 구현·실행 근거와 한계는 [FINAL_EVALUATION.md](docs/FINAL_EVALUATION.md)에 남긴다.
 
-2026-09-18 독립 검토로 확인한 이전 단계 제출 후 terminal failure의 체인 취소·C/B 작업 종료 연결은 미해결이다. 원장 확인 없이 DB 작업만 해제하지 않으며, 기존 작업당 재시도 세 번 정책은 유지한다. v3 전체 로컬 연결 재검증은 Docker 시작 오류로 중단되어 완료로 기록하지 않는다.
+2026-09-20 이전 단계가 제출된 뒤 terminal failure가 발생한 운행의 체인 취소·C/B 작업 종료를 연결했다. C는 전체 journal에서 이전 거래의 확정/거부 상태를 확인하고, 가입자가 별도 `cancelTrip` 거래를 승인해 실제 receipt가 확인된 뒤에만 B의 scope 해제를 허용한다. 결과 불명 거래가 있거나 `finishTrip`이 이미 확정된 작업은 계속 막고, 원장 확인 없이 DB 작업만 해제하지 않는다. 기존 작업당 재시도 세 번 정책은 유지한다.
+
+같은 날 Docker Desktop의 stale 로컬 socket을 백업명으로 보존 이동한 뒤 v3 전체 로컬 연결을 재검증했다. 6개 회로 전체 ZK 컴파일·strict 검사·106개 테스트와 실제 로컬 브라우저 월렛/격리 PostgreSQL 연결이 통과했다. 제출 후 취소, DB scope 해제, 두 운행 revision 2, 최종 평가/nullifier, 변조·중복 10건 거부를 확인했다. 이 결과는 공개 local genesis와 fixture DB 근거이며 실제 가입자 Auth/Storage·제품 화면·원격 Supabase migration·Preprod 검증은 아니다.
 
 ## 개발 착수 기준과 최초 점검 — 2026-09-16
 

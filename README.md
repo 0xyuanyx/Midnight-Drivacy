@@ -62,10 +62,14 @@ C 6단계의 [최종 결과 proof·nullifier와 로컬 브라우저/B 연결](do
 v3 회로의 전체 ZK 컴파일·strict 타입 검사와 Windows/Linux 각각 102개 테스트,
 독립 기준 계산 332건·거부 사례 15건이 통과했습니다. 수정 전 v2의 로컬 연결 결과는
 [역사적 증거](docs/evidence/final-evaluation-2026-09-18-before-owner-fix.json)로 분리했습니다.
-v3 실제 지갑·DB·최종 평가 재검증은 Docker 시작 오류로 중단되어 아직 완료되지 않았습니다.
-[최신 검증 상태](docs/evidence/final-evaluation-2026-09-18.json)를 보관합니다.
+2026-09-20 후속 구현에서 제출된 앞 단계가 있는 terminal 작업은 가입자가 별도
+`cancelTrip` 거래를 승인하고 실제 receipt가 확인된 뒤에만 B scope를 해제하도록 연결했습니다.
+finalizer의 C 조회·잘못된 원본 payload도 domain 오류로 통일했습니다. 전체 ZK 컴파일,
+strict 검사와 106개 테스트, 실제 로컬 브라우저 월렛·격리 PostgreSQL·두 운행 revision 2·
+최종 평가/nullifier가 통과했고 변조·중복 10건을 거부했습니다.
+[최신 실행 증거](docs/evidence/final-evaluation-2026-09-20.json)를 보관합니다.
+[이전 중단 상태](docs/evidence/final-evaluation-2026-09-18.json)는 역사적 기록으로 유지합니다.
 [Claude Midnight Expert 교차검증](docs/evidence/midnight-expert-review-2026-09-18.md)은 완료했습니다.
-일부 거래 제출 뒤 terminal failure의 체인 취소·작업 종료 연결은 미해결이며 현재 안전하게 scope를 막습니다.
 `./scripts/check-driving-state.ps1 -Live -BrowserIntegration`으로 연결 검사를 실행합니다.
 공개 local genesis를 쓰며 실제 가입자 Auth/Storage·제품 화면·보험사 결정·Preprod와 구분합니다.
 
