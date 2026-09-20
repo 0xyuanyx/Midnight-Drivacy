@@ -8,6 +8,7 @@ export const toRuleVersionNumber = (value: string): number => {
  const version=Number(value); if(!Number.isInteger(version)||version<1||version>0xffff_ffff) throw new AppError("INTERNAL_SERVER_ERROR","Stored rule version is invalid",500); return version;
 };
 export class RuleService { public constructor(private readonly repo:RuleRepository) {}
+ public async authorizeDraft(u:string,s:string):Promise<void>{if(!await this.repo.findAuthorizedSpecialContract(u,s))throw new AppError("SPECIAL_CONTRACT_NOT_FOUND","Special contract was not found",404);}
  private async rule(user:string,s:string){if(!await this.repo.findAuthorizedSpecialContract(user,s)) throw new AppError("SPECIAL_CONTRACT_NOT_FOUND","Special contract was not found",404); const r=await this.repo.findRule(s); if(!r) throw new AppError("RULE_NOT_FOUND","Rule was not found",404);return r;}
  private async out(r:RuleRow):Promise<RuleResponse>{const versions=(await this.repo.findVersions(r.id)).map(v=>({version:toRuleVersionNumber(v.version),status:v.status,ruleDefinition:v.ruleDefinition,effectiveFrom:iso(v.effectiveFrom),effectiveTo:iso(v.effectiveTo),approvedBy:v.approvedBy,approvedAt:iso(v.approvedAt),createdAt:v.createdAt.toISOString(),updatedAt:v.updatedAt.toISOString()}));const p=RuleResponseSchema.safeParse({id:r.id,specialContractId:r.specialContractId,versions});if(!p.success)throw new AppError("INTERNAL_SERVER_ERROR","Stored rule data is invalid",500);return p.data;}
  public async get(u:string,s:string){return this.out(await this.rule(u,s));}

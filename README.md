@@ -83,6 +83,8 @@ The repository preserves the applied Supabase migrations for `evaluation_scopes`
 
 The Backend also provides simulated Driving Session start, retrieval, and end APIs. A session persists one generated Trip and its segments, reuses it for the same idempotency key, and fixes the chain-confirmed current Rule Version selected for its configured runtime. It does not calculate scores, persist confirmed State, execute proofs, or connect a production C adapter.
 
+INSURER users can also request a review-only Rule Draft from policy text. Gemini failures or missing configuration return a manual-input result; only the existing complete Rule save API creates a DRAFT Rule Version. Draft evidence, issues, provider metadata, and source text are not persisted by this flow.
+
 1. 예시 약관의 LLM 규칙 초안 생성을 우선 시도하고, 보험사가 수정·검토해 승인합니다. 변환 실패 시 수기 입력 후 같은 승인 경로를 사용합니다.
 2. 가입자가 해당 특약을 선택하고 `운행 시작`을 눌러 Backend가 생성한 모의 기록으로 두 번 이상의 운행을 순서대로 처리합니다. 승인된 최소 거리와 이전 확정 누적 거리에 맞춘 거리·시간·이벤트 생성은 [모의 주행 설계](docs/DRIVING_SIMULATION.md)를 따릅니다. Backend Generator와 Driving Session start/get/end API는 구현됐으며, Frontend 진행 화면과 실제 Confirmed State persistence·C·Midnight 연결은 후속 단계입니다. 상세 난수 범위는 추천안입니다.
 3. Dataset Merkle Tree로 제출 기록과 계산 입력을 연결하고, 운행별 승인 규칙 계산과 이전·신규 상태의 관계를 증명합니다. Midnight 검증과 체인 반영 확인 후에만 DB 신규 상태를 확정하며, 실패·미확정 시 이전 확정 상태를 유지합니다.

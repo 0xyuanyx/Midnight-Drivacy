@@ -6,6 +6,8 @@ import type { InsuranceService } from "./insurance/insurance-service.js";
 import type { RuleService } from "./rule/rule-service.js";
 import type { RuleRegistrationService } from "./rule-registration/rule-registration-service.js";
 import type { DrivingService } from "./driving/driving-service.js";
+import type { RuleDraftService } from "./rule-draft/rule-draft-service.js";
+import { createRuleDraftRouter } from "./routes/rule-drafts.js";
 import { createDrivingRouter } from "./routes/driving.js";
 import { createRuleRegistrationRouter } from "./routes/rule-registration.js";
 import { createRuleRouter } from "./routes/rules.js";
@@ -22,6 +24,7 @@ export interface BackendDependencies extends AuthDependencies {
   ruleService?: RuleService;
   ruleRegistrationService?: RuleRegistrationService;
   drivingService?: DrivingService;
+  ruleDraftService?: RuleDraftService;
 }
 
 /**
@@ -43,6 +46,7 @@ export const createApp = (dependencies?: BackendDependencies): express.Express =
       app.use(createInsuranceRouter(dependencies, dependencies.insuranceService));
     }
     if (dependencies.ruleService) app.use(createRuleRouter(dependencies, dependencies.ruleService));
+    if (dependencies.ruleDraftService) app.use(createRuleDraftRouter(dependencies, dependencies.ruleDraftService));
     if (dependencies.ruleRegistrationService) app.use(createRuleRegistrationRouter(dependencies, dependencies.ruleRegistrationService));
     if (dependencies.drivingService) app.use(createDrivingRouter(dependencies, dependencies.drivingService));
   }

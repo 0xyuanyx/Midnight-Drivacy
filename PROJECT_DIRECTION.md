@@ -90,6 +90,11 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - 동일 Scope·Rule version의 동시 등록은 외부 Adapter 호출 전에 DB transaction-scoped advisory lock으로 직렬화한다. deployment 재사용은 Scope만이 아니라 현재 Adapter runtime의 network와 adapter profile까지 일치해야 한다.
 - Scope Deployment의 현재 적용 Rule은 APPROVED 상태만으로 정하지 않는다. 같은 runtime Deployment에 실제 chain-confirmed registration/update가 저장된 뒤 `current_rule_version_id`로 지정된 version만 새 운행에 사용한다. 과거 운행은 생성 당시 Rule Version을 유지한다.
 
+### Rule Draft → 검토·저장 흐름 — 2026-09-20 구현
+
+- INSURER는 자신의 특약에 약관 텍스트로 Rule Draft를 요청할 수 있다. Gemini 결과와 설정·호출 실패 fallback은 모두 검토용 `draft` 또는 `manual_required` 응답이며 자동 승인·DB 저장을 하지 않는다.
+- 저장은 기존 완전한 `RuleDraftInputSchema` 검증과 DRAFT Version 생성 API를 그대로 사용한다. null이 있는 Draft, evidence, issues, provider, 원문은 Rule Version DB에 저장하지 않는다.
+
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 
 ## 향후 검증 방식 — 2026-09-18 확정

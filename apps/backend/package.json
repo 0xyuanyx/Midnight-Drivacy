@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@drivacy/rule-draft": "file:../../packages/rule-draft",
     "@drivacy/shared": "file:../../packages/shared",
     "@supabase/supabase-js": "^2.116.0",
     "express": "^5.0.0",
