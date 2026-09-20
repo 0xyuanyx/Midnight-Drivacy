@@ -6,6 +6,7 @@ import {
   type CalculateTripRequest, type ConfirmedState, type RegisteredRule,
   type Scope, type TripProcessingResult, type User,
 } from "@drivacy/shared";
+import { chainScopeKey } from "./scope-key.js";
 
 export interface TrustedChainReader {
   getTripStatus(operationId: string): Promise<TripProcessingResult>;
@@ -17,7 +18,6 @@ export interface PrivateTripSource {
   delete(sourceKey: string): Promise<void>;
 }
 export class FinalizationBlocked extends Error {}
-const scopeKey = (scope: Scope) => createHash("sha256").update(JSON.stringify(scope)).digest("hex");
 interface JobRow {
   operation_id: string; scope_key: string; trip_id: string; previous_commitment: string;
   source_key: string; status: "pending" | "db-confirmed" | "abandoned";
@@ -80,7 +80,7 @@ export class ChainFinalizer {
         `INSERT INTO public.chain_states(scope_key,owner_user_id,insurance_contract_id,special_contract_id,
            registered_rule,confirmed_state,state_commitment,version) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT(scope_key) DO NOTHING RETURNING scope_key`,
-        [scopeKey(s.scope), actor.id, s.scope.contractId, s.scope.endorsementId, registered, confirmed, s.stateCommitment, s.version]);
+        [chainScopeKey(s.scope), actor.id, s.scope.contractId, s.scope.endorsementId, registered, confirmed, s.stateCommitment, s.version]);
       if (inserted.rowCount !== 1) throw new FinalizationBlocked("STATE_ALREADY_REGISTERED");
     });
   }
@@ -93,20 +93,20 @@ export class ChainFinalizer {
       const existing = await client.query<JobRow>("SELECT * FROM public.chain_jobs WHERE operation_id=$1", [request.operationId]);
       if (existing.rows[0]) {
         const job = existing.rows[0];
-        if (job.scope_key !== scopeKey(request.scope) || job.request_hash !== requestHash || job.source_key !== sourceKey) {
+        if (job.scope_key !== chainScopeKey(request.scope) || job.request_hash !== requestHash || job.source_key !== sourceKey) {
           throw new FinalizationBlocked("IDEMPOTENCY_CONFLICT");
         }
         if (job.status === "abandoned") throw new FinalizationBlocked("JOB_ABANDONED");
         return;
       }
-      const state = await client.query<StateRow>("SELECT * FROM public.chain_states WHERE scope_key=$1 FOR UPDATE", [scopeKey(request.scope)]);
+      const state = await client.query<StateRow>("SELECT * FROM public.chain_states WHERE scope_key=$1 FOR UPDATE", [chainScopeKey(request.scope)]);
       const current = state.rows[0];
       if (!current || current.state_commitment !== request.previous.state.stateCommitment
         || JSON.stringify(RegisteredRuleSchema.parse(current.registered_rule)) !== JSON.stringify(request.approvedRule)) {
         throw new FinalizationBlocked("STALE_OR_UNREGISTERED_STATE");
       }
       await client.query(`INSERT INTO public.chain_jobs(operation_id,scope_key,idempotency_key,trip_id,previous_commitment,source_key,request_hash)
-        VALUES($1,$2,$3,$4,$5,$6,$7)`, [request.operationId, scopeKey(request.scope), request.idempotencyKey,
+        VALUES($1,$2,$3,$4,$5,$6,$7)`, [request.operationId, chainScopeKey(request.scope), request.idempotencyKey,
         request.trip.id, request.previous.state.stateCommitment, sourceKey, requestHash]);
     }).catch(error => {
       // 동일 scope의 진행 중 작업은 예상 가능한 업무 상태다. SQL 오류를 API 오류처럼 노출하지 않는다.
@@ -140,7 +140,7 @@ export class ChainFinalizer {
     if (!canFinalizeState(result, request) || request.operationId !== operationId || request.trip.id !== initialJob.trip_id
       || createHash("sha256").update(JSON.stringify(request)).digest("hex") !== initialJob.request_hash
       || request.previous.state.stateCommitment !== initialJob.previous_commitment
-      || scopeKey(request.scope) !== initialJob.scope_key) throw new FinalizationBlocked("CONFIRMATION_MISMATCH");
+      || chainScopeKey(request.scope) !== initialJob.scope_key) throw new FinalizationBlocked("CONFIRMATION_MISMATCH");
     return this.transaction(async client => {
       await this.owned(client, actor, request.scope);
       const jobs = await client.query<JobRow>(`SELECT *, claim_expires_at>clock_timestamp() AS claim_valid

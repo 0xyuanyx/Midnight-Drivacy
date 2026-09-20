@@ -1,6 +1,6 @@
 # Drivacy 프로젝트 방향성
 
-마지막 업데이트: 2026-09-20 (KST)
+마지막 업데이트: 2026-09-21 (KST)
 
 이 문서는 팀과 개발 도구가 공유하는 현재 방향의 기준이다. 실제 구현·검증 결과는 README와 코드가 증명하며, 이 문서의 계획을 구현 완료로 표현하지 않는다.
 
@@ -94,6 +94,13 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 
 - INSURER는 자신의 특약에 약관 텍스트로 Rule Draft를 요청할 수 있다. Gemini 결과와 설정·호출 실패 fallback은 모두 검토용 `draft` 또는 `manual_required` 응답이며 자동 승인·DB 저장을 하지 않는다.
 - 저장은 기존 완전한 `RuleDraftInputSchema` 검증과 DRAFT Version 생성 API를 그대로 사용한다. null이 있는 Draft, evidence, issues, provider, 원문은 Rule Version DB에 저장하지 않는다.
+
+### B 9단계 독립 경계 구현 방향 (2026-09-21)
+
+- C의 production `BCAdapter`와 chain-confirmed genesis State 제공 경로가 준비되기 전까지 B는 C 계산, Merkle, ZK, Midnight 호출 또는 genesis State 생성을 임시로 구현하지 않는다.
+- B는 종료된 Driving Session, 현재 runtime의 chain-confirmed Rule, DB Confirmed State를 검증해 `CalculateTripRequest`를 조립할 수 있다. 요청 원문 저장소와 C 상태 조회기는 DI 경계로 두며, production 구현이나 공개 API로 노출하지 않는다.
+- 후속 운행 생성은 `chain_states`에 저장된 검증 가능한 Confirmed State만 읽는다. Session만으로 거리나 State를 추론하지 않으며, State가 없으면 후속 운행을 허용하지 않는다.
+- C 연동을 재개하려면 C가 Shared 계약에 맞는 Adapter, operationId 기반 상태 조회/안전한 abandon 판단, 그리고 B가 등록할 수 있는 genesis Confirmed State를 제공해야 한다. Scope key 직렬화 규칙도 B의 `SHA-256(JSON.stringify(scope))`와 일치해야 한다.
 
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 

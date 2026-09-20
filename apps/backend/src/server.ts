@@ -12,14 +12,12 @@ import { RuleService } from "./rule/rule-service.js";
 import { PgDrivingRepository } from "./driving/driving-repository.js";
 import { DrivingService } from "./driving/driving-service.js";
 import { RuleDraftService } from "./rule-draft/rule-draft-service.js";
-import type { ConfirmedDrivingStateReader } from "./driving/confirmed-state-reader.js";
+import { PgConfirmedDrivingStateReader } from "./driving/pg-confirmed-state-reader.js";
 
 const { port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile } = loadEnvironment();
 const pool = createDatabasePool(databaseUrl);
 const authRepository = new PgAuthRepository(pool);
 const ruleService = new RuleService(new PgRuleRepository(pool));
-// 확정 State 저장소가 연결되기 전에는 후속 운행을 0으로 가정하지 않고 안전하게 거부한다.
-const unavailableConfirmedStateReader: ConfirmedDrivingStateReader = { getConfirmedDistanceM: async () => undefined };
 const app = createApp({
   authRepository,
   supabaseAuthVerifier: createSupabaseAuthVerifier(supabaseUrl, supabasePublishableKey),
@@ -27,7 +25,7 @@ const app = createApp({
   insuranceService: new InsuranceService(new PgInsuranceRepository(pool)),
   ruleService,
   ruleDraftService: new RuleDraftService(ruleService),
-  drivingService: new DrivingService(new PgDrivingRepository(pool), { network: midnightNetwork, adapterProfile: midnightAdapterProfile }, unavailableConfirmedStateReader),
+  drivingService: new DrivingService(new PgDrivingRepository(pool), { network: midnightNetwork, adapterProfile: midnightAdapterProfile }, new PgConfirmedDrivingStateReader(pool)),
 });
 
 app.listen(port, () => {
