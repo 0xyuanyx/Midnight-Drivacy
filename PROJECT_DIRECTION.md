@@ -133,7 +133,9 @@ WSL/컨테이너와 별도 물리 장비, mock과 실제 증명·체인·provide
 - 원격 Supabase에는 `20260921094044_add_chain_job_recovery` migration이 적용되어 있으며, `chain_jobs`에 재시도 횟수·다음 작업 종류/시각·마지막 오류·안전한 abandon 시각·실패 원본 보관 만료 시각을 영속화한다.
 - `retry`와 `status-check`를 분리해 `chain-unknown`을 새 체인 제출로 오해하지 않도록 하고, terminal Job에는 예약 작업이 남지 않게 DB CHECK로 제한한다. `raw_expires_at`과 `abandoned_at`은 안전하게 종료된 `abandoned` Job에서만 허용한다.
 - `chain_jobs_due_action_idx`와 `chain_jobs_raw_expiry_idx`로 due worker와 실패 원본 cleanup 조회 경계를 만들고, 기존 Scope별 pending Job 1개 제약·operation/idempotency/trip 중복 방지·RLS/직접 접근 차단을 유지한다.
-- 원격 DB에서 retry 범위, 예약 action 쌍, terminal 예약 금지, abandoned 원본 만료, 기존 UNIQUE 제약을 transaction fixture로 검증하고 전부 rollback했다. 이 단계는 DB 저장 구조까지이며 실제 1·5·15분 재시도 worker, 상태 재조회, safe abandon 호출, 7일 cleanup 실행 코드는 후속 Backend 작업이다.
+- 원격 DB에서 retry 범위, 예약 action 쌍, terminal 예약 금지, abandoned 원본 만료, 기존 UNIQUE 제약을 transaction fixture로 검증하고 전부 rollback했다. 운영 Supabase에는 작업 테스트 데이터를 남기지 않았다.
+- Backend의 호출형 recovery worker는 DB due action을 다시 읽어 1·5·15분 `TEMPORARY_FAILURE` 재시도, `chain-unknown`의 상태조회 전용 복구, 안전한 abandon 뒤 7일 원본 보관, 만료 cleanup을 처리한다. claim/lease와 조건부 retry 증가를 사용하므로 서버 재시작이나 동시 worker가 별도 메모리 상태 없이 이어서 처리한다. `chain-unknown` status-check의 1분 간격은 재제출 없는 최소 구현값이며 사업 정책을 새로 확정하지 않는다.
+- 이는 injected C 경계와 transaction-aware fixture 검증 범위다. production C Adapter, 실제 Midnight network, 실제 ZK/Proof E2E 및 production chain-confirmed 연동 완료를 뜻하지 않는다.
 
 ### 사용자 지시 — 확정
 
