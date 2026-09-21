@@ -32,6 +32,8 @@
 
 Rule 변경은 평가 Scope나 누적 State를 초기화하지 않고, 기존 deployment와 v1 registration을 보존한 채 새 version registration만 추가한다. 신규 세 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 부여하지 않는다.
 
+`20260921190000_add_initial_registration_attempts.sql`은 최초 배포 외부 호출 전 `operation_id`를 Scope·runtime별로 영속화하는 후속 migration이다. B의 Fake Adapter 검사는 같은 ID의 C `not-submitted`/`chain-confirmed` 상태에 따라 안전한 재시도·DB 복구를 분기한다. 실제 C의 영속 거래 상태 조회는 아직 없으므로 운영 복구가 완성된 것은 아니다. 이 파일은 **원격 Supabase에 아직 적용하지 않았다**. 앞서 추가된 `20260918060000_chain_state_confirmation.sql`도 별도 로컬 검증용이며 원격 적용 완료로 보지 않는다.
+
 DB Row는 Shared API 객체와 1:1이 아니다. Backend가 객체 접근 권한을 검사한 뒤 다음 JOIN 및 변환을 수행할 예정이며, 이 문서는 향후 API 구현을 지시하지 않는다.
 
 | DB 원본 | Shared 출력 |

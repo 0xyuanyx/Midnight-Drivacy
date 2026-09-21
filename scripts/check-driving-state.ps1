@@ -17,6 +17,7 @@ foreach ($drivingPart in @('src','test','probe','browser')) {
 }
 New-Item -ItemType Directory -Path (Join-Path $drivingHarness 'apps/backend/src'),(Join-Path $drivingHarness 'db') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $drivingRoot 'apps/backend/src/chain-state') -Destination (Join-Path $drivingHarness 'apps/backend/src/chain-state') -Recurse
+Copy-Item -LiteralPath (Join-Path $drivingRoot 'apps/backend/src/errors') -Destination (Join-Path $drivingHarness 'apps/backend/src/errors') -Recurse
 Copy-Item -LiteralPath (Join-Path $drivingRoot 'db/migrations') -Destination (Join-Path $drivingHarness 'db/migrations') -Recurse
 Copy-Item -LiteralPath (Join-Path $drivingRoot 'contracts/driving-state.compact') -Destination $drivingHarness
 if (Test-Path -LiteralPath (Join-Path $drivingRoot 'tsconfig.base.json')) {

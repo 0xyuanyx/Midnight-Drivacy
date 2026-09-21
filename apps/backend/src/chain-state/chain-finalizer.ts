@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import {
-  CalculateTripRequestSchema, ConfirmedStateSchema, RegisteredRuleSchema,
+  CalculateTripRequestSchema, ConfirmedStateSchema, RegisteredRuleSchema, hasZeroGenesisMetrics,
   TripProcessingResultSchema, canFinalizeState,
   type CalculateTripRequest, type ConfirmedState, type RegisteredRule,
   type Scope, type TripProcessingResult, type User,
@@ -73,7 +73,7 @@ export class ChainFinalizer {
       || registered.chainContractAddress !== c.chainContractAddress || registered.ruleHash !== s.rule.ruleHash
       || registered.rule.id !== s.rule.id || registered.rule.version !== s.rule.version
       || registered.rule.insurerId !== s.scope.insurerId || registered.rule.endorsementId !== s.scope.endorsementId
-      || s.version !== 0) throw new FinalizationBlocked("INITIAL_BINDING_MISMATCH");
+      || !hasZeroGenesisMetrics(s)) throw new FinalizationBlocked("INITIAL_BINDING_MISMATCH");
     await this.transaction(async client => {
       await this.owned(client, actor, s.scope);
       const inserted = await client.query(

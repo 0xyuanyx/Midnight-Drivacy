@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CalculateTripRequestSchema, CandidateStateSchema, DeployRuleRequestSchema, DeployRuleResultSchema, RuleSchema, UpdateRuleRequestSchema,
+  CalculateTripRequestSchema, CandidateStateSchema, DeployRuleRequestSchema, DeployRuleResultSchema, InitialRegistrationStatusSchema, RuleSchema, UpdateRuleRequestSchema,
   TripProcessingResultSchema, canFinalizeState, serializeRule, serializeState, serializeDatasetRecord,
 } from "../src/bc-contract.js";
 
@@ -76,8 +76,15 @@ describe("B↔C internal contract", () => {
   it("models first deployment separately from an update on an existing contract", () => {
     const approvedRule = { approval: "approved", rule };
     const registeredRule = { ...approvedRule, registration: "chain-confirmed", ruleHash: "fixture-rule-hash", adapterProfile: "fixture-adapter", network: "fixture", chainContractAddress: "fixture-contract", registrationTransactionId: "register-tx" };
-    expect(DeployRuleRequestSchema.safeParse({ scope, approvedRule }).success).toBe(true);
-    expect(DeployRuleResultSchema.safeParse({ deploymentTransactionId: "deploy-tx", registeredRule }).success).toBe(true);
+    expect(DeployRuleRequestSchema.safeParse({ operationId: "initial-operation", scope, approvedRule }).success).toBe(true);
+    expect(DeployRuleRequestSchema.safeParse({ scope, approvedRule }).success).toBe(false);
+    const confirmedGenesis = { ...request().previous, confirmation: {
+      ...request().previous.confirmation, adapterProfile: "fixture-adapter" } };
+    expect(DeployRuleResultSchema.safeParse({ operationId: "initial-operation", deploymentTransactionId: "deploy-tx", registeredRule, confirmedGenesis }).success).toBe(true);
+    expect(DeployRuleResultSchema.safeParse({ deploymentTransactionId: "deploy-tx", registeredRule }).success).toBe(false);
+    expect(InitialRegistrationStatusSchema.safeParse({ operationId: "initial-operation", status: "not-submitted" }).success).toBe(true);
+    expect(InitialRegistrationStatusSchema.safeParse({ operationId: "initial-operation", status: "chain-confirmed", result: { operationId: "initial-operation", deploymentTransactionId: "deploy-tx", registeredRule, confirmedGenesis } }).success).toBe(true);
+    expect(InitialRegistrationStatusSchema.safeParse({ operationId: "initial-operation", status: "chain-confirmed" }).success).toBe(false);
     expect(UpdateRuleRequestSchema.safeParse({ scope, approvedRule, deployment: { network: "fixture", adapterProfile: "fixture-adapter", chainContractAddress: "fixture-contract" } }).success).toBe(true);
   });
   it("accepts the two sequential fixtures with explicit candidate states", () => {

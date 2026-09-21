@@ -7,7 +7,7 @@ import type { ConfirmedDrivingStateReader } from "./confirmed-state-reader.js";
 export class PgConfirmedDrivingStateReader implements ConfirmedDrivingStateReader {
   public constructor(private readonly pool: Pool) {}
 
-  public async getConfirmedDistanceM(evaluationScopeId: string): Promise<number | undefined> {
+  public async getConfirmedState(evaluationScopeId: string) {
     const result = await this.pool.query<{ confirmedState: unknown }>(
       `SELECT cs.confirmed_state AS "confirmedState"
          FROM public.evaluation_scopes es
@@ -22,6 +22,6 @@ export class PgConfirmedDrivingStateReader implements ConfirmedDrivingStateReade
     if (!row) return undefined;
     const parsed = ConfirmedStateSchema.safeParse(row.confirmedState);
     if (!parsed.success) throw new Error("Stored confirmed state is invalid");
-    return parsed.data.state.totals.distanceM;
+    return parsed.data;
   }
 }

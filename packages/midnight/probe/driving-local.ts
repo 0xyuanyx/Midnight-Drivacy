@@ -124,6 +124,13 @@ async function main() {
     ));
     // Allow one block for DUST projection to become spendable on chain.
     await new Promise(resolve => setTimeout(resolve, 6000));
+    if (process.env.DRIVACY_BROWSER_INTEGRATION === "1") {
+      // 최초 배포와 Genesis도 후속 운행과 같은 기기 월렛이 승인한다.
+      browserWallet = await startBrowserWallet();
+      assert.deepEqual(browserWallet.publicKeys, { coinPublicKey: shieldedSecretKeys.coinPublicKey,
+        encryptionPublicKey: shieldedSecretKeys.encryptionPublicKey });
+      evidence.localBrowserVaultVerified = browserWallet.vaultVerified;
+    }
 
     const assets = fileURLToPath(new URL("../managed/driving-state", import.meta.url));
     const compiledContract = CompiledContract.make("driving-state", Driving.Contract<DrivingPrivateState>).pipe(
@@ -150,6 +157,8 @@ async function main() {
     let currentProvenHex = "";
     let browserCancellationChecked = false;
     let cancelNextBrowserApproval = false;
+    let initialBrowserApprovals = 0;
+    let bootstrapApproval: { step: "deploy" | "initialize"; expectedAddress?: string; targetCommitment: string } | undefined;
     const developerApproval = { async request(display: import("../src/trip-job.js").ApprovalRequest) {
       developerApprovals++;
       if (!browserWallet) return "approved" as const;
@@ -162,8 +171,26 @@ async function main() {
       async balanceTx(tx: Parameters<typeof wallet.balanceUnboundTransaction>[0], ttl?: Date) {
         currentProvenHex = Buffer.from(tx.serialize()).toString("hex");
         const balance = async () => {
-          if (browserWallet) return Ledger.Transaction.deserialize<Ledger.SignatureEnabled, Ledger.Proof, Ledger.Binding>("signature", "proof", "binding",
-            Buffer.from(await browserWallet.balance(currentProvenHex), "hex"));
+          if (browserWallet) {
+            if (bootstrapApproval) {
+              const pending = bootstrapApproval; bootstrapApproval = undefined;
+              const actions = Array.from(tx.intents?.values() ?? []).flatMap(intent => intent.actions);
+              const action = actions[0];
+              const address = action instanceof Ledger.ContractDeploy || action instanceof Ledger.ContractCall
+                ? action.address : undefined;
+              if (actions.length !== 1 || !address || (pending.expectedAddress && address !== pending.expectedAddress)) {
+                throw new Error("BOOTSTRAP_TRANSACTION_MISMATCH");
+              }
+              const approved = await browserWallet.approve({ approvalRequestId: randomUUID(),
+                operationId: `initial-${pending.step}`, step: pending.step, network: "local",
+                chainContractAddress: address, previousStateCommitment: "0".repeat(64),
+                newStateCommitment: pending.targetCommitment }, currentProvenHex);
+              if (!approved) throw new Error("APPROVAL_CANCELLED");
+              initialBrowserApprovals++;
+            }
+            return Ledger.Transaction.deserialize<Ledger.SignatureEnabled, Ledger.Proof, Ledger.Binding>("signature", "proof", "binding",
+              Buffer.from(await browserWallet.balance(currentProvenHex), "hex"));
+          }
           const recipe = await wallet.balanceUnboundTransaction(tx,
           { shieldedSecretKeys, dustSecretKey }, { ttl: ttl ?? new Date(Date.now() + 30 * 60_000) });
           return wallet.finalizeRecipe(recipe);
@@ -197,12 +224,14 @@ async function main() {
     const initialState = genesis(demoScope, demoRule, ownerSecret, randomSalt());
     const bootstrap = bootstrapPrivateState(initialState, demoRule, ownerSecret);
     console.log("Deploying Rule/Scope-bound driving contract...");
+    if (browserWallet) bootstrapApproval = { step: "deploy", targetCommitment: initialState.stateCommitment };
     const deployed = await deployContract(providers, {
       compiledContract, args: [decode(initialState.rule.ruleHash), scopeBinding(demoScope, ownerSecret),
         Driving.pureCircuits.hashOwner(ownerSecret)],
       privateStateId: "driving", initialPrivateState: bootstrap,
     });
     const address = deployed.deployTxData.public.contractAddress;
+    assert.equal(bootstrapApproval, undefined, "Deployment did not use the subscriber approval path");
     evidence.contractAddress = address;
     evidence.adapterProfile = ADAPTER_PROFILE;
     evidence.ruleHash = initialState.rule.ruleHash;
@@ -237,21 +266,22 @@ async function main() {
         operationId, previousStateCommitment: previous, newStateCommitment: state.stateCommitment,
         ruleHash: state.rule.ruleHash, datasetRoot: state.datasetRoot, observedAt: new Date().toISOString() };
     }
+    if (browserWallet) bootstrapApproval = { step: "initialize", expectedAddress: address,
+      targetCommitment: initialState.stateCommitment };
     const initTx = await call("initialize", bootstrap);
+    assert.equal(bootstrapApproval, undefined, "Genesis did not use the subscriber approval path");
     // 요청 전송 여부 대신 finalized receipt와 실제 원장 커밋먼트의 일치로 확인한다.
     assert.deepEqual((await indexed()).stateCommitment, decode(initialState.stateCommitment));
     evidence.initialize = publicReceipt(initTx.public); checkpoint();
     let previous: ConfirmedState = { kind: "confirmed", state: initialState,
       confirmation: confirmation(initialState, "0".repeat(64), "genesis-initialize", initTx.public) };
     if (process.env.DRIVACY_BROWSER_INTEGRATION === "1") {
-      console.log("Starting isolated browser wallet and PostgreSQL B integration...");
-      browserWallet = await startBrowserWallet();
-      assert.deepEqual(browserWallet.publicKeys, { coinPublicKey: shieldedSecretKeys.coinPublicKey,
-        encryptionPublicKey: shieldedSecretKeys.encryptionPublicKey });
+      console.log("Starting isolated PostgreSQL B integration...");
       backend = await startBackendProbe(id => getTripStatus(new LocalJobStore(jobStorePath), id),
         id => canAbandonTrip(new LocalJobStore(jobStorePath), id));
       await backend.register(registeredRule, previous);
-      evidence.localBrowserVaultVerified = browserWallet.vaultVerified;
+      assert.equal(initialBrowserApprovals, 2, "Initial deployment and Genesis require two browser approvals");
+      evidence.initialBrowserApprovals = initialBrowserApprovals;
     }
     const rejections: string[] = [];
     async function rejected(label: string, action: Action, ps: DrivingPrivateState, pattern: RegExp) {

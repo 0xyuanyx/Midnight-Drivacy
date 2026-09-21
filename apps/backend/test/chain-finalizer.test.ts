@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Pool } from "pg";
 import { ChainFinalizer } from "../src/chain-state/chain-finalizer.js";
-import type { TripProcessingResult, User } from "@drivacy/shared";
+import type { ConfirmedState, RegisteredRule, TripProcessingResult, User } from "@drivacy/shared";
 
 const actor: User = { id: "driver", email: "driver@example.invalid", role: "DRIVER" };
 const jobRow = {
@@ -36,6 +36,18 @@ const confirmedResult: TripProcessingResult = {
   },
 };
 
+const initialRule: RegisteredRule = { approval: "approved", registration: "chain-confirmed",
+  rule: { id: "rule", version: 1, insurerId: "insurer", endorsementId: "endorsement",
+    formula: "cumulative-event-deduction-v1", initialScore: 100, speedingPenalty: 2,
+    accelerationPenalty: 1, brakingPenalty: 3, minimumDistanceM: 500000,
+    minimumScore: 80, premiumMinimumScore: 90, baseDiscountBps: 1000, premiumDiscountBps: 1200 },
+  ruleHash: "rule-hash", network: "local", adapterProfile: "profile",
+  chainContractAddress: "contract-address", registrationTransactionId: "registration-tx" };
+const genesisState: ConfirmedState = { kind: "confirmed", state: {
+  ...confirmedResult.candidate.state, version: 0, tripCount: 0, score: 100,
+  totals: { distanceM: 0, durationSeconds: 0, speedingCount: 0, accelerationCount: 0, brakingCount: 0 },
+}, confirmation: { ...confirmedResult.confirmation, newStateCommitment: "new-state" } };
+
 describe("ChainFinalizer trust-boundary errors", () => {
   it("maps C read failures and malformed status payloads to CHAIN_STATUS_UNAVAILABLE", async () => {
     for (const read of [async () => { throw new Error("transport"); }, async () => ({ bad: true } as never)]) {
@@ -51,5 +63,20 @@ describe("ChainFinalizer trust-boundary errors", () => {
       async getTripStatus() { return confirmedResult; }, async canAbandonTrip() { return false; },
     }, { async load() { return { bad: true } as never; }, async delete() {} });
     await expect(service.finalize(actor, "operation", "claim")).rejects.toThrow("SOURCE_PAYLOAD_INVALID");
+  });
+});
+
+describe("ChainFinalizer Genesis attack cases", () => {
+  it.each([
+    ["distance", { totals: { ...genesisState.state.totals, distanceM: 1 } }],
+    ["trip count", { tripCount: 1 }],
+    ["initial score", { score: 99 }],
+  ])("rejects forged Genesis %s before any DB write", async (_, changed) => {
+    const db = { connect: vi.fn() } as unknown as Pool;
+    const service = new ChainFinalizer(db, { async getTripStatus() { throw new Error("unused"); }, async canAbandonTrip() { return false; } },
+      { async load() { throw new Error("unused"); }, async delete() {} });
+    await expect(service.registerInitial(actor, initialRule,
+      { ...genesisState, state: { ...genesisState.state, ...changed } })).rejects.toThrow("INITIAL_BINDING_MISMATCH");
+    expect(db.connect).not.toHaveBeenCalled();
   });
 });

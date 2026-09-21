@@ -58,10 +58,7 @@ export const AdapterRuntimeSchema = z.object({
   network: z.enum(["fixture", "local", "preprod"]), adapterProfile: id,
 }).strict();
 export const DeployRuleRequestSchema = z.object({
-  scope: ScopeSchema, approvedRule: ApprovedRuleSchema,
-}).strict();
-export const DeployRuleResultSchema = z.object({
-  deploymentTransactionId: chainValue, registeredRule: RegisteredRuleSchema,
+  operationId: id, scope: ScopeSchema, approvedRule: ApprovedRuleSchema,
 }).strict();
 export const UpdateRuleRequestSchema = z.object({
   scope: ScopeSchema, deployment: ChainDeploymentRefSchema, approvedRule: ApprovedRuleSchema,
@@ -122,6 +119,20 @@ export const ConfirmedStateSchema = z.object({
   && s.state.rule.ruleHash === s.confirmation.ruleHash
   && s.state.datasetRoot === s.confirmation.datasetRoot,
   "Confirmation must bind the confirmed state, rule and dataset");
+
+// 최초 배포의 성공 응답은 initialize 확정까지 포함한다. 배포 receipt만으로는
+// 첫 운행의 이전 확정 State가 없으므로 B가 현재 Rule을 활성화할 수 없다.
+export const DeployRuleResultSchema = z.object({
+  operationId: id, deploymentTransactionId: chainValue, registeredRule: RegisteredRuleSchema,
+  confirmedGenesis: ConfirmedStateSchema,
+}).strict();
+// C의 영속 거래 기록을 재조회한다. not-submitted는 제출 부재가 확인된 경우에만
+// 반환해야 하며, 통신 실패나 결과 불명을 이 상태로 바꾸면 중복 배포가 가능해진다.
+export const InitialRegistrationStatusSchema = z.discriminatedUnion("status", [
+  z.object({ operationId: id, status: z.literal("not-submitted") }).strict(),
+  z.object({ operationId: id, status: z.literal("pending") }).strict(),
+  z.object({ operationId: id, status: z.literal("chain-confirmed"), result: DeployRuleResultSchema }).strict(),
+]);
 
 export const CalculateTripRequestSchema = z.object({
   contractVersion: z.literal(CONTRACT_VERSION), execution: mode,
@@ -219,11 +230,18 @@ export type ChainDeploymentRef = z.infer<typeof ChainDeploymentRefSchema>;
 export type AdapterRuntime = z.infer<typeof AdapterRuntimeSchema>;
 export type DeployRuleRequest = z.infer<typeof DeployRuleRequestSchema>;
 export type DeployRuleResult = z.infer<typeof DeployRuleResultSchema>;
+export type InitialRegistrationStatus = z.infer<typeof InitialRegistrationStatusSchema>;
 export type UpdateRuleRequest = z.infer<typeof UpdateRuleRequestSchema>;
 export type Trip = z.infer<typeof TripSchema>;
 export type State = z.infer<typeof StateSchema>;
 export type ChainConfirmation = z.infer<typeof ChainConfirmationSchema>;
 export type ConfirmedState = z.infer<typeof ConfirmedStateSchema>;
+
+// Genesis는 이전 운행을 가장한 누적값 없이 시작해야 한다. 실제 체인 반영 확인은 별도 경계다.
+export function hasZeroGenesisMetrics(state: State): boolean {
+  return state.version === 0 && state.tripCount === 0 && state.score === 100
+    && Object.values(state.totals).every(value => value === 0);
+}
 
 // Necessary consistency gate only. B still must trust/authenticate C's adapter,
 // claim its job and compare-and-swap the previous DB state in a transaction.
@@ -251,6 +269,7 @@ export function canFinalizeState(input: unknown, requestInput: unknown): boolean
 // Type signatures for later C implementations; no chain/proof implementation here.
 export interface BCAdapter {
   deployRule(input: DeployRuleRequest): Promise<DeployRuleResult>;
+  getInitialRegistrationStatus(operationId: string): Promise<InitialRegistrationStatus>;
   updateRule(input: UpdateRuleRequest): Promise<RegisteredRule>;
   calculateTrip(input: CalculateTripRequest): Promise<CandidateState>;
   processTrip(input: CalculateTripRequest, candidate: CandidateState): Promise<TripProcessingResult>;

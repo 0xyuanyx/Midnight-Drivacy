@@ -11,6 +11,17 @@ export interface ApprovalDisplay {
   chainContractAddress: string; network: string;
   previousStateCommitment: string; newStateCommitment: string;
 }
+/** 승인 종류를 트랜잭션의 실제 action 종류와 묶는다. 이름만 deploy인 계약 호출은 배포 승인이 아니다. */
+export function matchesApprovalAction(actions: unknown[], display: ApprovalDisplay): boolean {
+  if (actions.length !== 1) return false;
+  const action = actions[0];
+  if (display.step === "deploy") {
+    return action instanceof Ledger.ContractDeploy && action.address === display.chainContractAddress;
+  }
+  const entryPoint = display.step.split(":")[0];
+  return action instanceof Ledger.ContractCall && action.address === display.chainContractAddress
+    && (typeof action.entryPoint === "string" ? action.entryPoint : new TextDecoder().decode(action.entryPoint)) === entryPoint;
+}
 const fromHex = (hex: string) => {
   if (!/^(?:[0-9a-f]{2})+$/.test(hex)) throw new Error("INVALID_TRANSACTION_ENCODING");
   return new Uint8Array(Buffer.from(hex, "hex"));
@@ -63,10 +74,7 @@ export async function unlockWallet(passphrase: string, endpoints: WalletEndpoint
       if ((display.network === "local" ? "undeployed" : display.network) !== endpoints.network) throw new Error("WALLET_NETWORK_MISMATCH");
       const tx = Ledger.Transaction.deserialize<Ledger.SignatureEnabled, Ledger.Proof, Ledger.PreBinding>("signature", "proof", "pre-binding", fromHex(transactionHex));
       const actions = Array.from(tx.intents?.values() ?? []).flatMap(intent => intent.actions);
-      const call = actions[0];
-      if (actions.length !== 1 || !(call instanceof Ledger.ContractCall)
-        || call.address !== display.chainContractAddress
-        || (typeof call.entryPoint === "string" ? call.entryPoint : new TextDecoder().decode(call.entryPoint)) !== display.step.split(":")[0]) {
+      if (!matchesApprovalAction(actions, display)) {
         throw new Error("WALLET_CALL_MISMATCH");
       }
       // 승인 대기 중 중복 요청과 취소한 승인 ID의 재사용도 차단한다.

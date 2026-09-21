@@ -1,1 +1,3 @@
-export interface ConfirmedDrivingStateReader { getConfirmedDistanceM(evaluationScopeId: string): Promise<number | undefined>; }
+import type { ConfirmedState } from "@drivacy/shared";
+
+export interface ConfirmedDrivingStateReader { getConfirmedState(evaluationScopeId: string): Promise<ConfirmedState | undefined>; }

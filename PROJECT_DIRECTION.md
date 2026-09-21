@@ -86,9 +86,10 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 
 - 가입자·보험계약·특약 조합의 evaluation scope는 특약 최초 선택 시점부터 보험계약 종료일까지 이어지는 누적 평가 범위다. 시작·종료 날짜는 KST 기준으로 만들고 Backend가 최초 생성한 evaluation period ID는 Rule version 변경에도 유지한다.
 - 가입자 Scope마다 별도 Chain Contract를 사용한다. 최초 APPROVED Rule은 `deployRule`로 배포하고, 이후 APPROVED version은 동일 deployment에 `updateRule`로 등록한다. v1 registration과 누적 State·운행 흐름은 삭제하거나 초기화하지 않는다.
+- 2026-09-21 사용자 확인: 최초 Scope 계약 배포와 Genesis 초기화는 가입자 월렛 승인을 받는다. 이후 보험사가 승인한 새 Rule Version의 갱신은 가입자에게 알리되 매번 가입자 월렛 재승인을 요구하지 않는다. 갱신 전 운행은 생성 당시 Rule Version을 유지하고 새 운행에만 체인 등록이 확인된 새 Version을 사용한다. 가입자 승인 없이 갱신 거래를 제출할 권한 주체·서명 방식은 C 연동 시 설계·검증하며, 이 결정만으로 서버가 가입자 키를 보유하거나 미승인 Rule을 등록할 수 있게 하지 않는다.
 - 실제 C adapter가 연결되기 전 B는 Fake Adapter로 오케스트레이션만 검증한다. B는 Rule Hash, Compact/Midnight deploy·update transaction, 실제 chain confirmation을 생성하거나 완료로 주장하지 않는다.
-- 동일 Scope·Rule version의 동시 등록은 외부 Adapter 호출 전에 DB transaction-scoped advisory lock으로 직렬화한다. deployment 재사용은 Scope만이 아니라 현재 Adapter runtime의 network와 adapter profile까지 일치해야 한다.
-- Scope Deployment의 현재 적용 Rule은 APPROVED 상태만으로 정하지 않는다. 같은 runtime Deployment에 실제 chain-confirmed registration/update가 저장된 뒤 `current_rule_version_id`로 지정된 version만 새 운행에 사용한다. 과거 운행은 생성 당시 Rule Version을 유지한다.
+- 동일 Scope·Adapter runtime의 동시 등록은 Rule version이 달라도 외부 Adapter 호출 전에 DB session advisory lock으로 직렬화한다. 잠금과 등록 조회·시도 예약·최종 DB 기록은 같은 DB 연결을 사용하며, 외부 호출 전 예약은 독립 커밋한다. 서로 다른 version의 동시 최초 요청이 계약 두 개를 배포하지 않도록 하고 연결 풀을 추가로 기다리는 교착을 피하기 위한 2026-09-21 공격 검사 결과다. deployment 재사용은 Scope만이 아니라 현재 Adapter runtime의 network와 adapter profile까지 일치해야 한다.
+- Scope Deployment의 현재 적용 Rule은 APPROVED 상태만으로 정하지 않는다. 같은 runtime Deployment에 실제 chain-confirmed registration/update가 저장된 뒤 `current_rule_version_id`로 지정된 version만 새 운행에 사용한다. 이미 등록된 과거 version의 재조회는 현재 적용 Rule을 되돌리지 않고, 미등록 과거 version을 새로 등록해 현재 version을 낮추지 않는다. 과거 운행은 생성 당시 Rule Version을 유지한다.
 
 ### Rule Draft → 검토·저장 흐름 — 2026-09-20 구현
 
@@ -99,8 +100,11 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 
 - C의 production `BCAdapter`와 chain-confirmed genesis State 제공 경로가 준비되기 전까지 B는 C 계산, Merkle, ZK, Midnight 호출 또는 genesis State 생성을 임시로 구현하지 않는다.
 - B는 종료된 Driving Session, 현재 runtime의 chain-confirmed Rule, DB Confirmed State를 검증해 `CalculateTripRequest`를 조립할 수 있다. 요청 원문 저장소와 C 상태 조회기는 DI 경계로 두며, production 구현이나 공개 API로 노출하지 않는다.
-- 후속 운행 생성은 `chain_states`에 저장된 검증 가능한 Confirmed State만 읽는다. Session만으로 거리나 State를 추론하지 않으며, State가 없으면 후속 운행을 허용하지 않는다.
+- 첫 운행을 포함한 모든 새 운행 생성은 `chain_states`에 저장된 runtime·계약·Rule·Scope가 일치하는 Confirmed State만 읽는다. Genesis가 없거나 version 0의 누적값·운행 횟수가 0이 아니면 첫 운행을 허용하지 않는다. Session만으로 거리나 State를 추론하지 않는다.
 - C 연동을 재개하려면 C가 Shared 계약에 맞는 Adapter, operationId 기반 상태 조회/안전한 abandon 판단, 그리고 B가 등록할 수 있는 genesis Confirmed State를 제공해야 한다. Scope key 직렬화 규칙도 B의 `SHA-256(JSON.stringify(scope))`와 일치해야 한다.
+- 최초 Rule 배포 응답에는 체인 확정된 Genesis State를 필수로 포함한다. B는 승인 Rule·Scope·runtime·계약 주소·0회 누적값을 대조하고 Deployment/Registration/현재 Rule/Genesis를 한 DB 트랜잭션에서 기록한다. 배포 receipt만 있는 상태나 기존 등록 행에 대응하는 Confirmed State가 없는 상태는 운행 가능한 등록으로 반환하지 않는다. 이는 B의 Fake Adapter 기반 구현 경계이며 실제 C 어댑터 완료를 뜻하지 않는다.
+- 체인 배포·초기화가 확정된 뒤 B DB 기록이 실패한 경우, C의 기존 거래 상태 조회·재개 없이 재요청하면 중복 배포될 수 있다. 이 복구 계약과 실제 가입자 승인·체인 검증을 갖추기 전에는 운영 서버에 등록 라우트를 주입하지 않는다.
+- 2026-09-21 최초 등록 재시도 경계: B는 배포 Adapter 호출 전에 Scope·runtime당 하나의 `operationId`를 `initial_registration_attempts`에 영속화하고 C 요청에 전달한다. 등록·Genesis DB 기록 성공 시 같은 DB 트랜잭션에서 시도를 `db-confirmed`로 바꾼다. 같은 Version의 재요청은 C가 `not-submitted`를 확인한 경우에만 같은 ID로 재시도하고, `chain-confirmed` 결과는 재배포 없이 DB 기록을 복구한다. `pending`·상태 불명·다른 Version은 추가 배포를 막는다. B의 Fake Adapter 검사만 완료됐으며 C의 영속 거래 상태 조회가 없는 현재는 취소·실패를 자동 복구할 수 없다. 이 migration은 로컬 파일만 추가했고 원격에는 적용하지 않았으며 운영 라우트 활성화도 남았다.
 
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 

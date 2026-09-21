@@ -73,15 +73,21 @@ strict 검사와 106개 테스트, 실제 로컬 브라우저 월렛·격리 Pos
 `./scripts/check-driving-state.ps1 -Live -BrowserIntegration`으로 연결 검사를 실행합니다.
 공개 local genesis를 쓰며 실제 가입자 Auth/Storage·제품 화면·보험사 결정·Preprod와 구분합니다.
 
+2026-09-21 최초 계약 배포와 Genesis 초기화도 로컬 브라우저 월렛 승인을 요구하도록
+실행 경로를 수정했습니다. `-SkipZk` 하네스의 엄격 타입 검사·108개 테스트는 통과했지만,
+변경 후 `-Live -BrowserIntegration` 재검사는 Docker Desktop Linux 엔진이 응답하지 않아
+체인 단계에 도달하지 못했습니다. 이전 브라우저 통합 증거는 이 두 초기 승인 거래를
+검증한 증거로 사용하지 않습니다.
+
 2026-09-18 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. 모의 주행 시작 Shared 요청은 계약·특약·평가기간과 `Idempotency-Key` 규약만 정의하며, 실제 운행 API·Trip 생성·Rule/State/Core/증명 처리는 아직 구현하지 않았습니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 일곱 테이블과 `insurer_memberships`, `rules`, `rule_versions`를 정의합니다. Rule DB 기반은 적용됐지만 Rule API·Shared Rule DTO·Rule Hash·LLM·Midnight 연동은 구현되지 않았습니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. 이 단계는 로그인 proxy, 신규 사용자 자동 provisioning, 주행·State/ZK/Midnight 구현을 포함하지 않습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
 
 ## Planned demo
 
 ### 2026-09-19 subscriber-scope Rule registration foundation
 
-The repository preserves the applied Supabase migrations for `evaluation_scopes`, `chain_scope_deployments`, and `rule_registrations`. The Backend has the authorization and orchestration boundary for an approved Rule: it creates or reuses a subscriber Scope, deploys only when there is no existing deployment, and otherwise updates the existing contract for a new Rule version. This is covered with a Fake Adapter only. It does not implement a Rule hash, a production C adapter, Compact/Midnight deployment or update transaction, or chain confirmation.
+The repository preserves the applied Supabase migrations for `evaluation_scopes`, `chain_scope_deployments`, and `rule_registrations`. The Backend has the authorization and orchestration boundary for an approved Rule: it creates or reuses a subscriber Scope, deploys only when there is no existing deployment, and otherwise updates the existing contract for a new Rule version. The initial B path requires C's chain-confirmed Genesis result and atomically records it with deployment, registration, and the current Rule. It rejects an existing registration without a matching confirmed State. A new, local-only `initial_registration_attempts` migration reserves an operation ID before the external deploy call. On retry B uses that same ID: it redeploys only when C confirms no transaction was submitted, persists an already chain-confirmed result without redeploying, and blocks pending/unknown or a different Rule Version. This recovery orchestration has Fake Adapter tests only. The new migration has not been applied remotely; C's durable transaction-status implementation, a production C adapter, actual subscriber wallet approval, and live B registration remain unimplemented. The registration route is not mounted by the production server.
 
-The Backend also provides simulated Driving Session start, retrieval, and end APIs. A session persists one generated Trip and its segments, reuses it for the same idempotency key, and fixes the chain-confirmed current Rule Version selected for its configured runtime. It reads an existing confirmed State only for safe follow-up-session gating; C request assembly, processing-job persistence, and finalization are prepared behind injected boundaries. It does not calculate scores, create genesis State, execute proofs, or connect a production C adapter.
+The Backend also provides simulated Driving Session start, retrieval, and end APIs. A session persists one generated Trip and its segments, reuses it for the same idempotency key, and fixes the chain-confirmed current Rule Version selected for its configured runtime. Every new session now requires a matching chain-confirmed DB State, including Genesis for the first session; version-zero State must have zero trips and zero cumulative metrics. C request assembly, processing-job persistence, and finalization are prepared behind injected boundaries. It does not calculate scores, create genesis State, execute proofs, or connect a production C adapter.
 
 INSURER users can also request a review-only Rule Draft from policy text. Gemini failures or missing configuration return a manual-input result; only the existing complete Rule save API creates a DRAFT Rule Version. Draft evidence, issues, provider metadata, and source text are not persisted by this flow.
 
@@ -99,7 +105,7 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 - 실제 GPS 수집, 외부 내비게이션 연동, 실제 보험사 시스템 연동은 MVP에서 제외합니다.
 - 예시 보험사 한 곳, 특약 한 종 및 모의 주행기록을 대상으로 합니다.
 - 이메일 기반 로그인과 역할 구분을 MVP에 포함합니다. 인증은 Supabase Auth의 이메일·비밀번호 방식을 채택했고 정확한 API 계약은 구체화 전입니다.
-- 가입자용 자체 보관형 임베디드 월렛을 Midnight Wallet SDK로 구현할 계획입니다. 가입자 개인키를 서버에 저장하지 않으며 보험사는 별도 월렛 설치 없이 이용합니다. 실제 SDK·네트워크 연동은 아직 미구현이고 다중 기기 복구는 MVP에서 제외합니다.
+- 가입자용 자체 보관형 임베디드 월렛을 Midnight Wallet SDK로 구현할 계획입니다. 최초 Scope 계약 배포·Genesis 초기화와 결과 제출은 가입자 승인을 받고, 이후 보험사가 승인한 Rule Version 갱신은 가입자에게 알리되 재승인을 요구하지 않습니다. 갱신 거래의 권한·서명 방식은 구현 시 검증해야 합니다. 가입자 개인키를 서버에 저장하지 않으며 보험사는 별도 월렛 설치 없이 이용합니다. 실제 제품 SDK·네트워크 연동은 아직 미구현이고 다중 기기 복구는 MVP에서 제외합니다.
 - Dataset Merkle Tree를 MVP에 적용할 계획입니다. Driver Merkle Tree는 필수 채택으로 확정하지 않았습니다.
 - 원본은 운행별 Midnight 검증과 트랜잭션 반영 확인 후 삭제하며, 실패 시 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 일시적 실패는 최초 시도 외 3회(1·5·15분 간격) 자동 재시도하고, 소진 후 체인 실패가 확인된 원본은 최대 7일 보관 후 삭제하는 기준을 채택했습니다. 체인 결과 불명은 상태를 먼저 확인합니다. 실제 운영 구현은 후속 작업입니다.
 - 중복 제출은 Backend와 `nullifier`로 방지합니다. 미적용 후 새 운행으로 점수가 바뀌고 조건을 만족한 새 확정 상태의 재신청을 허용하며 심사 중·적용 완료 추가 신청은 막습니다. 보험사에는 정확한 점수·거리와 최소 평가/검증 결과를 제공하고 공개 원장에는 커밋먼트 등 최소 검증 정보를 두는 기준을 채택했습니다.
