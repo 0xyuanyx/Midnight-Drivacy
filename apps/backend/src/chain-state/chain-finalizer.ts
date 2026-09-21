@@ -183,8 +183,11 @@ export class ChainFinalizer {
       const jobs = await client.query<JobRow>("SELECT * FROM public.chain_jobs WHERE operation_id=$1 FOR UPDATE", [operationId]);
       if (jobs.rows[0]?.status === "abandoned") return;
       if (jobs.rows[0]?.status !== "pending") throw new FinalizationBlocked("JOB_NOT_PENDING");
-      // 미제출 terminal 작업만 pending 제약에서 해제한다. 미확정 원본은 실패 보관 정책에 맡긴다.
-      await client.query("UPDATE public.chain_jobs SET status='abandoned',claim_token=NULL,claim_expires_at=NULL WHERE operation_id=$1", [operationId]);
+      // 비재시도 실패라도 C가 안전 종료를 확인하기 전에는 scope를 풀 수 없다. 종료가 확인된 경우에만
+      // 보관 시각까지 같은 transaction에 남겨 서버 재시작 뒤에도 원본 cleanup 대상이 복구되게 한다.
+      await client.query(`UPDATE public.chain_jobs SET status='abandoned',claim_token=NULL,claim_expires_at=NULL,
+        next_action_type=NULL,next_action_at=NULL,abandoned_at=clock_timestamp(),
+        raw_expires_at=clock_timestamp()+interval '7 days' WHERE operation_id=$1`, [operationId]);
     });
   }
   async deleteConfirmedSource(actor: User, operationId: string): Promise<void> {

@@ -106,6 +106,14 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - 체인 배포·초기화가 확정된 뒤 B DB 기록이 실패한 경우, C의 기존 거래 상태 조회·재개 없이 재요청하면 중복 배포될 수 있다. 이 복구 계약과 실제 가입자 승인·체인 검증을 갖추기 전에는 운영 서버에 등록 라우트를 주입하지 않는다.
 - 2026-09-21 최초 등록 재시도 경계: B는 배포 Adapter 호출 전에 Scope·runtime당 하나의 `operationId`를 `initial_registration_attempts`에 영속화하고 C 요청에 전달한다. 등록·Genesis DB 기록 성공 시 같은 DB 트랜잭션에서 시도를 `db-confirmed`로 바꾼다. 같은 Version의 재요청은 C가 `not-submitted`를 확인한 경우에만 같은 ID로 재시도하고, `chain-confirmed` 결과는 재배포 없이 DB 기록을 복구한다. `pending`·상태 불명·다른 Version은 추가 배포를 막는다. B의 Fake Adapter 검사만 완료됐으며 C의 영속 거래 상태 조회가 없는 현재는 취소·실패를 자동 복구할 수 없다. 이 migration은 로컬 파일만 추가했고 원격에는 적용하지 않았으며 운영 라우트 활성화도 남았다.
 
+
+### B 10단계 DB 확정 상태 기반 정합성 (2026-09-21)
+
+- 원격 Supabase의 `chain_states`와 `chain_jobs` 실제 스키마를 최신 Backend의 `ChainFinalizer` 사용 방식과 대조했다. 원격에는 2026-09-20 적용된 `add_chain_state_processing` migration이 존재하며, 저장소의 과거 `20260918060000_chain_state_confirmation.sql`보다 강화된 제약이 적용돼 있었다.
+- 새 `20260921074028_reconcile_chain_state_processing.sql` migration으로 새 clone에서도 원격과 같은 핵심 제약을 재현하도록 정리했다. logical Scope 중복 방지, Trip 중복 처리 방지, `driving_sessions.trip_id` FK, Scope별 pending Job 1개 제한, FK 조회 인덱스, Backend 전용 RLS/권한 차단을 보존한다.
+- 실제 원격 DB에서 version 범위, operation/idempotency/trip 중복, 동일 Scope pending 중복, 잘못된 status/deletion_status 차단을 transaction fixture로 검증하고 전부 rollback했다. 운영 DB에 테스트 State/Job/Session을 남기지 않았다.
+- 이 작업은 B의 Confirmed State DB 확정 기반을 검증한 것이며, production C Adapter, 실제 genesis State, ZK Proof 또는 실제 chain-confirmed 결과 연동 완료를 의미하지 않는다.
+
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 
 ## 향후 검증 방식 — 2026-09-18 확정
@@ -122,6 +130,16 @@ WSL/컨테이너와 별도 물리 장비, mock과 실제 증명·체인·provide
 구분하며 기능에 필요한 실제 실행 확인을 독립 계산 검사로 대체하지 않는다.
 
 ## 임시 산식 작성과 미정 항목 처리 — 2026-09-17
+
+
+### B 11단계 DB 실패 복구·재시도 상태 기반 (2026-09-21)
+
+- 원격 Supabase에는 `20260921094044_add_chain_job_recovery` migration이 적용되어 있으며, `chain_jobs`에 재시도 횟수·다음 작업 종류/시각·마지막 오류·안전한 abandon 시각·실패 원본 보관 만료 시각을 영속화한다.
+- `retry`와 `status-check`를 분리해 `chain-unknown`을 새 체인 제출로 오해하지 않도록 하고, terminal Job에는 예약 작업이 남지 않게 DB CHECK로 제한한다. `raw_expires_at`과 `abandoned_at`은 안전하게 종료된 `abandoned` Job에서만 허용한다.
+- `chain_jobs_due_action_idx`와 `chain_jobs_raw_expiry_idx`로 due worker와 실패 원본 cleanup 조회 경계를 만들고, 기존 Scope별 pending Job 1개 제약·operation/idempotency/trip 중복 방지·RLS/직접 접근 차단을 유지한다.
+- 원격 DB에서 retry 범위, 예약 action 쌍, terminal 예약 금지, abandoned 원본 만료, 기존 UNIQUE 제약을 transaction fixture로 검증하고 전부 rollback했다. 운영 Supabase에는 작업 테스트 데이터를 남기지 않았다.
+- Backend의 호출형 recovery worker는 DB due action을 다시 읽어 1·5·15분 `TEMPORARY_FAILURE` 재시도, `chain-unknown`의 상태조회 전용 복구, 안전한 abandon 뒤 7일 원본 보관, 만료 cleanup을 처리한다. claim/lease와 조건부 retry 증가를 사용하므로 서버 재시작이나 동시 worker가 별도 메모리 상태 없이 이어서 처리한다. `chain-unknown` status-check의 1분 간격은 재제출 없는 최소 구현값이며 사업 정책을 새로 확정하지 않는다.
+- 이는 injected C 경계와 transaction-aware fixture 검증 범위다. production C Adapter, 실제 Midnight network, 실제 ZK/Proof E2E 및 production chain-confirmed 연동 완료를 뜻하지 않는다.
 
 ### 사용자 지시 — 확정
 
