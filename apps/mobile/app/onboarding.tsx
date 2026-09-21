@@ -2,11 +2,13 @@ import { useState } from "react";
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppScreen } from "@/components/AppScreen";
 import { BrandMark } from "@/components/BrandMark";
@@ -108,46 +110,60 @@ export default function Onboarding() {
             onPress={closeConsentSheet}
             style={styles.backdropDismiss}
           />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHeader}>
-              <View>
-                <Text style={styles.sheetTitle}>필수 동의</Text>
-                <Text style={styles.sheetSubtitle}>서비스를 시작하기 전에 확인해 주세요.</Text>
+          <SafeAreaView
+            edges={["bottom"]}
+            style={styles.sheetSafeArea}
+            testID="consent-sheet-safe-area"
+          >
+            <ScrollView
+              contentContainerStyle={styles.sheetScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
+              testID="consent-sheet-scroll"
+            >
+              <View style={styles.sheet}>
+                <View style={styles.sheetHeader}>
+                  <View>
+                    <Text style={styles.sheetTitle}>필수 동의</Text>
+                    <Text style={styles.sheetSubtitle}>서비스를 시작하기 전에 확인해 주세요.</Text>
+                  </View>
+                  <Pressable
+                    accessibilityLabel="닫기"
+                    accessibilityRole="button"
+                    hitSlop={10}
+                    onPress={closeConsentSheet}
+                    style={styles.closeButton}
+                  >
+                    <Text style={styles.closeText}>닫기</Text>
+                  </Pressable>
+                </View>
+
+                <ConsentRow
+                  checked={consents[0]}
+                  label="개인정보 처리와 주행 결과 확인에 동의합니다"
+                  onPress={() => toggleConsent(0)}
+                  testID="consent-row-privacy"
+                />
+                <ConsentRow
+                  checked={consents[1]}
+                  label="보험사에 요약 결과를 제공하는 데 동의합니다"
+                  onPress={() => toggleConsent(1)}
+                  testID="consent-row-sharing"
+                />
+
+                <Text style={styles.sheetNote}>
+                  요약 결과만 공유하며, 상세 위치·경로·구간별 속도·정확한 운행 시각은 공유하지 않습니다.
+                </Text>
+                <PrimaryButton
+                  disabled={!allConsentsAccepted}
+                  title="동의하고 계속하기"
+                  onPress={acceptConsent}
+                  testID="consent-continue"
+                />
               </View>
-              <Pressable
-                accessibilityLabel="닫기"
-                accessibilityRole="button"
-                hitSlop={10}
-                onPress={closeConsentSheet}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeText}>닫기</Text>
-              </Pressable>
-            </View>
-
-            <ConsentRow
-              checked={consents[0]}
-              label="개인정보 처리와 주행 결과 확인에 동의합니다"
-              onPress={() => toggleConsent(0)}
-              testID="consent-row-privacy"
-            />
-            <ConsentRow
-              checked={consents[1]}
-              label="보험사에 요약 결과를 제공하는 데 동의합니다"
-              onPress={() => toggleConsent(1)}
-              testID="consent-row-sharing"
-            />
-
-            <Text style={styles.sheetNote}>
-              요약 결과만 공유하며, 상세 위치·경로·구간별 속도·정확한 운행 시각은 공유하지 않습니다.
-            </Text>
-            <PrimaryButton
-              disabled={!allConsentsAccepted}
-              title="동의하고 계속하기"
-              onPress={acceptConsent}
-              testID="consent-continue"
-            />
-          </View>
+            </ScrollView>
+          </SafeAreaView>
         </View>
       </Modal>
     </AppScreen>
@@ -220,10 +236,23 @@ const styles = StyleSheet.create({
   backdropDismiss: {
     flex: 1,
   },
-  sheet: {
+  sheetSafeArea: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    flexShrink: 1,
+    maxHeight: "88%",
+    overflow: "hidden",
+  },
+  sheetScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  sheetScrollContent: {
+    paddingBottom: 16,
+  },
+  sheet: {
+    backgroundColor: colors.surface,
     padding: 24,
     paddingBottom: 32,
   },

@@ -52,3 +52,13 @@ Created:
 
 - Expo export and physical-device checks remain Task 5/integration work because the tab home route is not part of Task 2.
 - Full mobile lint remains blocked only by the existing Task 1 Babel config rule; the Task 2 files have a clean targeted lint run.
+
+## Review fix: adaptive consent sheet
+
+- Finding: the consent sheet was a fixed `View`, so long copy or dynamic type could overflow and place the CTA beneath system navigation.
+- Regression RED: the new onboarding test failed because `consent-sheet-safe-area` was absent from the modal tree.
+- Fix: the sheet now uses a bottom-edge `SafeAreaView` with a bounded `maxHeight`/`flexShrink` container and a `ScrollView` with bottom content padding. Backdrop dismissal, close behavior, and accessibility controls are preserved.
+- Regression GREEN: `npm run mobile:test -- onboarding.test.tsx --runInBand` — PASS, 5/5.
+- Focused suite after fix: `npm run mobile:test -- onboarding.test.tsx insurance.test.tsx --runInBand` — PASS, 2/2 suites, 8/8 tests.
+- Typecheck after fix: `npm run mobile:typecheck` — PASS.
+- Fix commit: `fix(mobile): make consent sheet adaptive`.

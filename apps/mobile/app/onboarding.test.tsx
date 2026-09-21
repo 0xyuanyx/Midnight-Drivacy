@@ -42,6 +42,20 @@ describe("Onboarding", () => {
     );
   });
 
+  it("keeps consent content in a bottom-safe-area scroll container", async () => {
+    const { getByRole, getByTestId } = await render(<Onboarding />);
+
+    await fireEvent.press(getByRole("button", { name: "동의하고 시작하기" }));
+
+    const safeArea = getByTestId("consent-sheet-safe-area");
+    const sheetScroll = getByTestId("consent-sheet-scroll");
+
+    expect(safeArea.props.edges).toEqual(
+      expect.objectContaining({ bottom: "additive", left: "off", right: "off", top: "off" }),
+    );
+    expect(sheetScroll.props.keyboardShouldPersistTaps).toBe("handled");
+  });
+
   it("keeps the consent action disabled until both required rows are checked", async () => {
     const { getAllByRole, getByRole } = await render(<Onboarding />);
 
