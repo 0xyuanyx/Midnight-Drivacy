@@ -1,0 +1,47 @@
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+
+import { AppScreen } from "@/components/AppScreen";
+import { StatusPill } from "@/components/StatusPill";
+import { useAppState } from "@/state/app-provider";
+import { colors } from "@/theme/tokens";
+
+const PROCESSING_DELAY_MS = 650;
+
+export default function DriveProcessing() {
+  const router = useRouter();
+  const { dispatch } = useAppState();
+  const didCompleteTrip = useRef(false);
+
+  useEffect(() => {
+    if (!didCompleteTrip.current) {
+      didCompleteTrip.current = true;
+      dispatch({ type: "COMPLETE_TRIP" });
+    }
+
+    const timer = setTimeout(() => router.replace("/drive-result"), PROCESSING_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [dispatch, router]);
+
+  return (
+    <AppScreen contentContainerStyle={styles.screen} scroll={false} testID="drive-processing-screen">
+      <View style={styles.content}>
+        <StatusPill tone="primary">로컬 데모 처리</StatusPill>
+        <ActivityIndicator color={colors.primary} size="large" style={styles.spinner} />
+        <Text style={styles.title}>데모 계산을 준비하고 있어요</Text>
+        <Text style={styles.description}>
+          이 앱은 결정된 로컬 결과를 표시합니다. 실제 Midnight 증명, 체인 확인 또는 보험사 제출을 수행하지 않습니다.
+        </Text>
+      </View>
+    </AppScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { justifyContent: "center" },
+  content: { alignItems: "center" },
+  spinner: { marginTop: 30 },
+  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", marginTop: 26, textAlign: "center" },
+  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 12, maxWidth: 330, textAlign: "center" },
+});
