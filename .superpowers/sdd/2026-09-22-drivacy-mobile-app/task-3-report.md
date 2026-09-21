@@ -33,3 +33,12 @@ The full lint failure is not introduced by Task 3: `apps/mobile/babel.config.js`
 - `COMPLETE_TRIP` is protected by a per-screen ref and is dispatched once before navigation is replaced with the result screen; the reducer retains the separate two-trip cap.
 - The `할인 신청` tab is intentionally only a harmless placeholder required for the three-tab shell. Task 4 owns the application flow.
 - No `PROJECT_DIRECTION.md` or `README.md` change is needed for this implementation-only Task 3; project-direction updates are assigned to Task 5.
+
+## Follow-up: Home must enter the Driving overview
+
+- Base: `db67872 feat(mobile): implement home and driving flow`
+- Head: `HEAD` at `fix(mobile): route home through driving overview`
+- Regression test: changed the Home action expectation from `/drive-session` to `/drive`.
+- RED: `npm run mobile:test -- home.test.tsx --runInBand` failed with expected `/drive` and received `/drive-session`.
+- GREEN: changed only the Home CTA route for trips 0 and 1 to `/drive`; the trip-2 `/application` route remains unchanged.
+- Verification: focused `home.test.tsx` passed (6 tests), all mobile tests passed (5 suites, 27 tests), and `npm run mobile:typecheck` passed.

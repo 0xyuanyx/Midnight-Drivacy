@@ -76,12 +76,12 @@ describe("Home and bottom tabs", () => {
     expect(getByRole("button", { name: actionLabel })).toBeTruthy();
   });
 
-  it("starts the first simulated drive from Home", async () => {
+  it("opens the Driving overview before a first simulated drive starts", async () => {
     const { getByRole } = await render(<Home />);
 
     await fireEvent.press(getByRole("button", { name: "첫 모의 주행 시작" }));
 
-    expect(push).toHaveBeenCalledWith("/drive-session");
+    expect(push).toHaveBeenCalledWith("/drive");
   });
 
   it("resets the persisted demo before returning to onboarding", async () => {

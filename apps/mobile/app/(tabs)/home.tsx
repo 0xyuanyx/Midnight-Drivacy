@@ -25,7 +25,7 @@ export default function Home() {
   const distanceProgress = state.totals.distanceKm / 550;
 
   function continueDemo() {
-    router.push((state.tripsCompleted === 2 ? "/application" : "/drive-session") as never);
+    router.push((state.tripsCompleted === 2 ? "/application" : "/drive") as never);
   }
 
   function resetDemo() {
