@@ -127,6 +127,14 @@ WSL/컨테이너와 별도 물리 장비, mock과 실제 증명·체인·provide
 
 ## 임시 산식 작성과 미정 항목 처리 — 2026-09-17
 
+
+### B 11단계 DB 실패 복구·재시도 상태 기반 (2026-09-21)
+
+- 원격 Supabase에는 `20260921094044_add_chain_job_recovery` migration이 적용되어 있으며, `chain_jobs`에 재시도 횟수·다음 작업 종류/시각·마지막 오류·안전한 abandon 시각·실패 원본 보관 만료 시각을 영속화한다.
+- `retry`와 `status-check`를 분리해 `chain-unknown`을 새 체인 제출로 오해하지 않도록 하고, terminal Job에는 예약 작업이 남지 않게 DB CHECK로 제한한다. `raw_expires_at`과 `abandoned_at`은 안전하게 종료된 `abandoned` Job에서만 허용한다.
+- `chain_jobs_due_action_idx`와 `chain_jobs_raw_expiry_idx`로 due worker와 실패 원본 cleanup 조회 경계를 만들고, 기존 Scope별 pending Job 1개 제약·operation/idempotency/trip 중복 방지·RLS/직접 접근 차단을 유지한다.
+- 원격 DB에서 retry 범위, 예약 action 쌍, terminal 예약 금지, abandoned 원본 만료, 기존 UNIQUE 제약을 transaction fixture로 검증하고 전부 rollback했다. 이 단계는 DB 저장 구조까지이며 실제 1·5·15분 재시도 worker, 상태 재조회, safe abandon 호출, 7일 cleanup 실행 코드는 후속 Backend 작업이다.
+
 ### 사용자 지시 — 확정
 
 산식은 아직 없으므로 개발 담당자가 임의로 작성한다. 데모용 임시 산식으로 구분하고 이후 실제 승인 규칙으로 교체한다. 다른 항목은 문서와 기존 사용자 답변의 결정을 우선 적용하며, 없는 항목은 추천안과 이유를 제시한다. 추천안을 사용자 승인 없이 확정 사업 정책으로 취급하지 않는다. 이 지시는 과거의 최종 산식 확정 전 구현 대기 기준보다 우선한다.
