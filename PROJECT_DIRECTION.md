@@ -102,6 +102,14 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 - 후속 운행 생성은 `chain_states`에 저장된 검증 가능한 Confirmed State만 읽는다. Session만으로 거리나 State를 추론하지 않으며, State가 없으면 후속 운행을 허용하지 않는다.
 - C 연동을 재개하려면 C가 Shared 계약에 맞는 Adapter, operationId 기반 상태 조회/안전한 abandon 판단, 그리고 B가 등록할 수 있는 genesis Confirmed State를 제공해야 한다. Scope key 직렬화 규칙도 B의 `SHA-256(JSON.stringify(scope))`와 일치해야 한다.
 
+
+### B 10단계 DB 확정 상태 기반 정합성 (2026-09-21)
+
+- 원격 Supabase의 `chain_states`와 `chain_jobs` 실제 스키마를 최신 Backend의 `ChainFinalizer` 사용 방식과 대조했다. 원격에는 2026-09-20 적용된 `add_chain_state_processing` migration이 존재하며, 저장소의 과거 `20260918060000_chain_state_confirmation.sql`보다 강화된 제약이 적용돼 있었다.
+- 새 `20260921074028_reconcile_chain_state_processing.sql` migration으로 새 clone에서도 원격과 같은 핵심 제약을 재현하도록 정리했다. logical Scope 중복 방지, Trip 중복 처리 방지, `driving_sessions.trip_id` FK, Scope별 pending Job 1개 제한, FK 조회 인덱스, Backend 전용 RLS/권한 차단을 보존한다.
+- 실제 원격 DB에서 version 범위, operation/idempotency/trip 중복, 동일 Scope pending 중복, 잘못된 status/deletion_status 차단을 transaction fixture로 검증하고 전부 rollback했다. 운영 DB에 테스트 State/Job/Session을 남기지 않았다.
+- 이 작업은 B의 Confirmed State DB 확정 기반을 검증한 것이며, production C Adapter, 실제 genesis State, ZK Proof 또는 실제 chain-confirmed 결과 연동 완료를 의미하지 않는다.
+
 사용자 지시에 따라 문제를 절대 억지로 찾지 않는다. 개발에 치명적인 경우에만 문제로 제시하며, 실제 근거와 영향을 설명한다. 단순 개선 취향이나 가정만으로 문제를 만들지 않는다. 이 기준은 Backend·Core를 포함한 프로젝트 개발과 검토에 적용한다.
 
 ## 향후 검증 방식 — 2026-09-18 확정
