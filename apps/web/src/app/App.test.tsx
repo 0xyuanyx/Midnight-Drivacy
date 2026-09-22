@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InsurerWorkspaceAdapter } from "../data/fixture-adapter";
-import { createFixtureWorkspace } from "../domain/workspace";
+import { applyDecision, createFixtureWorkspace } from "../domain/workspace";
 import { App } from "./App";
 
 describe("insurer workspace navigation", () => {
@@ -107,5 +107,38 @@ describe("insurer workspace navigation", () => {
     expect(await screen.findByText("Midnight 증명 검증 실패")).toBeInTheDocument();
     expect(screen.queryByText("Midnight 증명 검증 완료")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "특약 승인" })).toBeDisabled();
+    expect(screen.getByText("검증 결과를 확인해 주세요")).toBeInTheDocument();
+    expect(screen.queryByText("특약 요청을 승인할까요?")).not.toBeInTheDocument();
+  });
+
+  it("uses consistent SVG icons for header utilities", async () => {
+    render(<App />);
+
+    expect((await screen.findByRole("button", { name: "도움말" })).querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "알림" }).querySelector("svg")).not.toBeNull();
+  });
+
+  it("distinguishes a rejected request from a generic completed state", async () => {
+    const initial = createFixtureWorkspace();
+    const rejected = applyDecision(initial, { workflow: "dashboard", requestId: "REQ-240921-018", decision: "rejected" });
+    const adapter: InsurerWorkspaceAdapter = { load: async () => rejected, save: async () => undefined };
+    window.history.replaceState(null, "", "/dashboard?request=REQ-240921-018&tab=info");
+
+    render(<App adapter={adapter} />);
+
+    expect(await screen.findByText("요청 반려")).toBeInTheDocument();
+    expect(screen.getByText("특약 요청을 반려했습니다.")).toBeInTheDocument();
+  });
+
+  it("uses the Figma completion copy for a not-applied evaluation", async () => {
+    const initial = createFixtureWorkspace();
+    const notApplied = applyDecision(initial, { workflow: "evaluations", requestId: "EVL-240921-031", decision: "not-applied" });
+    const adapter: InsurerWorkspaceAdapter = { load: async () => notApplied, save: async () => undefined };
+    window.history.replaceState(null, "", "/evaluations?request=EVL-240921-031&tab=info");
+
+    render(<App adapter={adapter} />);
+
+    expect(await screen.findByText("할인 미적용")).toBeInTheDocument();
+    expect(screen.getByText("할인 미적용으로 처리되었습니다.")).toBeInTheDocument();
   });
 });

@@ -76,11 +76,11 @@ web은 별도 웹 제품이 아니라 React Native 앱 검수 표면이다. 넓�
 
 ## 3. Typography Rules
 
-웹은 원본 Arial 계열과 한국어 시스템 글꼴을 사용하고 Pretendard Regular/Bold를 fallback으로 번들한다. 페이지 제목 24/29, 상세 제목 17/20, 섹션 제목 15/20, 목록 이름 12/15, 버튼 10/14, 보조·상세 eyebrow 9–10px을 역할별로 고정한다. 모바일 타이포와 별도다.
+웹은 Pretendard Regular/Bold를 우선 사용하고 한국어 시스템 글꼴과 Arial을 fallback으로 둔다. 페이지 제목 24/29, 상세 제목 17/20, 섹션 제목 15/20, 목록 이름 12/15, 버튼 10/14, 보조·상세 eyebrow 9–10px을 역할별로 고정한다. 숫자·시간·점수는 tabular 숫자를 사용한다. 모바일 타이포와 별도다.
 
 ## 4. Components
 
-AppShell, PageHeader, SummaryCard, RequestList, RequestDetail, DetailTabs, ResultDetail, ProofDetail, HistoryList, StatusBadge, ActionBar, AsyncState를 공통 계약으로 사용한다. 대시보드와 평가 요청은 이 컴포넌트를 조립하고 별도 복제하지 않는다.
+AppShell, PageHeader, SummaryCard, RequestList, RequestDetail, DetailTabs, ResultDetail, ProofDetail, HistoryList, StatusBadge, ActionBar, AsyncState를 공통 계약으로 사용한다. 대시보드와 평가 요청은 이 컴포넌트를 조립하고 별도 복제하지 않는다. 도움말·알림·검증·비공개 안내는 Lucide 선형 아이콘으로 통일한다.
 
 ## 5. Layout Principles
 

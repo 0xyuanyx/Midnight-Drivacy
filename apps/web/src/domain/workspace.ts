@@ -118,7 +118,7 @@ export function createFixtureWorkspace(): WorkspaceState {
         privacySummary: "검증 실패 사유 코드만 공개",
         history: [created("가입자가 평가 결과 제출"), created("Midnight 증명 검증 실패"), created("담당자 검토 필요 상태로 전환")],
       },
-      { id: "REQ-240920-090", displayId: "DRV-260912-31", applicantName: "최지우", contractNumber: "MIR-43••-2207", productName: "개인용 자동차보험", riderName: "안전운전 할인특약", requestedAt: "어제", status: "completed", proofStatus: "valid", decision: "approved", evaluationPeriod: "최근 90일", privacySummary: "승인된 계산 결과만 공개", rule: referenceRule, result: referenceResult(91), history: [created("특약 요청을 승인했습니다.")] },
+      { id: "REQ-240920-090", displayId: "DRV-260912-31", applicantName: "최지우", contractNumber: "MIR-43••-2207", productName: "개인용 자동차보험", riderName: "안전운전 할인특약", requestedAt: "어제", status: "completed", proofStatus: "valid", decision: "approved", evaluationPeriod: "최근 90일", privacySummary: "승인된 계산 결과만 공개", rule: referenceRule, result: referenceResult(91), history: [created("가입자가 평가 결과 제출"), created("Midnight 증명 검증 완료"), created("할인 판단 대기 상태로 전환"), { at: "14:33", actor: "보험사 담당자", summary: "특약 요청을 승인했습니다.", tone: "success" }] },
     ],
     evaluations: [
       {
