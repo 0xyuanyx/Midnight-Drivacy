@@ -17,11 +17,18 @@ import { PgConfirmedDrivingStateReader } from "./driving/pg-confirmed-state-read
 import { PgRuleRegistrationRepository } from "./rule-registration/rule-registration-repository.js";
 import { RuleRegistrationService } from "./rule-registration/rule-registration-service.js";
 import type { RuleRegistrationAdapter } from "./rule-registration/rule-registration-adapter.js";
+import { PgChainProcessingRepository } from "./chain-state/chain-processing-repository.js";
+import { ChainProcessingService, type ChainProcessingGateway, type TripRequestSource } from "./chain-state/chain-processing-service.js";
+import { ChainFinalizer } from "./chain-state/chain-finalizer.js";
+import { ChainJobRecoveryService, PgChainJobRecoveryRepository, type ChainRecoveryGateway } from "./chain-state/chain-job-recovery.js";
 
-export const createRuntimeApp = (
+export type TripProcessingAdapter = TripRequestSource & ChainProcessingGateway & ChainRecoveryGateway;
+
+export const createRuntime = (
   environment: Environment,
   pool: Pool,
   ruleRegistrationAdapter: RuleRegistrationAdapter,
+  tripProcessingAdapter: TripProcessingAdapter,
 ) => {
   const authRepository = new PgAuthRepository(pool);
   const ruleService = new RuleService(new PgRuleRepository(pool));
@@ -32,7 +39,10 @@ export const createRuntimeApp = (
 
   // 테스트에서만 service를 조립하고 실제 서버에서 누락하는 차이를 막기 위해 production dependency를 한곳에서 명시한다.
   // C/Wallet 계층은 가입자 키를 Backend에 들이지 않는 외부 adapter로만 주입하며, 미구성 상태를 Fake 성공으로 대체하지 않는다.
-  return createApp({
+  const finalizer = new ChainFinalizer(pool, tripProcessingAdapter, tripProcessingAdapter);
+  const recovery = new ChainJobRecoveryService(new PgChainJobRecoveryRepository(pool), finalizer,
+    tripProcessingAdapter, tripProcessingAdapter);
+  const app = createApp({
     authRepository,
     supabaseAuthVerifier: createSupabaseAuthVerifier(environment.supabaseUrl, environment.supabasePublishableKey),
     consentService: new ConsentService(new PgConsentRepository(pool)),
@@ -49,5 +59,13 @@ export const createRuntimeApp = (
       runtime,
       new PgConfirmedDrivingStateReader(pool),
     ),
+    // source 저장과 Job 생성 뒤에만 외부 C 처리를 시작해 응답 유실 시 기존 operationId로 복구할 수 있게 한다.
+    chainProcessingService: new ChainProcessingService(new PgChainProcessingRepository(pool), finalizer,
+      tripProcessingAdapter, tripProcessingAdapter, recovery, runtime),
   });
+  return { app, recovery };
 };
+
+export const createRuntimeApp = (environment: Environment, pool: Pool,
+  ruleRegistrationAdapter: RuleRegistrationAdapter, tripProcessingAdapter: TripProcessingAdapter) =>
+  createRuntime(environment, pool, ruleRegistrationAdapter, tripProcessingAdapter).app;

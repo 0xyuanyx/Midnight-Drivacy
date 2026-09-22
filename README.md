@@ -4,6 +4,14 @@ Drivacy는 상세 주행기록을 보험사에 공개하지 않고, 보험사가
 
 Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
+## Backend 운행 Processing 연결 상태 (2026-09-22)
+
+Backend production runtime은 종료된 Driving Session을 `POST /driving-sessions/:sessionId/process`로 받아, Session에 고정된 Rule Version과 Confirmed State로 요청을 조립하고 DB에 `chain_jobs`를 먼저 기록한 뒤 외부 C/Wallet 실행 경계에 전달합니다. 새 Job만 처리를 시작하며, 재요청과 응답 유실 복구는 기존 operationId로 상태를 조회합니다. `calculated`, `proving`, `submitted`, `chain-unknown`은 DB Confirmed State로 반영하지 않고, Shared 계약이 검증한 `chain-confirmed`만 transaction에서 `chain_states`와 Job을 확정합니다.
+
+production adapter는 `C_WALLET_ADAPTER_URL`과 `C_WALLET_ADAPTER_TOKEN`으로 최소 HTTP 경계를 구성합니다. raw Trip source의 저장·조회·삭제와 처리 시작·재시도·상태 조회·안전 종료 확인을 외부 C/Wallet runtime에 위임하며, Backend는 Midnight SDK나 가입자 Wallet key를 소유하지 않습니다. 설정 또는 외부 runtime이 없거나 응답이 불명확하면 fail-closed하고 로컬 `packages/midnight/probe/*`나 성공 fixture로 대체하지 않습니다. 확정 뒤 raw source 삭제 실패는 확정 DB state를 되돌리지 않고 recovery worker가 다시 삭제합니다. 일시 오류는 1·5·15분 재시도, chain-unknown은 기존 operationId 상태 조회, 안전 종료된 실패 원본은 7일 보관 정책을 유지합니다.
+
+이 저장소에는 위 HTTP 계약에 응답하는 실제 외부 C/Wallet 서비스와 실제 가입자 Wallet 연결이 없습니다. 따라서 Backend wiring과 adapter 계약은 구현됐지만 live Midnight 처리, 실제 Wallet Approval, production chain-confirmed E2E는 완료 또는 검증됐다고 보지 않습니다. 테스트는 명시적인 Stub/Fake 경계로 Backend orchestration만 검증합니다. 최종 평가 요청, nullifier 기반 최종 신청, 보험사 심사·할인 적용은 이번 연결 범위에 포함하지 않습니다.
+
 현재 팀 합의, 발표용 데모 흐름, 구현 우선순위와 미해결 질문은 [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)를 참고하세요.
 
 검증은 런타임·의존성·캐시를 분리한 별도 실행 환경에서도 진행하고, 계산 로직은

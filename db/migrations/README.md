@@ -1,5 +1,9 @@
 # 첫 수직 기능 DB 기록
 
+## 운행 Processing runtime 연결 — 2026-09-22
+
+운행 Processing production wiring은 기존 `chain_states`·`chain_jobs`와 retry/claim/deletion 컬럼을 그대로 사용한다. 새 Job을 DB에 먼저 기록한 뒤 외부 C/Wallet 경계를 호출하고, `chain-confirmed`만 Confirmed State로 반영하며 raw source 삭제 실패는 `deletion_status='pending'` 대상을 worker가 재처리한다. 이를 위해 새 migration을 만들지 않았고 Supabase 원격에도 추가 작업을 실행하지 않았다.
+
 `20260917142636_initial_first_vertical.sql`은 이미 Supabase 원격 프로젝트에 적용된 Migration의 동일본이다. 저장소 보존·재현을 위한 파일이므로 기존 원격 프로젝트에 다시 실행하지 않는다.
 
 `20260918025120_add_special_contract_selection.sql`도 원격에 이미 적용된 동일본이다. `special_contract_selections`는 특약 자체의 상태와 DRIVER의 현재 선택 상태를 분리한다. 계약당 하나의 현재 선택만 `UNIQUE (insurance_contract_id)`로 허용하고, `(special_contract_id, insurance_contract_id)` 복합 FK로 다른 계약 특약을 선택할 수 없게 한다. 이 테이블도 RLS와 직접 권한 회수를 유지하므로 Backend의 `pg` 접근만 사용한다.

@@ -84,10 +84,10 @@ export class ChainFinalizer {
       if (inserted.rowCount !== 1) throw new FinalizationBlocked("STATE_ALREADY_REGISTERED");
     });
   }
-  async createJob(actor: User, input: CalculateTripRequest, sourceKey: string): Promise<void> {
+  async createJob(actor: User, input: CalculateTripRequest, sourceKey: string): Promise<boolean> {
     const request = CalculateTripRequestSchema.parse(input);
     if (request.execution !== "live" || !sourceKey) throw new FinalizationBlocked("LIVE_INPUT_REQUIRED");
-    await this.transaction(async client => {
+    return this.transaction(async client => {
       await this.owned(client, actor, request.scope);
       const requestHash = createHash("sha256").update(JSON.stringify(request)).digest("hex");
       const existing = await client.query<JobRow>("SELECT * FROM public.chain_jobs WHERE operation_id=$1", [request.operationId]);
@@ -97,7 +97,7 @@ export class ChainFinalizer {
           throw new FinalizationBlocked("IDEMPOTENCY_CONFLICT");
         }
         if (job.status === "abandoned") throw new FinalizationBlocked("JOB_ABANDONED");
-        return;
+        return false;
       }
       const state = await client.query<StateRow>("SELECT * FROM public.chain_states WHERE scope_key=$1 FOR UPDATE", [chainScopeKey(request.scope)]);
       const current = state.rows[0];
@@ -108,6 +108,7 @@ export class ChainFinalizer {
       await client.query(`INSERT INTO public.chain_jobs(operation_id,scope_key,idempotency_key,trip_id,previous_commitment,source_key,request_hash)
         VALUES($1,$2,$3,$4,$5,$6,$7)`, [request.operationId, chainScopeKey(request.scope), request.idempotencyKey,
         request.trip.id, request.previous.state.stateCommitment, sourceKey, requestHash]);
+      return true;
     }).catch(error => {
       // 동일 scope의 진행 중 작업은 예상 가능한 업무 상태다. SQL 오류를 API 오류처럼 노출하지 않는다.
       if (error?.code === "23505") throw new FinalizationBlocked(

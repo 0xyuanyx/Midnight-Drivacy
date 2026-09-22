@@ -1,5 +1,17 @@
 # Drivacy 프로젝트 방향성
 
+## B 운행 Processing production 경계 — 2026-09-22 확정
+
+- Backend production 조립은 기존 `PgChainProcessingRepository`, `ChainProcessingService`, `ChainFinalizer`, `ChainJobRecoveryService`를 재사용하고, 운행 Processing route와 DB 기반 recovery worker를 실제 서버 수명주기에 연결한다.
+- Session 종료·소유권·생성 당시 Rule Version·이전 Confirmed State 검증 후 `chain_jobs`를 먼저 영속화하고 외부 C/Wallet 처리를 시작한다. 동일 Job 재요청은 새 제출을 만들지 않고 기존 operationId 상태를 조회한다.
+- 외부 C/Wallet adapter가 raw source 보관과 C 처리 시작·재시도·상태 조회·안전 종료 확인을 담당한다. Backend는 가입자 Wallet key, Midnight SDK signing authority, C Job journal 또는 ZK 내부 상태를 소유하지 않는다. 로컬 probe는 계속 C 로컬 검증 하네스로만 유지한다.
+- 통신 실패는 미제출이나 chain failure로 해석하지 않는다. 기존 operationId에 status-check를 예약하고, 상태 불명인 동안 새 transaction을 제출하지 않는다.
+- 오직 유효한 `chain-confirmed` 결과만 DB Confirmed State로 반영한다. `calculated`, `proving`, `awaiting-wallet-approval`, `submitted`, `chain-unknown`은 확정 근거가 아니다. 첫 운행 확정이 DB에 반영된 뒤에만 다음 Session이 그 State를 previous state로 사용한다.
+- chain-confirmed 후 raw source 삭제는 DB transaction 밖에서 수행한다. 외부 삭제 실패가 이미 확정된 체인·DB state를 무효화하지 않으므로 별도 cleanup 주기로 재시도한다. 재시도 중이거나 체인 상태가 불명확한 원본은 유지하고, C가 안전 종료를 확인한 abandoned 원본만 7일 정책에 따라 삭제한다.
+- 이 결정은 Backend wiring과 최소 외부 client 경계의 완료를 뜻한다. 저장소에 실제 외부 C runtime과 가입자 Wallet 연결이 없으므로 live Midnight 처리·Wallet Approval·chain-confirmed E2E는 미검증이다. 테스트 Stub/Fake는 production adapter로 간주하지 않는다.
+- 기존 원격 Supabase의 `chain_states`, `chain_jobs`, retry·cleanup·generation guard 구조로 충분하므로 이번 작업에서 migration을 추가하거나 원격 migration을 실행하지 않는다.
+- 최종 평가 요청, nullifier 기반 최종 신청, 보험사 심사·할인 적용은 다음 B 단계이며 이번 작업에는 포함하지 않는다.
+
 마지막 업데이트: 2026-09-22 (KST)
 
 이 문서는 팀과 개발 도구가 공유하는 현재 방향의 기준이다. 실제 구현·검증 결과는 README와 코드가 증명하며, 이 문서의 계획을 구현 완료로 표현하지 않는다.

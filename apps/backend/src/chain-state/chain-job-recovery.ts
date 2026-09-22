@@ -27,6 +27,7 @@ export interface ChainJobRecoveryRepository {
   recordFailure(operationId: string, token: string, code: string, retryable: boolean): Promise<boolean>;
   claimExpiredRaw(operationId: string): Promise<{ sourceKey: string; token: string } | undefined>;
   findExpiredRaw(now: Date, limit: number): Promise<string[]>;
+  findConfirmedRaw(limit: number): Promise<Array<{ operationId: string; ownerUserId: string }>>;
   markRawDeleted(operationId: string, token: string): Promise<boolean>;
   releaseRawClaim(operationId: string, token: string): Promise<void>;
 }
@@ -88,6 +89,13 @@ export class PgChainJobRecoveryRepository implements ChainJobRecoveryRepository 
     return result.rows.map(row => row.operationId);
   }
 
+  public async findConfirmedRaw(limit: number): Promise<Array<{ operationId: string; ownerUserId: string }>> {
+    const result = await this.pool.query<{ operationId: string; ownerUserId: string }>(`SELECT j.operation_id AS "operationId",
+      s.owner_user_id AS "ownerUserId" FROM public.chain_jobs j JOIN public.chain_states s ON s.scope_key=j.scope_key
+      WHERE j.status='db-confirmed' AND j.deletion_status='pending' ORDER BY j.created_at ASC LIMIT $1`, [limit]);
+    return result.rows;
+  }
+
   public async claimExpiredRaw(operationId: string): Promise<{ sourceKey: string; token: string } | undefined> {
     const token = randomUUID();
     const result = await this.pool.query<{ sourceKey: string }>(`UPDATE public.chain_jobs SET claim_token=$2,
@@ -141,6 +149,30 @@ export class ChainJobRecoveryService {
     }
   }
 
+  public async cleanupConfirmedRaw(limit: number): Promise<void> {
+    for (const job of await this.repository.findConfirmedRaw(limit)) {
+      const actor: User = { id: job.ownerUserId, email: "recovery-worker@internal.invalid", role: "DRIVER" };
+      try {
+        // Storage 삭제 실패는 이미 체인과 DB에서 확정된 State를 무효화하지 않으므로 별도 cleanup으로 재시도한다.
+        await this.finalizer.deleteConfirmedSource(actor, job.operationId);
+      } catch { /* 다음 worker 주기에서 deletion_status=pending 행을 다시 읽는다. */ }
+    }
+  }
+
+  public async recordProcessingResult(actor: User, operationId: string, input: TripProcessingResult): Promise<void> {
+    let token: string;
+    try { token = await this.finalizer.claim(actor, operationId); } catch { return; }
+    await this.applyResult({ operationId, ownerUserId: actor.id, sourceKey: "", retryCount: 0, action: "status-check" },
+      actor, token, this.now(), input, 0);
+  }
+
+  public async recordProcessingUnknown(actor: User, operationId: string): Promise<void> {
+    let token: string;
+    try { token = await this.finalizer.claim(actor, operationId); } catch { return; }
+    // C 응답이 유실된 상태에서 새 transaction을 보내지 않고 기존 operationId 조회만 예약한다.
+    await this.repository.scheduleStatusCheck(operationId, token, new Date(this.now().getTime() + STATUS_CHECK_DELAY_MS));
+  }
+
   private async recover(job: DueChainJob): Promise<void> {
     const actor: User = { id: job.ownerUserId, email: "recovery-worker@internal.invalid", role: "DRIVER" };
     let token: string;
@@ -158,7 +190,12 @@ export class ChainJobRecoveryService {
 
   private async applyResult(job: DueChainJob, actor: User, token: string, now: Date, input: TripProcessingResult, retryCount: number): Promise<void> {
     const result = TripProcessingResultSchema.parse(input);
-    if (result.status === "chain-confirmed") { await this.finalizer.finalize(actor, job.operationId, token); return; }
+    if (result.status === "chain-confirmed") {
+      // submitted/proving이 아니라 유효한 chain-confirmed만 DB State로 승격한다.
+      await this.finalizer.finalize(actor, job.operationId, token);
+      try { await this.finalizer.deleteConfirmedSource(actor, job.operationId); } catch { /* DB 확정은 유지하고 cleanup worker가 재시도한다. */ }
+      return;
+    }
     if (result.status === "chain-unknown" || result.status === "submitted" || result.status === "awaiting-wallet-approval" || result.status === "proving" || result.status === "calculated") {
       await this.repository.scheduleStatusCheck(job.operationId, token, new Date(now.getTime() + STATUS_CHECK_DELAY_MS));
       return;

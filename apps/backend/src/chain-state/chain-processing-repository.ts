@@ -62,6 +62,8 @@ export class PgChainProcessingRepository implements ChainProcessingRepository {
           -- Rule이 갱신돼도 과거 운행의 계산 기준이 바뀌지 않도록 Session 생성 당시 Rule Version을 사용한다.
           AND cs.registered_rule->>'ruleHash'=rr.rule_hash
           AND cs.registered_rule #>> '{rule,version}'=rv.version::text
+          -- Session 생성 뒤 State가 바뀌었다면 최신 State로 과거 운행을 재조립하지 않고 stale 요청으로 거절한다.
+          AND ds.generation_state_commitment=cs.state_commitment
         WHERE ds.id=$1 AND es.owner_user_id=$2 AND ds.status='ENDED'`,
       [sessionId, userId, runtime.network, runtime.adapterProfile],
     );

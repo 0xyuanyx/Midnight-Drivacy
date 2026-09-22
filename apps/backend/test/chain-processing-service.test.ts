@@ -53,6 +53,8 @@ const service = (repository: ChainProcessingRepository) => new ChainProcessingSe
   repository,
   {} as never,
   {} as never,
+  {} as never,
+  {} as never,
   runtime,
 );
 
@@ -86,15 +88,60 @@ describe("ChainProcessingService", () => {
     const sql = String(query.mock.calls[0]?.[0]);
     expect(sql).toContain("rr.rule_version_id=ds.rule_version_id");
     expect(sql).toContain("rv.id=ds.rule_version_id");
+    expect(sql).toContain("ds.generation_state_commitment=cs.state_commitment");
     expect(sql).not.toContain("rr.rule_version_id=d.current_rule_version_id");
   });
 
   it("does not delete a source key when staging conflicts with an existing pending Job", async () => {
     const source = { save: vi.fn().mockResolvedValue("existing-source"), delete: vi.fn() };
     const finalizer = { createJob: vi.fn().mockRejectedValue(new Error("IDEMPOTENCY_CONFLICT")) };
-    const guarded = new ChainProcessingService(new MemoryRepository(), finalizer as never, source as never, runtime);
+    const guarded = new ChainProcessingService(new MemoryRepository(), finalizer as never, source as never,
+      {} as never, {} as never, runtime);
 
     await expect(guarded.stage(driver, "session", "session-key")).rejects.toThrow("IDEMPOTENCY_CONFLICT");
     expect(source.delete).not.toHaveBeenCalled();
+  });
+
+  it("starts C once after persisting a new Job and records its returned state", async () => {
+    const source = { save: vi.fn().mockResolvedValue("source"), load: vi.fn(), delete: vi.fn() };
+    const finalizer = { createJob: vi.fn().mockResolvedValue(true) };
+    const status = { contractVersion: "bc-v1", execution: "live", operationId: trip.id,
+      tripId: trip.id, status: "proving" } as const;
+    const gateway = { startTrip: vi.fn().mockResolvedValue(status), getTripStatus: vi.fn(), canAbandonTrip: vi.fn() };
+    const recorder = { recordProcessingResult: vi.fn(), recordProcessingUnknown: vi.fn() };
+    const processing = new ChainProcessingService(new MemoryRepository(), finalizer as never, source,
+      gateway, recorder, runtime);
+
+    await expect(processing.stage(driver, "session", "session-key")).resolves.toEqual({ operationId: trip.id });
+    expect(gateway.startTrip).toHaveBeenCalledWith(expect.objectContaining({ operationId: trip.id }));
+    expect(gateway.getTripStatus).not.toHaveBeenCalled();
+    expect(recorder.recordProcessingResult).toHaveBeenCalledWith(driver, trip.id, status);
+  });
+
+  it("reuses operationId and checks status instead of resubmitting an existing Job", async () => {
+    const status = { contractVersion: "bc-v1", execution: "live", operationId: trip.id,
+      tripId: trip.id, status: "chain-unknown", transactionId: "transaction" } as const;
+    const finalizer = { createJob: vi.fn().mockResolvedValue(false) };
+    const gateway = { startTrip: vi.fn(), getTripStatus: vi.fn().mockResolvedValue(status), canAbandonTrip: vi.fn() };
+    const recorder = { recordProcessingResult: vi.fn(), recordProcessingUnknown: vi.fn() };
+    const processing = new ChainProcessingService(new MemoryRepository(), finalizer as never,
+      { save: vi.fn().mockResolvedValue("source"), load: vi.fn(), delete: vi.fn() }, gateway, recorder, runtime);
+
+    await processing.stage(driver, "session", "another-http-key");
+    expect(gateway.startTrip).not.toHaveBeenCalled();
+    expect(gateway.getTripStatus).toHaveBeenCalledWith(trip.id);
+  });
+
+  it("fails closed and schedules status recovery when the C boundary is unavailable", async () => {
+    const unavailable = new Error("adapter unavailable");
+    const recorder = { recordProcessingResult: vi.fn(), recordProcessingUnknown: vi.fn() };
+    const processing = new ChainProcessingService(new MemoryRepository(),
+      { createJob: vi.fn().mockResolvedValue(true) } as never,
+      { save: vi.fn().mockResolvedValue("source"), load: vi.fn(), delete: vi.fn() },
+      { startTrip: vi.fn().mockRejectedValue(unavailable), getTripStatus: vi.fn(), canAbandonTrip: vi.fn() },
+      recorder, runtime);
+
+    await expect(processing.stage(driver, "session", "session-key")).rejects.toBe(unavailable);
+    expect(recorder.recordProcessingUnknown).toHaveBeenCalledWith(driver, trip.id);
   });
 });

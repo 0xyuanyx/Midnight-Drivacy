@@ -10,6 +10,8 @@ import type { RuleDraftService } from "./rule-draft/rule-draft-service.js";
 import { createRuleDraftRouter } from "./routes/rule-drafts.js";
 import { createDrivingRouter } from "./routes/driving.js";
 import { createRuleRegistrationRouter } from "./routes/rule-registration.js";
+import { createChainProcessingRouter } from "./routes/chain-processing.js";
+import type { ChainProcessingService } from "./chain-state/chain-processing-service.js";
 import { createRuleRouter } from "./routes/rules.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { requestId } from "./middleware/request-id.js";
@@ -25,6 +27,7 @@ export interface BackendDependencies extends AuthDependencies {
   ruleRegistrationService?: RuleRegistrationService;
   drivingService?: DrivingService;
   ruleDraftService?: RuleDraftService;
+  chainProcessingService?: ChainProcessingService;
 }
 
 /**
@@ -49,6 +52,7 @@ export const createApp = (dependencies?: BackendDependencies): express.Express =
     if (dependencies.ruleDraftService) app.use(createRuleDraftRouter(dependencies, dependencies.ruleDraftService));
     if (dependencies.ruleRegistrationService) app.use(createRuleRegistrationRouter(dependencies, dependencies.ruleRegistrationService));
     if (dependencies.drivingService) app.use(createDrivingRouter(dependencies, dependencies.drivingService));
+    if (dependencies.chainProcessingService) app.use(createChainProcessingRouter(dependencies, dependencies.chainProcessingService));
   }
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -15,6 +15,7 @@ const request: CalculateTripRequest = { contractVersion: "bc-v1", execution: "li
 class MemoryRecoveryRepository implements ChainJobRecoveryRepository {
   public due: DueChainJob[] = [];
   public expired: string[] = [];
+  public confirmed: Array<{ operationId: string; ownerUserId: string }> = [];
   public retries: Array<{ count: number; at: Date }> = [];
   public checks: Date[] = [];
   public failures: Array<{ code: string; retryable: boolean }> = [];
@@ -26,13 +27,15 @@ class MemoryRecoveryRepository implements ChainJobRecoveryRepository {
   async scheduleStatusCheck(_operationId: string, _token: string, at: Date): Promise<boolean> { this.checks.push(at); return true; }
   async recordFailure(_operationId: string, _token: string, code: string, retryable: boolean): Promise<boolean> { this.failures.push({ code, retryable }); return true; }
   async findExpiredRaw(): Promise<string[]> { return this.expired; }
+  async findConfirmedRaw(): Promise<Array<{ operationId: string; ownerUserId: string }>> { return this.confirmed; }
   async claimExpiredRaw(operationId: string): Promise<{ sourceKey: string; token: string } | undefined> { return this.claimed.has(operationId) ? undefined : (this.claimed.add(operationId), { sourceKey: "source", token: "cleanup" }); }
   async markRawDeleted(operationId: string): Promise<boolean> { this.deleted.push(operationId); return true; }
   async releaseRawClaim(operationId: string): Promise<void> { this.claimed.delete(operationId); }
 }
 
 const service = (repository: MemoryRecoveryRepository, status: TripProcessingResult, retry = status, deleteSource = vi.fn(async () => undefined)) => {
-  const finalizer = { claim: vi.fn(async () => "claim"), finalize: vi.fn(async () => status), abandonJob: vi.fn(async () => undefined) };
+  const finalizer = { claim: vi.fn(async () => "claim"), finalize: vi.fn(async () => status),
+    deleteConfirmedSource: vi.fn(async () => undefined), abandonJob: vi.fn(async () => undefined) };
   const gateway = { getTripStatus: vi.fn(async () => status), retryTemporaryFailure: vi.fn(async () => retry) };
   const source = { load: vi.fn(async () => request), delete: deleteSource };
   return { worker: new ChainJobRecoveryService(repository, finalizer as never, gateway, source, () => now), finalizer, gateway, source };
@@ -93,6 +96,17 @@ describe("ChainJobRecoveryService", () => {
     const failed = new MemoryRecoveryRepository(); failed.expired = ["operation"];
     await service(failed, unknown(), unknown(), vi.fn(async () => { throw new Error("storage"); })).worker.cleanupExpiredRaw(10);
     expect(failed.deleted).toEqual([]); expect(failed.claimed.has("operation")).toBe(false);
+  });
+
+  it("retries confirmed raw deletion without rolling back the confirmed DB state", async () => {
+    const repository = new MemoryRecoveryRepository();
+    repository.confirmed = [{ operationId: "operation", ownerUserId: "driver" }];
+    const result = service(repository, unknown());
+    result.finalizer.deleteConfirmedSource.mockRejectedValueOnce(new Error("storage"));
+
+    await expect(result.worker.cleanupConfirmedRaw(10)).resolves.toBeUndefined();
+    await result.worker.cleanupConfirmedRaw(10);
+    expect(result.finalizer.deleteConfirmedSource).toHaveBeenCalledTimes(2);
   });
 });
 
