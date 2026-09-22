@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { AdapterRuntimeSchema, ApprovedRuleSchema, ConfirmedStateSchema, DeployRuleResultSchema, InitialRegistrationStatusSchema, RegisteredRuleSchema, RuleSchema, ScopeSchema, hasZeroGenesisMetrics, serializeRule, type AdapterRuntime, type ApprovedRule, type BCAdapter, type ConfirmedState, type RegisteredRule, type Scope, type User } from "@drivacy/shared";
+import { AdapterRuntimeSchema, ApprovedRuleSchema, ConfirmedStateSchema, DeployRuleResultSchema, InitialRegistrationStatusSchema, RegisteredRuleSchema, RuleSchema, ScopeSchema, hasZeroGenesisMetrics, serializeRule, type AdapterRuntime, type ApprovedRule, type ConfirmedState, type RegisteredRule, type Scope, type User } from "@drivacy/shared";
 import { AppError } from "../errors/app-error.js";
 import { toRuleVersionNumber } from "../rule/rule-service.js";
 import type { ChainScopeDeploymentRow, EvaluationScopeRow, RegistrationTargetRow, RuleRegistrationRepository } from "./rule-registration-repository.js";
+import type { RuleRegistrationAdapter } from "./rule-registration-adapter.js";
 
 const kstDate = (value: Date | string): string => {
   const date = value instanceof Date ? value : new Date(value); if (Number.isNaN(date.valueOf())) throw new AppError("INTERNAL_SERVER_ERROR", "Stored scope date is invalid", 500);
@@ -10,7 +11,7 @@ const kstDate = (value: Date | string): string => {
   const part=(type:string)=>p.find(x=>x.type===type)?.value; return `${part("year")}-${part("month")}-${part("day")}`;
 };
 export class RuleRegistrationService {
-  public constructor(private readonly repo: RuleRegistrationRepository, private readonly adapter: BCAdapter, runtime: AdapterRuntime) { this.runtime=AdapterRuntimeSchema.parse(runtime); }
+  public constructor(private readonly repo: RuleRegistrationRepository, private readonly adapter: RuleRegistrationAdapter, runtime: AdapterRuntime) { this.runtime=AdapterRuntimeSchema.parse(runtime); }
   private readonly runtime: AdapterRuntime;
   private scope(target: RegistrationTargetRow, stored: EvaluationScopeRow): Scope { return ScopeSchema.parse({ applicantId:stored.ownerUserId,contractId:stored.insuranceContractId,insurerId:target.insurerId,endorsementId:stored.specialContractId,evaluationPeriod:{id:stored.evaluationPeriodId,startDate:stored.evaluationStartsOn,endDate:stored.evaluationEndsOn} }); }
   private async getScope(target: RegistrationTargetRow): Promise<EvaluationScopeRow> { if(!target.selectedAt)throw new AppError("SPECIAL_CONTRACT_NOT_SELECTED","Special contract is not selected",409); const found=await this.repo.findScope(target.ownerUserId,target.insuranceContractId,target.specialContractId); if(found)return found; const start=kstDate(target.selectedAt),end=kstDate(target.coverageEndsAt); if(start>end)throw new AppError("INVALID_EVALUATION_PERIOD","Special contract selection is after coverage end",409);
@@ -77,10 +78,14 @@ export class RuleRegistrationService {
         const status=InitialRegistrationStatusSchema.safeParse(await this.adapter.getInitialRegistrationStatus(attempt.operationId));
         if(!status.success || status.data.operationId!==attempt.operationId)
           throw new AppError("CHAIN_REGISTRATION_INVALID","Chain adapter returned invalid registration status",502);
+        // 네트워크 응답 유실과 실제 미제출은 다르다. 같은 operationId의 상태를 우선 확인하고,
+        // C가 명시한 chain-confirmed만 복구하며 pending이면 중복 배포를 막기 위해 닫힌다.
         if(status.data.status==="chain-confirmed")return this.completeInitial(scopeRow,target,scope,approved,attempt.operationId,status.data.result);
         if(status.data.status!=="not-submitted")throw new AppError("CHAIN_REGISTRATION_UNRESOLVED","Initial deployment status must be recovered before retry",409);
       }
       return this.completeInitial(scopeRow,target,scope,approved,attempt.operationId,
         await this.adapter.deployRule({operationId:attempt.operationId,scope,approvedRule:approved})); }
+    // Rule 갱신은 기존 Scope 계약과 registration 이력을 유지한다. 새 Deployment나 Genesis로
+    // 누적 State를 초기화하면 과거 운행 연결이 끊기므로 C에는 기존 계약 주소로 update만 요청한다.
     const registered=this.registered(await this.adapter.updateRule({scope,deployment:{network:deployment.network,adapterProfile:deployment.adapterProfile,chainContractAddress:deployment.chainContractAddress},approvedRule:approved}),approved,deployment); await this.repo.createRegistrationAndSetCurrent({chainScopeDeploymentId:deployment.id,ruleVersionId:target.ruleVersionId,ruleHash:registered.ruleHash,registrationTransactionId:registered.registrationTransactionId});return registered; }); }
 }

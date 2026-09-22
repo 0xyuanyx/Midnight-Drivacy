@@ -56,22 +56,27 @@ export class PgChainJobRecoveryRepository implements ChainJobRecoveryRepository 
   }
 
   public async scheduleRetry(operationId: string, token: string, retryCount: number, at: Date): Promise<boolean> {
+    // 미래 due action은 지금 worker의 lease를 계승하면 안 된다. 예약과 같은 UPDATE에서 해제해야
+    // 1분 뒤 worker가 5분 lease에 막히지 않으며, C 호출 중이던 lease는 이 시점 전까지 유지된다.
     const result = await this.pool.query(`UPDATE public.chain_jobs SET next_action_type='retry',next_action_at=$4,
-      last_error_code='TEMPORARY_FAILURE',last_error_retryable=true,last_error_at=clock_timestamp()
+      last_error_code='TEMPORARY_FAILURE',last_error_retryable=true,last_error_at=clock_timestamp(),
+      claim_token=NULL,claim_expires_at=NULL
       WHERE operation_id=$1 AND status='pending' AND retry_count=$2 AND claim_token=$3 AND claim_expires_at>clock_timestamp()`,
     [operationId, retryCount, token, at]);
     return result.rowCount === 1;
   }
 
   public async scheduleStatusCheck(operationId: string, token: string, at: Date): Promise<boolean> {
-    const result = await this.pool.query(`UPDATE public.chain_jobs SET next_action_type='status-check',next_action_at=$3
+    const result = await this.pool.query(`UPDATE public.chain_jobs SET next_action_type='status-check',next_action_at=$3,
+      claim_token=NULL,claim_expires_at=NULL
       WHERE operation_id=$1 AND status='pending' AND claim_token=$2 AND claim_expires_at>clock_timestamp()`, [operationId, token, at]);
     return result.rowCount === 1;
   }
 
   public async recordFailure(operationId: string, token: string, code: string, retryable: boolean): Promise<boolean> {
     const result = await this.pool.query(`UPDATE public.chain_jobs SET next_action_type=NULL,next_action_at=NULL,
-      last_error_code=$3,last_error_retryable=$4,last_error_at=clock_timestamp()
+      last_error_code=$3,last_error_retryable=$4,last_error_at=clock_timestamp(),
+      claim_token=NULL,claim_expires_at=NULL
       WHERE operation_id=$1 AND status='pending' AND claim_token=$2 AND claim_expires_at>clock_timestamp()`, [operationId, token, code, retryable]);
     return result.rowCount === 1;
   }

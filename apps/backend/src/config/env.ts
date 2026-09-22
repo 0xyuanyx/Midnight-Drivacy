@@ -6,6 +6,8 @@ export interface Environment {
   supabasePublishableKey: string;
   midnightNetwork: "fixture" | "local" | "preprod";
   midnightAdapterProfile: string;
+  cWalletAdapterUrl: string;
+  cWalletAdapterToken: string;
 }
 
 /**
@@ -27,8 +29,12 @@ export const loadEnvironment = (): Environment => {
   const midnightNetwork = requiredEnvironment("MIDNIGHT_NETWORK");
   if (midnightNetwork !== "fixture" && midnightNetwork !== "local" && midnightNetwork !== "preprod") throw new Error("MIDNIGHT_NETWORK must be fixture, local, or preprod");
   const midnightAdapterProfile = requiredEnvironment("MIDNIGHT_ADAPTER_PROFILE");
+  // 외부 C/Wallet 계층만 실제 거래와 가입자 승인을 담당한다. Backend에는 월렛 키 대신 호출 위치와 서비스 인증값만 둔다.
+  const cWalletAdapterUrl = requiredEnvironment("C_WALLET_ADAPTER_URL");
+  const cWalletAdapterToken = requiredEnvironment("C_WALLET_ADAPTER_TOKEN");
 
-  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile };
+  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile,
+    cWalletAdapterUrl, cWalletAdapterToken };
 };
 
 const requiredEnvironment = (name: string): string => {

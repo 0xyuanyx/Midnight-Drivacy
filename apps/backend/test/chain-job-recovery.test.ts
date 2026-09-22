@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Pool } from "pg";
 import type { CalculateTripRequest, TripProcessingResult } from "@drivacy/shared";
 
-import { ChainJobRecoveryService, RETRY_DELAYS_MS, STATUS_CHECK_DELAY_MS, type ChainJobRecoveryRepository, type DueChainJob } from "../src/chain-state/chain-job-recovery.js";
+import { ChainJobRecoveryService, PgChainJobRecoveryRepository, RETRY_DELAYS_MS, STATUS_CHECK_DELAY_MS, type ChainJobRecoveryRepository, type DueChainJob } from "../src/chain-state/chain-job-recovery.js";
 
 const now = new Date("2026-09-21T00:00:00.000Z");
 const job = (action: DueChainJob["action"], retryCount = 0): DueChainJob => ({ operationId: "operation", ownerUserId: "driver", sourceKey: "source", action, retryCount });
@@ -92,5 +93,38 @@ describe("ChainJobRecoveryService", () => {
     const failed = new MemoryRecoveryRepository(); failed.expired = ["operation"];
     await service(failed, unknown(), unknown(), vi.fn(async () => { throw new Error("storage"); })).worker.cleanupExpiredRaw(10);
     expect(failed.deleted).toEqual([]); expect(failed.claimed.has("operation")).toBe(false);
+  });
+});
+
+describe("PgChainJobRecoveryRepository lease handoff", () => {
+  it("atomically releases the current lease when it reserves retry or status-check work", async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
+    const repository = new PgChainJobRecoveryRepository({ query } as unknown as Pool);
+
+    await expect(repository.scheduleRetry("operation", "worker-a", 0, now)).resolves.toBe(true);
+    await expect(repository.scheduleStatusCheck("operation", "worker-a", now)).resolves.toBe(true);
+
+    for (const [sql] of query.mock.calls) {
+      expect(String(sql)).toContain("claim_token=NULL,claim_expires_at=NULL");
+      expect(String(sql)).toContain("claim_token=$");
+      expect(String(sql)).toContain("claim_expires_at>clock_timestamp()");
+    }
+  });
+
+  it("keeps the ownership predicate, so another worker token cannot clear a live lease", async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const repository = new PgChainJobRecoveryRepository({ query } as unknown as Pool);
+
+    await expect(repository.scheduleRetry("operation", "worker-b", 1, now)).resolves.toBe(false);
+    const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("claim_token=$3");
+    expect(values).toEqual(["operation", 1, "worker-b", now]);
+  });
+
+  it("clears a terminal worker lease before safe abandon, which does not require that token", async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
+    const repository = new PgChainJobRecoveryRepository({ query } as unknown as Pool);
+    await expect(repository.recordFailure("operation", "worker-a", "RETRIES_EXHAUSTED", false)).resolves.toBe(true);
+    expect(String(query.mock.calls[0]?.[0])).toContain("claim_token=NULL,claim_expires_at=NULL");
   });
 });

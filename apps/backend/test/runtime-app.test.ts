@@ -1,0 +1,28 @@
+import request from "supertest";
+import { describe, expect, it } from "vitest";
+import type { Pool } from "pg";
+
+import type { Environment } from "../src/config/env.js";
+import { createRuntimeApp } from "../src/runtime-app.js";
+import type { RuleRegistrationAdapter } from "../src/rule-registration/rule-registration-adapter.js";
+
+const environment: Environment = {
+  nodeEnv: "test", port: 3000, databaseUrl: "postgresql://unused",
+  supabaseUrl: "https://example.supabase.co", supabasePublishableKey: "publishable-key",
+  midnightNetwork: "preprod", midnightAdapterProfile: "production-adapter",
+  cWalletAdapterUrl: "https://c-wallet.example.invalid", cWalletAdapterToken: "secret",
+};
+
+describe("production runtime composition", () => {
+  it("mounts the Rule Registration route through the injected C/Wallet boundary", async () => {
+    const pool = { query: async () => { throw new Error("authentication should reject before DB access"); } } as unknown as Pool;
+    const adapter = {} as RuleRegistrationAdapter;
+    const app = createRuntimeApp(environment, pool, adapter);
+
+    const result = await request(app)
+      .post("/special-contracts/11111111-1111-4111-8111-111111111111/rules/1/register");
+
+    expect(result.status).toBe(401);
+    expect(result.body).toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});

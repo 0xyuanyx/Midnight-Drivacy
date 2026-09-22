@@ -14,6 +14,8 @@ describe("loadEnvironment", () => {
       SUPABASE_PUBLISHABLE_KEY: "publishable-key",
       MIDNIGHT_NETWORK: "fixture",
       MIDNIGHT_ADAPTER_PROFILE: "test-adapter",
+      C_WALLET_ADAPTER_URL: "https://c-wallet.example.invalid/",
+      C_WALLET_ADAPTER_TOKEN: "adapter-token",
     };
   });
 
@@ -21,7 +23,7 @@ describe("loadEnvironment", () => {
     process.env = originalEnvironment;
   });
 
-  it.each(["DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"])(
+  it.each(["DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "C_WALLET_ADAPTER_URL", "C_WALLET_ADAPTER_TOKEN"])(
     "fails clearly when %s is not configured",
     (name) => {
       delete process.env[name];
@@ -38,6 +40,8 @@ describe("loadEnvironment", () => {
       supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY,
       midnightNetwork: "fixture",
       midnightAdapterProfile: "test-adapter",
+      cWalletAdapterUrl: "https://c-wallet.example.invalid/",
+      cWalletAdapterToken: "adapter-token",
     });
   });
 });

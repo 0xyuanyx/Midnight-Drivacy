@@ -1,33 +1,18 @@
-import { createApp } from "./app.js";
-import { PgAuthRepository } from "./auth/auth-repository.js";
-import { createSupabaseAuthVerifier } from "./auth/supabase-auth.js";
 import { loadEnvironment } from "./config/env.js";
-import { PgConsentRepository } from "./consent/consent-repository.js";
-import { ConsentService } from "./consent/consent-service.js";
 import { createDatabasePool } from "./db/pool.js";
-import { PgInsuranceRepository } from "./insurance/insurance-repository.js";
-import { InsuranceService } from "./insurance/insurance-service.js";
-import { PgRuleRepository } from "./rule/rule-repository.js";
-import { RuleService } from "./rule/rule-service.js";
-import { PgDrivingRepository } from "./driving/driving-repository.js";
-import { DrivingService } from "./driving/driving-service.js";
-import { RuleDraftService } from "./rule-draft/rule-draft-service.js";
-import { PgConfirmedDrivingStateReader } from "./driving/pg-confirmed-state-reader.js";
+import { ExternalRuleRegistrationAdapter } from "./rule-registration/rule-registration-adapter.js";
+import { createRuntimeApp } from "./runtime-app.js";
 
-const { port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile } = loadEnvironment();
-const pool = createDatabasePool(databaseUrl);
-const authRepository = new PgAuthRepository(pool);
-const ruleService = new RuleService(new PgRuleRepository(pool));
-const app = createApp({
-  authRepository,
-  supabaseAuthVerifier: createSupabaseAuthVerifier(supabaseUrl, supabasePublishableKey),
-  consentService: new ConsentService(new PgConsentRepository(pool)),
-  insuranceService: new InsuranceService(new PgInsuranceRepository(pool)),
-  ruleService,
-  ruleDraftService: new RuleDraftService(ruleService),
-  drivingService: new DrivingService(new PgDrivingRepository(pool), { network: midnightNetwork, adapterProfile: midnightAdapterProfile }, new PgConfirmedDrivingStateReader(pool)),
-});
+const environment = loadEnvironment();
+const pool = createDatabasePool(environment.databaseUrl);
+// 가입자 승인이 필요한 트랜잭션을 Backend 개발자 키로 대신 서명하지 않도록 외부 C/Wallet 실행 경계를 주입한다.
+// URL이나 인증값이 없으면 시작 단계에서 실패하므로 로컬 probe 또는 성공 fixture로 production 경로를 우회하지 않는다.
+const ruleRegistrationAdapter = new ExternalRuleRegistrationAdapter(
+  environment.cWalletAdapterUrl,
+  environment.cWalletAdapterToken,
+);
+const app = createRuntimeApp(environment, pool, ruleRegistrationAdapter);
 
-app.listen(port, () => {
-  console.info(`Drivacy backend listening on port ${port}`);
+app.listen(environment.port, () => {
+  console.info(`Drivacy backend listening on port ${environment.port}`);
 });
