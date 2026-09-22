@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
 
 import { useAppState } from "@/state/app-provider";
+import { initialRouteForState } from "@/state/route-policy";
 import { colors } from "@/theme/tokens";
 
 export default function Index() {
@@ -15,9 +16,5 @@ export default function Index() {
     );
   }
 
-  return (
-    <Redirect
-      href={state.hasConsented && state.selectedPolicyId ? "/(tabs)/home" : "/onboarding"}
-    />
-  );
+  return <Redirect href={initialRouteForState(state)} />;
 }

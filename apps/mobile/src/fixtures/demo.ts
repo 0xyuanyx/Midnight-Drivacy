@@ -40,6 +40,10 @@ export const demoPolicies: readonly DemoPolicy[] = [
   },
 ];
 
+export function isDemoPolicyId(policyId: unknown): policyId is string {
+  return typeof policyId === "string" && demoPolicies.some((policy) => policy.id === policyId);
+}
+
 export const initialDemoTotals: DemoTotals = {
   distanceKm: 0,
   score: 100,

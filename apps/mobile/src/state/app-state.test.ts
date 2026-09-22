@@ -4,6 +4,13 @@ import {
   normalizePersistedAppState,
 } from "./app-state";
 
+function readyState() {
+  return appReducer(
+    appReducer(initialAppState, { type: "ACCEPT_CONSENT" }),
+    { type: "SELECT_INSURANCE", policyId: "policy-safe-driver" },
+  );
+}
+
 describe("appReducer", () => {
   it("starts the deterministic demo at zero kilometres and 100 points", () => {
     expect(initialAppState).toEqual({
@@ -21,7 +28,7 @@ describe("appReducer", () => {
   });
 
   it("uses the first trip fixture totals without unlocking the application", () => {
-    const state = appReducer(initialAppState, { type: "COMPLETE_TRIP" });
+    const state = appReducer(readyState(), { type: "COMPLETE_TRIP" });
 
     expect(state).toMatchObject({
       tripsCompleted: 1,
@@ -35,7 +42,7 @@ describe("appReducer", () => {
   });
 
   it("uses the second trip fixture totals and unlocks the ten percent application", () => {
-    const afterFirstTrip = appReducer(initialAppState, { type: "COMPLETE_TRIP" });
+    const afterFirstTrip = appReducer(readyState(), { type: "COMPLETE_TRIP" });
     const state = appReducer(afterFirstTrip, { type: "COMPLETE_TRIP" });
 
     expect(state).toMatchObject({
@@ -51,7 +58,7 @@ describe("appReducer", () => {
 
   it("leaves the finished demo unchanged when a third trip is completed", () => {
     const completeState = appReducer(
-      appReducer(initialAppState, { type: "COMPLETE_TRIP" }),
+      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
       { type: "COMPLETE_TRIP" },
     );
 
@@ -59,14 +66,14 @@ describe("appReducer", () => {
   });
 
   it("rejects an application submission before the second trip makes it eligible", () => {
-    const afterFirstTrip = appReducer(initialAppState, { type: "COMPLETE_TRIP" });
+    const afterFirstTrip = appReducer(readyState(), { type: "COMPLETE_TRIP" });
 
     expect(appReducer(afterFirstTrip, { type: "SUBMIT_APPLICATION" })).toBe(afterFirstTrip);
   });
 
   it("moves an eligible application into the pending stage", () => {
     const eligibleState = appReducer(
-      appReducer(initialAppState, { type: "COMPLETE_TRIP" }),
+      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
       { type: "COMPLETE_TRIP" },
     );
 
@@ -77,7 +84,7 @@ describe("appReducer", () => {
 
   it("allows demo approval only from the pending application stage", () => {
     const eligibleState = appReducer(
-      appReducer(initialAppState, { type: "COMPLETE_TRIP" }),
+      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
       { type: "COMPLETE_TRIP" },
     );
     const pendingState = appReducer(eligibleState, { type: "SUBMIT_APPLICATION" });
@@ -116,5 +123,47 @@ describe("appReducer", () => {
       },
       applicationStage: "pending",
     });
+  });
+
+  it("drops an unknown persisted policy and every policy-scoped field", () => {
+    expect(
+      normalizePersistedAppState({
+        hasConsented: true,
+        selectedPolicyId: "policy-tampered",
+        tripsCompleted: 2,
+        applicationStage: "approved",
+      }),
+    ).toEqual({ ...initialAppState, hasConsented: true });
+  });
+
+  it("drops persisted policy, trip, and application state when consent is absent", () => {
+    expect(
+      normalizePersistedAppState({
+        hasConsented: false,
+        selectedPolicyId: "policy-safe-driver",
+        tripsCompleted: 2,
+        applicationStage: "pending",
+      }),
+    ).toEqual(initialAppState);
+  });
+
+  it("does not select an unknown policy or start a trip before a valid policy is selected", () => {
+    const consentedState = appReducer(initialAppState, { type: "ACCEPT_CONSENT" });
+
+    expect(appReducer(consentedState, { type: "SELECT_INSURANCE", policyId: "policy-tampered" })).toBe(
+      consentedState,
+    );
+    expect(appReducer(consentedState, { type: "COMPLETE_TRIP" })).toBe(consentedState);
+  });
+
+  it("does not approve a pending application unless the policy-scoped state is eligible", () => {
+    const invalidPendingState = {
+      ...initialAppState,
+      hasConsented: true,
+      selectedPolicyId: "policy-safe-driver",
+      applicationStage: "pending" as const,
+    };
+
+    expect(appReducer(invalidPendingState, { type: "APPROVE_APPLICATION" })).toBe(invalidPendingState);
   });
 });

@@ -1,4 +1,9 @@
-import { demoTrips, initialDemoTotals, type DemoTotals } from "@/fixtures/demo";
+import {
+  demoTrips,
+  initialDemoTotals,
+  isDemoPolicyId,
+  type DemoTotals,
+} from "@/fixtures/demo";
 
 export type TripsCompleted = 0 | 1 | 2;
 export type ApplicationStage = "idle" | "pending" | "approved";
@@ -49,31 +54,44 @@ function isApplicationStage(value: unknown): value is ApplicationStage {
   return value === "idle" || value === "pending" || value === "approved";
 }
 
+export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "selectedPolicyId">): boolean {
+  return state.hasConsented && isDemoPolicyId(state.selectedPolicyId);
+}
+
 /** Keeps storage migrations conservative by accepting only public AppState fields. */
 export function normalizePersistedAppState(persistedState: unknown): AppState {
   if (!isRecord(persistedState)) {
     return initialAppState;
   }
 
+  const hasConsented = persistedState.hasConsented === true;
+  if (!hasConsented) {
+    return initialAppState;
+  }
+
+  const selectedPolicyId = isDemoPolicyId(persistedState.selectedPolicyId)
+    ? persistedState.selectedPolicyId
+    : null;
+  if (!selectedPolicyId) {
+    return { ...initialAppState, hasConsented: true };
+  }
+
   const tripsCompleted = isTripsCompleted(persistedState.tripsCompleted)
     ? persistedState.tripsCompleted
     : initialAppState.tripsCompleted;
+  const totals = totalsForTrips(tripsCompleted);
+  const applicationStage =
+    tripsCompleted === 2 && totals.isEligible && isApplicationStage(persistedState.applicationStage)
+      ? persistedState.applicationStage
+      : "idle";
 
   return {
     ...initialAppState,
-    hasConsented:
-      typeof persistedState.hasConsented === "boolean"
-        ? persistedState.hasConsented
-        : initialAppState.hasConsented,
-    selectedPolicyId:
-      typeof persistedState.selectedPolicyId === "string" || persistedState.selectedPolicyId === null
-        ? persistedState.selectedPolicyId
-        : initialAppState.selectedPolicyId,
+    hasConsented,
+    selectedPolicyId,
     tripsCompleted,
-    totals: totalsForTrips(tripsCompleted),
-    applicationStage: isApplicationStage(persistedState.applicationStage)
-      ? persistedState.applicationStage
-      : initialAppState.applicationStage,
+    totals,
+    applicationStage,
   };
 }
 
@@ -82,8 +100,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "ACCEPT_CONSENT":
       return { ...state, hasConsented: true };
     case "SELECT_INSURANCE":
-      return { ...state, selectedPolicyId: action.policyId };
+      return state.hasConsented && isDemoPolicyId(action.policyId)
+        ? { ...state, selectedPolicyId: action.policyId }
+        : state;
     case "COMPLETE_TRIP": {
+      if (!hasSelectedDemoPolicy(state)) {
+        return state;
+      }
+
       const nextTrip = demoTrips[state.tripsCompleted];
       if (!nextTrip) {
         return state;
@@ -96,11 +120,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case "SUBMIT_APPLICATION":
-      return state.totals.isEligible && state.applicationStage === "idle"
+      return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
         ? { ...state, applicationStage: "pending" }
         : state;
     case "APPROVE_APPLICATION":
-      return state.applicationStage === "pending"
+      return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "pending"
         ? { ...state, applicationStage: "approved" }
         : state;
     case "RESET_DEMO":
