@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, tokens } from "@/theme/tokens";
@@ -30,24 +31,18 @@ const styles = StyleSheet.create({
   successCard: {
     backgroundColor: colors.successBackground,
   },
-  label: {
+  label: { ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "700",
   },
-  value: {
+  value: { ...typography.label,
     color: colors.textPrimary,
-    fontSize: 24,
-    fontWeight: "800",
     marginTop: 10,
   },
   successValue: {
     color: colors.success,
   },
-  helper: {
+  helper: { ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
     marginTop: 5,
   },
 });

@@ -1,8 +1,10 @@
+import { typography } from "@/theme/typography";
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
+import { elapsedLabel } from "@/components/DrivingRing";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -49,6 +51,7 @@ export default function DriveResult() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>주행 요약</Text>
+        {state.tripStartedAt && state.tripEndedAt ? <View style={styles.row}><Text style={styles.label}>주행 시간</Text><Text style={styles.value}>{elapsedLabel(state.tripStartedAt, state.tripEndedAt)}</Text></View> : null}
         <View style={styles.row}><Text style={styles.label}>이번 거리</Text><Text style={styles.value}>{trip.distanceKm} km</Text></View>
         <View style={styles.row}><Text style={styles.label}>누적 거리</Text><Text style={styles.value}>{state.totals.distanceKm} km</Text></View>
         <View style={styles.row}><Text style={styles.label}>현재 점수</Text><Text style={styles.value}>{state.totals.score}점</Text></View>
@@ -69,15 +72,15 @@ export default function DriveResult() {
 
 const styles = StyleSheet.create({
   screen: { paddingBottom: 24 },
-  title: { color: colors.textPrimary, fontSize: 25, fontWeight: "800", letterSpacing: -0.7, marginTop: 8 },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
   resultHero: { alignItems: "center", marginVertical: 24 },
-  delta: { color: colors.primary, fontSize: 38, fontWeight: "900", letterSpacing: -1 },
-  deltaHelper: { color: colors.textSecondary, fontSize: 11, marginTop: 7 },
-  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 10, padding: 16 },
-  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  row: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 11 },
-  label: { color: colors.textSecondary, fontSize: 10 },
-  value: { color: colors.textPrimary, fontSize: 10, fontWeight: "800" },
-  successValue: { color: colors.success, fontSize: 10, fontWeight: "800" },
-  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 16, marginTop: 7 },
+  delta: { ...typography.metric, color: colors.primary, },
+  deltaHelper: { ...typography.caption, color: colors.textSecondary, marginTop: 7 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, padding: 16 },
+  cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  row: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 11 },
+  label: { ...typography.caption, color: colors.textSecondary, },
+  value: { ...typography.label, color: colors.textPrimary, },
+  successValue: { ...typography.label, color: colors.success, },
+  cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 7 },
 });

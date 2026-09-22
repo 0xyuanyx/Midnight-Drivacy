@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { DemoPolicy } from "@/fixtures/demo";
@@ -63,17 +64,14 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     alignItems: "center",
-    flexDirection: "row",
+    flexDirection: "row", flexWrap: "wrap", gap: 8,
     justifyContent: "space-between",
   },
-  insurer: {
+  insurer: { ...typography.cardTitle,
     color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: "800",
   },
-  product: {
+  product: { ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 11,
     marginTop: 4,
   },
   statusBadge: {
@@ -82,10 +80,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  statusText: {
+  statusText: { ...typography.badge,
     color: colors.success,
-    fontSize: 10,
-    fontWeight: "700",
   },
   details: {
     gap: 6,
@@ -93,16 +89,13 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     alignItems: "center",
-    flexDirection: "row",
+    flexDirection: "row", flexWrap: "wrap", gap: 8,
     justifyContent: "space-between",
   },
-  detailLabel: {
+  detailLabel: { ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 10,
   },
-  detailValue: {
+  detailValue: { ...typography.label,
     color: colors.textPrimary,
-    fontSize: 10,
-    fontWeight: "700",
   },
 });

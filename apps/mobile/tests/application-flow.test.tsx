@@ -155,6 +155,14 @@ describe("Discount application flow", () => {
     expect(push).toHaveBeenCalledWith("/application-submitted");
   });
 
+  it("resets the demo from the result detail and returns to onboarding", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(2, "approved"), dispatch, isHydrated: true });
+    const { getByRole } = await render(<ApplicationResult />);
+    await fireEvent.press(getByRole("button", { name: "초기화하기" }));
+    expect(dispatch).toHaveBeenCalledWith({ type: "RESET_DEMO" });
+    expect(replace).toHaveBeenCalledWith("/onboarding");
+  });
+
   it("shows the approved ten percent result and returns to Home", async () => {
     mockUseAppState.mockReturnValue({
       state: stateForTrips(2, "approved"),

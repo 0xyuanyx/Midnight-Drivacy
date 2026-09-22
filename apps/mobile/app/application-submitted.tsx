@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -70,14 +71,14 @@ export default function ApplicationSubmitted() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.background, flex: 1 },
   screen: { paddingBottom: 8 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 10 },
-  description: { color: colors.textSecondary, fontSize: 11, marginBottom: 22, marginTop: 7 },
-  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 10, padding: 16 },
-  cardHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  badge: { backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 9, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
-  row: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  label: { color: colors.textSecondary, fontSize: 9 },
-  value: { color: colors.textPrimary, fontSize: 9, fontWeight: "800" },
-  demoNote: { color: colors.textSecondary, fontSize: 9, lineHeight: 14, textAlign: "center" },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
+  description: { ...typography.body, color: colors.textSecondary, marginBottom: 24, marginTop: 8 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, padding: 16 },
+  cardHeader: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between" },
+  cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  badge: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  row: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 10 },
+  label: { ...typography.caption, color: colors.textSecondary, },
+  value: { ...typography.label, color: colors.textPrimary, },
+  demoNote: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
 });

@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -30,6 +31,6 @@ const styles = StyleSheet.create({
   },
   backIcon: { color: colors.textPrimary, fontSize: 31, fontWeight: "300", lineHeight: 32, marginLeft: -2, marginTop: -2 },
   pressed: { opacity: 0.7 },
-  title: { color: colors.textPrimary, fontSize: 16, fontWeight: "800" },
+  title: { ...typography.cardTitle, color: colors.textPrimary, },
   spacer: { height: tokens.minTouchTarget, width: tokens.minTouchTarget },
 });

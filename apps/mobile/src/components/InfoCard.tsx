@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, tokens } from "@/theme/tokens";
@@ -22,15 +23,12 @@ const styles = StyleSheet.create({
     borderRadius: tokens.cardRadius,
     padding: 18,
   },
-  title: {
+  title: { ...typography.cardTitle,
     color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: "800",
   },
   body: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
     marginTop: 8,
   },
 });

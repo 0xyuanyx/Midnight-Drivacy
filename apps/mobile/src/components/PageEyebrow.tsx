@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, type TextProps } from "react-native";
 
 import { colors } from "@/theme/tokens";
@@ -13,8 +14,8 @@ export function PageEyebrow({ children, position = "plain", style, ...props }: T
 }
 
 const styles = StyleSheet.create({
-  base: { color: colors.primary, fontSize: 11, fontWeight: "800" },
+  base: { ...typography.eyebrow, color: colors.primary, },
   plain: { marginTop: 41 },
   withBack: { marginTop: 24 },
-  afterWordmark: { marginTop: 24 },
+  afterWordmark: { marginTop: 17 },
 });

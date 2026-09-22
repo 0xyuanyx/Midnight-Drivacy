@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -11,7 +12,7 @@ import { colors } from "@/theme/tokens";
 
 export default function ApplicationResult() {
   const router = useRouter();
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (state.applicationStage !== "approved") {
@@ -30,7 +31,15 @@ export default function ApplicationResult() {
     <View style={styles.page}>
       <AppScreen
         contentContainerStyle={styles.screen}
-        fixedFooter={<PrimaryButton title="홈으로 돌아가기" onPress={() => router.replace("/(tabs)/home")} />}
+        fixedFooter={(
+          <View style={{ gap: 0 }}>
+            <PrimaryButton title="초기화하기" variant="ghost" onPress={() => {
+              dispatch({ type: "RESET_DEMO" });
+              router.replace("/onboarding");
+            }} />
+            <PrimaryButton title="홈으로 돌아가기" onPress={() => router.replace("/(tabs)/home")} />
+          </View>
+        )}
         testID="application-result-screen"
       >
         <PageEyebrow>보험사 결정 완료</PageEyebrow>
@@ -59,17 +68,17 @@ export default function ApplicationResult() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.background, flex: 1 },
   screen: { paddingBottom: 8 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 10 },
-  description: { color: colors.textSecondary, fontSize: 11, marginTop: 7 },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
+  description: { ...typography.body, color: colors.textSecondary, marginTop: 8 },
   resultHero: { alignItems: "center", marginVertical: 30 },
-  resultValue: { color: colors.primary, fontSize: 43, fontWeight: "900", letterSpacing: -1 },
-  resultLabel: { color: colors.textSecondary, fontSize: 10, marginTop: 5 },
-  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 10, padding: 16 },
-  cardHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  badge: { backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 9, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
-  row: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  label: { color: colors.textSecondary, fontSize: 9 },
-  value: { color: colors.textPrimary, fontSize: 9, fontWeight: "800" },
-  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 16, marginTop: 8 },
+  resultValue: { ...typography.metric, color: colors.primary, },
+  resultLabel: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, padding: 16 },
+  cardHeader: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between" },
+  cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  badge: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  row: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 10 },
+  label: { ...typography.caption, color: colors.textSecondary, },
+  value: { ...typography.label, color: colors.textPrimary, },
+  cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
 });

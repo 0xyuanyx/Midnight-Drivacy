@@ -1,6 +1,10 @@
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { Redirect, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import regularFont from "../assets/fonts/Pretendard-Regular.otf";
+import semiboldFont from "../assets/fonts/Pretendard-SemiBold.otf";
+import boldFont from "../assets/fonts/Pretendard-Bold.otf";
 
 import { AppProvider, useAppState } from "@/state/app-provider";
 import { redirectForRoute } from "@/state/route-policy";
@@ -39,6 +43,12 @@ function RouteGate() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    "Pretendard-Regular": regularFont,
+    "Pretendard-SemiBold": semiboldFont,
+    "Pretendard-Bold": boldFont,
+  });
+  if (!fontsLoaded && !fontError) return <ActivityIndicator color={colors.primary} />;
   return (
     <AppProvider>
       <StatusBar style="dark" />

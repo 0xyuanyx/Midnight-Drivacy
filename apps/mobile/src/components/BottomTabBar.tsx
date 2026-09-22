@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { SymbolView, type AndroidSymbol, type SFSymbol } from "expo-symbols";
@@ -138,11 +139,8 @@ const styles = StyleSheet.create({
     height: 18,
     lineHeight: 18,
   },
-  label: {
+  label: { ...typography.tab,
     color: colors.textPrimary,
-    fontSize: 9,
-    fontWeight: "700",
-    lineHeight: 12,
     marginTop: 2,
   },
   selectedText: {

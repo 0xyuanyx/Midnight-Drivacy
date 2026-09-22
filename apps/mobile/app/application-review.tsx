@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -64,11 +65,11 @@ export default function ApplicationReview() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.background, flex: 1 },
   screen: { paddingBottom: 8 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 9 },
-  description: { color: colors.textSecondary, fontSize: 11, marginBottom: 20, marginTop: 7 },
-  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 10, padding: 16 },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
+  description: { ...typography.body, color: colors.textSecondary, marginBottom: 24, marginTop: 8 },
+  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 12, padding: 16 },
   selectedCard: { borderColor: colors.primary },
-  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 17, marginTop: 8 },
-  line: { color: colors.textPrimary, fontSize: 10, lineHeight: 19, marginTop: 3 },
+  cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
+  line: { ...typography.caption, color: colors.textPrimary, marginTop: 3 },
 });

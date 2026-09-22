@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import {
   Pressable,
   StyleSheet,
@@ -88,10 +89,7 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.82,
   },
-  text: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
+  text: { ...typography.button,
   },
   primaryText: {
     color: colors.surface,

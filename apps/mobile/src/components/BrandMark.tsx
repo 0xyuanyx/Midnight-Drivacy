@@ -20,7 +20,7 @@ export function BrandMark({ compact = false }: BrandMarkProps) {
 const styles = StyleSheet.create({
   row: {
     alignItems: "center",
-    flexDirection: "row",
+    flexDirection: "row", flexWrap: "wrap",
     gap: 10,
   },
   mark: {

@@ -14,6 +14,8 @@ export interface AppState {
   selectedPolicyId: string | null;
   tripsCompleted: TripsCompleted;
   driveStage: DriveStage;
+  tripStartedAt?: number;
+  tripEndedAt?: number;
   totals: DemoTotals;
   applicationStage: ApplicationStage;
 }
@@ -114,6 +116,10 @@ export function normalizePersistedAppState(persistedState: unknown): AppState {
     selectedPolicyId,
     tripsCompleted,
     driveStage,
+    tripStartedAt: typeof persistedState.tripStartedAt === "number" && Number.isFinite(persistedState.tripStartedAt) && persistedState.tripStartedAt > 0
+      ? persistedState.tripStartedAt : driveStage === "active" ? Date.now() : undefined,
+    tripEndedAt: typeof persistedState.tripEndedAt === "number" && Number.isFinite(persistedState.tripEndedAt) && persistedState.tripEndedAt > 0
+      ? persistedState.tripEndedAt : undefined,
     totals,
     applicationStage,
   };
@@ -129,11 +135,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         : state;
     case "START_TRIP":
       return hasSelectedDemoPolicy(state) && state.driveStage === "idle" && state.tripsCompleted < 2
-        ? { ...state, driveStage: "active" }
+        ? { ...state, driveStage: "active", tripStartedAt: Date.now(), tripEndedAt: undefined }
         : state;
     case "FINISH_TRIP":
       return hasSelectedDemoPolicy(state) && state.driveStage === "active" && state.tripsCompleted < 2
-        ? { ...state, driveStage: "processing" }
+        ? { ...state, driveStage: "processing", tripEndedAt: Date.now() }
         : state;
     case "COMPLETE_TRIP": {
       if (!hasSelectedDemoPolicy(state) || state.driveStage !== "processing") {

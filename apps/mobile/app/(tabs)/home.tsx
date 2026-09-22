@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { typography } from "@/theme/typography";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
@@ -7,17 +8,13 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Wordmark } from "@/components/Wordmark";
 import { useAppState } from "@/state/app-provider";
+import { homePresentation } from "@/state/home-presentation";
 import { colors } from "@/theme/tokens";
-
-function homeAction(tripsCompleted: 0 | 1 | 2) {
-  if (tripsCompleted === 0) return "첫 모의 주행 시작";
-  if (tripsCompleted === 1) return "두 번째 모의 주행 시작";
-  return "할인 신청하기";
-}
 
 export default function Home() {
   const router = useRouter();
   const { state } = useAppState();
+  const presentation = homePresentation(state);
   const progress = Math.min(state.totals.distanceKm / 550, 1);
 
   return (
@@ -25,8 +22,8 @@ export default function Home() {
       contentContainerStyle={styles.screen}
       fixedFooter={(
         <PrimaryButton
-          title={homeAction(state.tripsCompleted)}
-          onPress={() => router.push((state.tripsCompleted === 2 ? "/application" : "/drive") as never)}
+          title={presentation.action}
+          onPress={() => router.push(presentation.route)}
         />
       )}
       testID="home-screen"
@@ -34,7 +31,7 @@ export default function Home() {
       <Wordmark />
       <View style={styles.hero}>
         <PageEyebrow position="afterWordmark">안전운전 할인</PageEyebrow>
-        <Text style={styles.title}>민준님, 이번 달도{`\n`}안전하게 달리고 있어요.</Text>
+        <Text style={styles.title}>{presentation.title}</Text>
       </View>
 
       <View style={styles.scoreCard}>
@@ -66,6 +63,11 @@ export default function Home() {
         </View>
       </View>
 
+      <Pressable accessibilityRole="button" accessibilityLabel="서류에서 할인 신청 상태 확인" onPress={() => router.push("/application")} style={styles.applicationCard}>
+        <Text style={styles.privacyTitle}>{presentation.status}</Text>
+        <Text style={styles.privacyText}>{presentation.detail}</Text>
+        <Text style={styles.applicationLink}>서류에서 확인하기 ›</Text>
+      </Pressable>
       <View style={styles.privacyCard}>
         <View style={styles.privacyIcon}><Text style={styles.privacyCheck}>✓</Text></View>
         <View style={styles.privacyCopy}>
@@ -79,29 +81,31 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  applicationCard: { backgroundColor: colors.surface, borderRadius: 16, marginTop: 12, padding: 16 },
+  applicationLink: { ...typography.label, color: colors.primary, marginTop: 12 },
   screen: { paddingBottom: 8 },
   hero: {},
-  title: { color: colors.textPrimary, fontSize: 27, fontWeight: "800", letterSpacing: -0.9, lineHeight: 36, marginTop: 9 },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
   scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 24, padding: 18 },
   scoreHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  scoreLabel: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  status: { backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 10, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  scoreLabel: { ...typography.cardTitle, color: colors.textPrimary, },
+  status: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
   scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
-  scoreValue: { color: colors.textPrimary, fontSize: 38, fontWeight: "900", letterSpacing: -1.2 },
+  scoreValue: { ...typography.metric, color: colors.textPrimary, },
   discountBlock: { alignItems: "flex-end", paddingBottom: 4 },
-  discountLabel: { color: colors.textSecondary, fontSize: 10 },
-  discountValue: { color: colors.primary, fontSize: 18, fontWeight: "900", marginTop: 3 },
+  discountLabel: { ...typography.caption, color: colors.textSecondary, },
+  discountValue: { ...typography.metricSmall, color: colors.primary, marginTop: 3 },
   progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 21 },
-  progressLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
-  distance: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
+  progressLabel: { ...typography.label, color: colors.textSecondary, },
+  distance: { ...typography.label, color: colors.textSecondary, },
   metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 18, paddingTop: 15 },
   metaRight: { marginLeft: "auto" },
-  metaLabel: { color: colors.textSecondary, fontSize: 10 },
-  metaValue: { color: colors.textPrimary, fontSize: 13, fontWeight: "800", marginTop: 4 },
+  metaLabel: { ...typography.caption, color: colors.textSecondary, },
+  metaValue: { ...typography.label, color: colors.textPrimary, marginTop: 4 },
   privacyCard: { alignItems: "center", backgroundColor: "#EAF2FF", borderRadius: 16, flexDirection: "row", marginTop: 13, padding: 16 },
   privacyIcon: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 999, height: 28, justifyContent: "center", width: 28 },
   privacyCheck: { color: colors.surface, fontSize: 14, fontWeight: "900" },
   privacyCopy: { flex: 1, marginLeft: 12 },
-  privacyTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  privacyText: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
+  privacyTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  privacyText: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },
 });

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,6 +22,7 @@ export function AppScreen({
   scrollTestID,
   testID,
 }: AppScreenProps) {
+  const [footerHeight, setFooterHeight] = useState(66);
   const content = (
     <View style={[styles.content, contentContainerStyle]} testID={testID}>
       {children}
@@ -31,7 +33,7 @@ export function AppScreen({
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, fixedFooter ? styles.scrollContentWithFooter : null]}
+          contentContainerStyle={[styles.scrollContent, fixedFooter ? { paddingBottom: footerHeight + 16 } : null]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           testID={scrollTestID}
@@ -39,10 +41,10 @@ export function AppScreen({
           {content}
         </ScrollView>
       ) : (
-        <View style={[styles.nonScrollContent, fixedFooter ? styles.nonScrollContentWithFooter : null]}>{content}</View>
+        <View style={[styles.nonScrollContent, fixedFooter ? { paddingBottom: footerHeight + 16 } : null]}>{content}</View>
       )}
       {fixedFooter ? (
-        <View pointerEvents="box-none" style={styles.fixedFooter}>
+        <View pointerEvents="box-none" style={styles.fixedFooter} onLayout={event => setFooterHeight(event.nativeEvent.layout.height)}>
           <View style={styles.fixedFooterInner}>{fixedFooter}</View>
         </View>
       ) : null}

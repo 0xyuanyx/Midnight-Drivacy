@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/theme/tokens";
+import { typography } from "@/theme/typography";
 
 type StatusPillTone = "neutral" | "primary" | "success";
 
@@ -34,9 +35,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.successBackground,
   },
   text: {
+    ...typography.badge,
     color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "700",
   },
   primaryText: {
     color: colors.primary,

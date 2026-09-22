@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -48,6 +49,6 @@ const styles = StyleSheet.create({
   screen: { justifyContent: "center" },
   content: { alignItems: "center" },
   spinner: { marginTop: 30 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", marginTop: 26, textAlign: "center" },
-  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 12, maxWidth: 330, textAlign: "center" },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 26, textAlign: "center" },
+  description: { ...typography.body, color: colors.textSecondary, marginTop: 8, maxWidth: 330, textAlign: "center" },
 });

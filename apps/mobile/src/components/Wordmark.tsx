@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, type TextStyle, type StyleProp } from "react-native";
 
 import { colors } from "@/theme/tokens";
@@ -11,6 +12,6 @@ export function Wordmark({ style }: { style?: StyleProp<TextStyle> }) {
 }
 
 const styles = StyleSheet.create({
-  wordmark: { color: colors.textPrimary, fontSize: 17, fontWeight: "900", letterSpacing: -0.5 },
+  wordmark: { ...typography.wordmark, color: colors.textPrimary, },
   accent: { color: colors.primary },
 });

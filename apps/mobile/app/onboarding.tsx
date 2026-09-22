@@ -1,5 +1,7 @@
+import { typography } from "@/theme/typography";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import brandImage from "../assets/images/drivacy-3d.png";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -104,16 +106,13 @@ export default function Onboarding() {
       <AppScreen
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="동의하고 시작하기" onPress={() => setConsentSheetVisible(true)} />}
-        scroll={false}
         testID="onboarding-screen"
       >
         <View style={styles.hero}>
           <Text style={styles.title}>안전운전 점수로{`\n`}보험료를 할인받아요.</Text>
           <Text style={styles.description}>운전 기록은 점수 계산에만 쓰고,{`\n`}보험사에는 할인 결과만 보내요.</Text>
         </View>
-        <View accessibilityLabel="Drivacy" accessibilityRole="image" style={styles.logo}>
-          <Text style={styles.logoText}>D</Text>
-        </View>
+        <Image accessibilityLabel="Drivacy 3D V 로고" source={brandImage} resizeMode="contain" style={styles.brandImage} />
       </AppScreen>
       {consentSheetVisible ? (
         <View style={styles.modalBackdrop}>
@@ -169,24 +168,19 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
+  brandImage: { alignSelf: "center", width: 240, height: 245, marginTop: 32 },
   page: { flex: 1 },
   screen: { paddingBottom: 24, paddingTop: 72 },
   hero: { marginTop: 42 },
-  title: { color: colors.textPrimary, fontSize: 31, fontWeight: "800", letterSpacing: -1, lineHeight: 41 },
-  description: { color: colors.textSecondary, fontSize: 15, lineHeight: 23, marginTop: 16 },
-  logo: {
-    alignItems: "center", alignSelf: "center", backgroundColor: colors.primary, borderRadius: 34, height: 132,
-    justifyContent: "center", marginTop: 88, shadowColor: colors.primary, shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18, shadowRadius: 22, transform: [{ rotate: "-4deg" }], width: 132,
-  },
-  logoText: { color: colors.surface, fontSize: 76, fontWeight: "900", letterSpacing: -8, transform: [{ rotate: "4deg" }] },
+  title: { ...typography.display, color: colors.textPrimary, },
+  description: { ...typography.body, color: colors.textSecondary, marginTop: 8 },
   modalBackdrop: { backgroundColor: "rgba(30, 30, 40, 0.34)", bottom: 0, justifyContent: "flex-end", left: 0, position: "absolute", right: 0, top: 0, zIndex: 1000 },
   backdropDismiss: { flex: 1 },
   sheetSafeArea: { backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, flexShrink: 1, maxHeight: "88%", overflow: "hidden" },
   sheetScroll: { flexGrow: 0, flexShrink: 1 },
   sheetScrollContent: { paddingBottom: 8 },
   sheet: { backgroundColor: colors.surface, padding: 24, paddingBottom: 20 },
-  sheetTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: "800", letterSpacing: -0.5, lineHeight: 30 },
+  sheetTitle: { ...typography.sheetTitle, color: colors.textPrimary, },
   consentList: { marginBottom: 18, marginTop: 22 },
   consentRow: { alignItems: "center", flexDirection: "row", minHeight: 52 },
   checkButton: { alignItems: "center", borderColor: "#C6CBD4", borderRadius: 999, borderWidth: 1.5, height: 22, justifyContent: "center", width: 22 },
@@ -194,15 +188,15 @@ const styles = StyleSheet.create({
   checkmark: { color: "transparent", fontSize: 13, fontWeight: "900" },
   checkmarkSelected: { color: colors.surface },
   rowLabelButton: { flex: 1, justifyContent: "center", minHeight: tokens.minTouchTarget, paddingLeft: 11 },
-  rowLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  rowLabel: { ...typography.body, color: colors.textPrimary, },
   chevronButton: { alignItems: "flex-end", justifyContent: "center", minHeight: tokens.minTouchTarget, minWidth: tokens.minTouchTarget },
   chevron: { color: "#9A9FAA", fontSize: 30, fontWeight: "300", lineHeight: 32 },
   detailBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", minHeight: tokens.minTouchTarget },
   detailBackIcon: { color: colors.primary, fontSize: 32, lineHeight: 34, marginRight: 4 },
-  detailBackText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
-  detailTitle: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.6, lineHeight: 32, marginTop: 6 },
+  detailBackText: { ...typography.label, color: colors.primary, },
+  detailTitle: { ...typography.title, color: colors.textPrimary, marginTop: 6 },
   detailSections: { marginBottom: 22, marginTop: 18 },
   detailSection: { borderBottomColor: "#ECEEF2", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 13 },
-  detailHeading: { color: colors.textPrimary, fontSize: 14, fontWeight: "800" },
-  detailBody: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 7 },
+  detailHeading: { ...typography.cardTitle, color: colors.textPrimary, },
+  detailBody: { ...typography.body, color: colors.textSecondary, marginTop: 7 },
 });

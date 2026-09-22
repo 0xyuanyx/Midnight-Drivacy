@@ -93,4 +93,30 @@ describe("Home and bottom tabs", () => {
     expect(push).toHaveBeenCalledWith("/drive");
   });
 
+  it.each([
+    ["pending", "신청 내역 확인하기", "신청 검토 중"],
+    ["approved", "할인 결과 확인하기", "할인 적용 완료"],
+  ] as const)("connects Home to Documents after application is %s", async (applicationStage, action, status) => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2), applicationStage }, dispatch, isHydrated: true });
+    const view = await render(<Home />);
+    expect(view.getByText(status)).toBeTruthy();
+    expect(view.queryByRole("button", { name: "할인 신청하기" })).toBeNull();
+    await fireEvent.press(view.getByRole("button", { name: action }));
+    expect(push).toHaveBeenCalledWith("/application");
+  });
+
+  it("resumes an active trip from Home instead of starting another", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(0), driveStage: "active" }, dispatch, isHydrated: true });
+    const view = await render(<Home />);
+    await fireEvent.press(view.getByRole("button", { name: "모의 주행으로 돌아가기" }));
+    expect(push).toHaveBeenCalledWith("/drive-session");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("allows checking Documents from Home before eligibility", async () => {
+    const view = await render(<Home />);
+    await fireEvent.press(view.getByRole("button", { name: "서류에서 할인 신청 상태 확인" }));
+    expect(push).toHaveBeenCalledWith("/application");
+  });
+
 });

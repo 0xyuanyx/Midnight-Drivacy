@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -107,17 +108,17 @@ export default function Application() {
 
 const styles = StyleSheet.create({
   screen: { paddingBottom: 10 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 10 },
-  description: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 22, marginTop: 8 },
-  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 10, padding: 16 },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
+  description: { ...typography.body, color: colors.textSecondary, marginBottom: 24, marginTop: 8 },
+  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 12, padding: 16 },
   cardSelected: { borderColor: colors.primary },
-  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
-  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 17, marginTop: 8 },
-  checkLine: { color: colors.textPrimary, fontSize: 10, lineHeight: 19, marginTop: 3 },
-  largeValue: { color: colors.textPrimary, fontSize: 28, fontWeight: "900", marginTop: 10 },
-  statusBadge: { alignSelf: "flex-end", backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 9, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
+  cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
+  checkLine: { ...typography.caption, color: colors.textPrimary, marginTop: 3 },
+  largeValue: { ...typography.metricSmall, color: colors.textPrimary, marginTop: 10 },
+  statusBadge: { ...typography.badge, alignSelf: "flex-end", backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
   resultHero: { alignItems: "center", marginBottom: 24, marginTop: 6 },
-  resultValue: { color: colors.primary, fontSize: 42, fontWeight: "900" },
-  resultLabel: { color: colors.textSecondary, fontSize: 10, marginTop: 5 },
-  demoNote: { color: colors.textSecondary, fontSize: 9, lineHeight: 15, marginTop: 3, textAlign: "center" },
+  resultValue: { ...typography.metric, color: colors.primary, },
+  resultLabel: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },
+  demoNote: { ...typography.caption, color: colors.textSecondary, marginTop: 3, textAlign: "center" },
 });

@@ -1,3 +1,4 @@
+import { typography } from "@/theme/typography";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -72,11 +73,9 @@ const styles = StyleSheet.create({
   screen: {
     paddingBottom: 28,
   },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.6, lineHeight: 32, marginTop: 28 },
-  description: {
+  title: { ...typography.title, color: colors.textPrimary, marginTop: 28 },
+  description: { ...typography.body,
     color: colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 23,
     marginTop: 8,
   },
   loadingState: {
@@ -88,15 +87,12 @@ const styles = StyleSheet.create({
     minHeight: 200,
     padding: 24,
   },
-  loadingText: {
+  loadingText: { ...typography.cardTitle,
     color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: "700",
     marginTop: 14,
   },
-  loadingHint: {
+  loadingHint: { ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 13,
     marginTop: 6,
   },
   list: {
