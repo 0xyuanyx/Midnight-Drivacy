@@ -13,9 +13,9 @@ import { colors } from "@/theme/tokens";
 
 export default function Drive() {
   const router = useRouter();
-  const { state } = useAppState();
+  const { dispatch, state } = useAppState();
   const completedTrips = demoTrips.slice(0, state.tripsCompleted);
-  const canStart = state.tripsCompleted < 2;
+  const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
 
   return (
     <AppScreen contentContainerStyle={styles.screen} testID="drive-screen">
@@ -44,7 +44,13 @@ export default function Drive() {
 
       <View style={styles.footer}>
         {canStart ? (
-          <PrimaryButton title="모의 주행 시작" onPress={() => router.push("/drive-session")} />
+          <PrimaryButton
+            title="모의 주행 시작"
+            onPress={() => {
+              dispatch({ type: "START_TRIP" });
+              router.push("/drive-session");
+            }}
+          />
         ) : (
           <View style={styles.completeCard}>
             <Text style={styles.completeTitle}>두 번의 데모 주행이 완료되었습니다.</Text>

@@ -7,11 +7,13 @@ import {
 
 export type TripsCompleted = 0 | 1 | 2;
 export type ApplicationStage = "idle" | "pending" | "approved";
+export type DriveStage = "idle" | "active" | "processing" | "result";
 
 export interface AppState {
   hasConsented: boolean;
   selectedPolicyId: string | null;
   tripsCompleted: TripsCompleted;
+  driveStage: DriveStage;
   totals: DemoTotals;
   applicationStage: ApplicationStage;
 }
@@ -19,7 +21,10 @@ export interface AppState {
 export type AppAction =
   | { type: "ACCEPT_CONSENT" }
   | { type: "SELECT_INSURANCE"; policyId: string }
+  | { type: "START_TRIP" }
+  | { type: "FINISH_TRIP" }
   | { type: "COMPLETE_TRIP" }
+  | { type: "DISMISS_TRIP_RESULT" }
   | { type: "SUBMIT_APPLICATION" }
   | { type: "APPROVE_APPLICATION" }
   | { type: "RESET_DEMO" }
@@ -29,6 +34,7 @@ export const initialAppState: AppState = {
   hasConsented: false,
   selectedPolicyId: null,
   tripsCompleted: 0,
+  driveStage: "idle",
   totals: { ...initialDemoTotals },
   applicationStage: "idle",
 };
@@ -52,6 +58,22 @@ function isTripsCompleted(value: unknown): value is TripsCompleted {
 
 function isApplicationStage(value: unknown): value is ApplicationStage {
   return value === "idle" || value === "pending" || value === "approved";
+}
+
+function isDriveStage(value: unknown): value is DriveStage {
+  return value === "idle" || value === "active" || value === "processing" || value === "result";
+}
+
+function normalizedDriveStage(value: unknown, tripsCompleted: TripsCompleted): DriveStage {
+  if (!isDriveStage(value)) {
+    return "idle";
+  }
+
+  if ((value === "active" || value === "processing") && tripsCompleted === 2) {
+    return "idle";
+  }
+
+  return value === "result" && tripsCompleted === 0 ? "idle" : value;
 }
 
 export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "selectedPolicyId">): boolean {
@@ -84,12 +106,14 @@ export function normalizePersistedAppState(persistedState: unknown): AppState {
     tripsCompleted === 2 && totals.isEligible && isApplicationStage(persistedState.applicationStage)
       ? persistedState.applicationStage
       : "idle";
+  const driveStage = normalizedDriveStage(persistedState.driveStage, tripsCompleted);
 
   return {
     ...initialAppState,
     hasConsented,
     selectedPolicyId,
     tripsCompleted,
+    driveStage,
     totals,
     applicationStage,
   };
@@ -103,8 +127,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return state.hasConsented && isDemoPolicyId(action.policyId)
         ? { ...state, selectedPolicyId: action.policyId }
         : state;
+    case "START_TRIP":
+      return hasSelectedDemoPolicy(state) && state.driveStage === "idle" && state.tripsCompleted < 2
+        ? { ...state, driveStage: "active" }
+        : state;
+    case "FINISH_TRIP":
+      return hasSelectedDemoPolicy(state) && state.driveStage === "active" && state.tripsCompleted < 2
+        ? { ...state, driveStage: "processing" }
+        : state;
     case "COMPLETE_TRIP": {
-      if (!hasSelectedDemoPolicy(state)) {
+      if (!hasSelectedDemoPolicy(state) || state.driveStage !== "processing") {
         return state;
       }
 
@@ -116,9 +148,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         tripsCompleted: nextTrip.sequence,
+        driveStage: "result",
         totals: { ...nextTrip.cumulativeTotals },
       };
     }
+    case "DISMISS_TRIP_RESULT":
+      return state.driveStage === "result" ? { ...state, driveStage: "idle" } : state;
     case "SUBMIT_APPLICATION":
       return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
         ? { ...state, applicationStage: "pending" }
@@ -131,5 +166,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return initialAppState;
     case "HYDRATE":
       return normalizePersistedAppState(action.persistedState);
+    default:
+      return state;
   }
 }

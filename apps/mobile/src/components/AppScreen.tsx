@@ -7,6 +7,7 @@ interface AppScreenProps {
   children: React.ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
   scroll?: boolean;
+  scrollTestID?: string;
   testID?: string;
 }
 
@@ -15,6 +16,7 @@ export function AppScreen({
   children,
   contentContainerStyle,
   scroll = true,
+  scrollTestID,
   testID,
 }: AppScreenProps) {
   const content = (
@@ -30,6 +32,7 @@ export function AppScreen({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          testID={scrollTestID}
         >
           {content}
         </ScrollView>

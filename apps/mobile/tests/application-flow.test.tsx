@@ -34,6 +34,7 @@ function stateForTrips(
     hasConsented: true,
     selectedPolicyId: demoPolicies[0].id,
     tripsCompleted,
+    driveStage: "idle",
     totals,
     applicationStage,
   };

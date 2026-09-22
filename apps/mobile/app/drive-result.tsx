@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -12,7 +13,17 @@ import { colors } from "@/theme/tokens";
 
 export default function DriveResult() {
   const router = useRouter();
-  const { state } = useAppState();
+  const { dispatch, state } = useAppState();
+
+  useEffect(() => {
+    if (state.driveStage !== "result") {
+      router.replace("/(tabs)/drive");
+    }
+  }, [router, state.driveStage]);
+
+  if (state.driveStage !== "result") {
+    return null;
+  }
   const trip = demoTrips[Math.max(state.tripsCompleted - 1, 0)];
 
   return (
@@ -36,7 +47,13 @@ export default function DriveResult() {
       </InfoCard>
 
       <View style={styles.footer}>
-        <PrimaryButton title="홈으로 돌아가기" onPress={() => router.replace("/(tabs)/home")} />
+        <PrimaryButton
+          title="홈으로 돌아가기"
+          onPress={() => {
+            router.replace("/(tabs)/home");
+            dispatch({ type: "DISMISS_TRIP_RESULT" });
+          }}
+        />
       </View>
     </AppScreen>
   );

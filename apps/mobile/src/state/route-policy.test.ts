@@ -22,11 +22,19 @@ describe("route policy", () => {
     expect(redirectForRoute("/onboarding", consentedState)).toBe("/insurance");
   });
 
-  it("allows protected routes for a consented user with a valid policy", () => {
+  it("allows only the focused route that matches a persisted drive stage", () => {
     const readyState = stateWith({ hasConsented: true, selectedPolicyId: "policy-safe-driver" });
+    const activeState = stateWith({ hasConsented: true, selectedPolicyId: "policy-safe-driver", driveStage: "active" });
+    const processingState = stateWith({ hasConsented: true, selectedPolicyId: "policy-safe-driver", driveStage: "processing" });
+    const resultState = stateWith({ hasConsented: true, selectedPolicyId: "policy-safe-driver", tripsCompleted: 1, driveStage: "result" });
 
     expect(initialRouteForState(readyState)).toBe("/(tabs)/home");
-    expect(redirectForRoute("/drive-session", readyState)).toBeNull();
+    expect(redirectForRoute("/drive-session", readyState)).toBe("/(tabs)/drive");
+    expect(redirectForRoute("/drive-processing", readyState)).toBe("/(tabs)/drive");
+    expect(redirectForRoute("/drive-result", readyState)).toBe("/(tabs)/drive");
+    expect(redirectForRoute("/drive-session", activeState)).toBeNull();
+    expect(redirectForRoute("/drive-processing", processingState)).toBeNull();
+    expect(redirectForRoute("/drive-result", resultState)).toBeNull();
     expect(redirectForRoute("/insurance", readyState)).toBe("/(tabs)/home");
   });
 });

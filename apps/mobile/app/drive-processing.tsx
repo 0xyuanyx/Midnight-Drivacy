@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -11,18 +11,24 @@ const PROCESSING_DELAY_MS = 650;
 
 export default function DriveProcessing() {
   const router = useRouter();
-  const { dispatch } = useAppState();
-  const didCompleteTrip = useRef(false);
+  const { dispatch, state } = useAppState();
 
   useEffect(() => {
-    if (!didCompleteTrip.current) {
-      didCompleteTrip.current = true;
-      dispatch({ type: "COMPLETE_TRIP" });
+    if (state.driveStage !== "processing") {
+      router.replace("/(tabs)/drive");
+      return;
     }
 
-    const timer = setTimeout(() => router.replace("/drive-result"), PROCESSING_DELAY_MS);
+    const timer = setTimeout(() => {
+      dispatch({ type: "COMPLETE_TRIP" });
+      router.replace("/drive-result");
+    }, PROCESSING_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [dispatch, router]);
+  }, [dispatch, router, state.driveStage]);
+
+  if (state.driveStage !== "processing") {
+    return null;
+  }
 
   return (
     <AppScreen contentContainerStyle={styles.screen} scroll={false} testID="drive-processing-screen">

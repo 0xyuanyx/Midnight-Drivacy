@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -5,13 +6,25 @@ import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatusPill } from "@/components/StatusPill";
+import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function DriveSession() {
   const router = useRouter();
+  const { dispatch, state } = useAppState();
+
+  useEffect(() => {
+    if (state.driveStage !== "active") {
+      router.replace("/(tabs)/drive");
+    }
+  }, [router, state.driveStage]);
+
+  if (state.driveStage !== "active") {
+    return null;
+  }
 
   return (
-    <AppScreen contentContainerStyle={styles.screen} scroll={false} testID="drive-session-screen">
+    <AppScreen contentContainerStyle={styles.screen} scrollTestID="drive-session-scroll" testID="drive-session-screen">
       <StatusPill tone="primary">모의 주행 진행 중</StatusPill>
       <View style={styles.centerContent}>
         <Text style={styles.title}>안전운전 기록을{`\n`}시뮬레이션하고 있어요</Text>
@@ -24,14 +37,20 @@ export default function DriveSession() {
           <Text style={styles.time}>00:18:40 경과</Text>
         </View>
       </View>
-      <PrimaryButton title="주행 종료" onPress={() => router.replace("/drive-processing")} />
+      <PrimaryButton
+        title="주행 종료"
+        onPress={() => {
+          dispatch({ type: "FINISH_TRIP" });
+          router.replace("/drive-processing");
+        }}
+      />
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { paddingBottom: 28 },
-  centerContent: { flex: 1, justifyContent: "center" },
+  centerContent: { marginBottom: 42, marginTop: 52 },
   title: { color: colors.textPrimary, fontSize: 31, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40 },
   description: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 16 },
   distanceCard: { backgroundColor: colors.surface, borderRadius: 20, marginTop: 32, padding: 22 },

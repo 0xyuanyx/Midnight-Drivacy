@@ -1,13 +1,46 @@
 import { hasSelectedDemoPolicy, type AppState } from "./app-state";
 
-export type AppRoute = "/onboarding" | "/insurance" | "/(tabs)/home";
+export type AppRoute =
+  | "/onboarding"
+  | "/insurance"
+  | "/(tabs)/home"
+  | "/(tabs)/drive"
+  | "/drive-session"
+  | "/drive-processing"
+  | "/drive-result";
 
 export function initialRouteForState(state: AppState): AppRoute {
   if (!state.hasConsented) {
     return "/onboarding";
   }
 
-  return hasSelectedDemoPolicy(state) ? "/(tabs)/home" : "/insurance";
+  if (!hasSelectedDemoPolicy(state)) {
+    return "/insurance";
+  }
+
+  switch (state.driveStage) {
+    case "active":
+      return "/drive-session";
+    case "processing":
+      return "/drive-processing";
+    case "result":
+      return "/drive-result";
+    default:
+      return "/(tabs)/home";
+  }
+}
+
+function routeForDriveStage(state: AppState): AppRoute {
+  switch (state.driveStage) {
+    case "active":
+      return "/drive-session";
+    case "processing":
+      return "/drive-processing";
+    case "result":
+      return "/drive-result";
+    default:
+      return "/(tabs)/drive";
+  }
 }
 
 /**
@@ -28,6 +61,12 @@ export function redirectForRoute(pathname: string, state: AppState): AppRoute | 
 
   if (!hasSelectedDemoPolicy(state)) {
     return pathname === "/insurance" ? null : "/insurance";
+  }
+
+  const isFocusedDriveRoute = pathname === "/drive-session" || pathname === "/drive-processing" || pathname === "/drive-result";
+  if (isFocusedDriveRoute) {
+    const expectedRoute = routeForDriveStage(state);
+    return pathname === expectedRoute ? null : expectedRoute;
   }
 
   return pathname === "/onboarding" || pathname === "/insurance"

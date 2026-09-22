@@ -19,7 +19,7 @@ jest.mock("@/state/app-provider", () => ({
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUseAppState = useAppState as jest.MockedFunction<typeof useAppState>;
 
-function stateForTrips(tripsCompleted: 0 | 1 | 2): AppState {
+function stateForTrips(tripsCompleted: 0 | 1 | 2, driveStage: AppState["driveStage"] = "idle"): AppState {
   const totals = [
     { distanceKm: 0, score: 100, isEligible: false, expectedDiscountPercent: 0 },
     { distanceKm: 300, score: 92, isEligible: false, expectedDiscountPercent: 0 },
@@ -30,6 +30,7 @@ function stateForTrips(tripsCompleted: 0 | 1 | 2): AppState {
     hasConsented: true,
     selectedPolicyId: "policy-safe-driver",
     tripsCompleted,
+    driveStage,
     totals,
     applicationStage: "idle",
   };
@@ -46,11 +47,12 @@ describe("Driving flow", () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0), dispatch, isHydrated: true });
   });
 
-  it("offers a simulated drive until both deterministic trips are complete", async () => {
+  it("authorizes a simulated drive before entering the focused session", async () => {
     const { getByRole, rerender, getByText, queryByRole } = await render(<Drive />);
 
     expect(getByRole("button", { name: "모의 주행 시작" })).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "모의 주행 시작" }));
+    expect(dispatch).toHaveBeenCalledWith({ type: "START_TRIP" });
     expect(push).toHaveBeenCalledWith("/drive-session");
 
     mockUseAppState.mockReturnValue({ state: stateForTrips(2), dispatch, isHydrated: true });
@@ -59,37 +61,56 @@ describe("Driving flow", () => {
     expect(getByText("두 번의 데모 주행이 완료되었습니다.")).toBeTruthy();
   });
 
-  it("moves a finished simulated drive into processing without changing totals", async () => {
+  it("moves an active simulated drive into persisted processing without changing totals", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
     const { getByRole, getByText } = await render(<DriveSession />);
 
     expect(getByText("모의 주행 진행 중")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "주행 종료" }));
 
-    expect(dispatch).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledWith({ type: "FINISH_TRIP" });
     expect(replace).toHaveBeenCalledWith("/drive-processing");
   });
 
-  it("processes the local demo exactly once before replacing with the result", async () => {
+  it("consumes a persisted processing session once before replacing with the result", async () => {
     jest.useFakeTimers();
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0, "processing"), dispatch, isHydrated: true });
     const { getByText, rerender } = await render(<DriveProcessing />);
 
     expect(getByText("데모 계산을 준비하고 있어요")).toBeTruthy();
     expect(getByText(/실제 Midnight 증명/)).toBeTruthy();
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({ type: "COMPLETE_TRIP" });
+    expect(dispatch).not.toHaveBeenCalled();
 
     await rerender(<DriveProcessing />);
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalled();
 
     await act(async () => {
       jest.advanceTimersByTime(700);
     });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "COMPLETE_TRIP" });
     expect(replace).toHaveBeenCalledWith("/drive-result");
     jest.useRealTimers();
   });
 
+  it("redirects direct processing without dispatching or changing a trip", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0), dispatch, isHydrated: true });
+    await render(<DriveProcessing />);
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledWith("/(tabs)/drive");
+  });
+
+  it("renders an adaptive scroll container around the simulated drive CTA", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
+    const { getByRole, getByTestId } = await render(<DriveSession />);
+
+    expect(getByTestId("drive-session-scroll").props.keyboardShouldPersistTaps).toBe("handled");
+    expect(getByRole("button", { name: "주행 종료" })).toBeTruthy();
+  });
+
   it("shows fixture totals and replaces navigation when returning home", async () => {
-    mockUseAppState.mockReturnValue({ state: stateForTrips(1), dispatch, isHydrated: true });
+    mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
     const { getByRole, getByText } = await render(<DriveResult />);
 
     expect(getByText("+300 km")).toBeTruthy();

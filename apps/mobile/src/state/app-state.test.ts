@@ -11,12 +11,22 @@ function readyState() {
   );
 }
 
+function completeTrip(state = readyState()) {
+  const readyForNextTrip = state.driveStage === "result"
+    ? appReducer(state, { type: "DISMISS_TRIP_RESULT" } as never)
+    : state;
+  const activeState = appReducer(readyForNextTrip, { type: "START_TRIP" } as never);
+  const processingState = appReducer(activeState, { type: "FINISH_TRIP" } as never);
+  return appReducer(processingState, { type: "COMPLETE_TRIP" });
+}
+
 describe("appReducer", () => {
   it("starts the deterministic demo at zero kilometres and 100 points", () => {
     expect(initialAppState).toEqual({
       hasConsented: false,
       selectedPolicyId: null,
       tripsCompleted: 0,
+      driveStage: "idle",
       totals: {
         distanceKm: 0,
         score: 100,
@@ -28,7 +38,7 @@ describe("appReducer", () => {
   });
 
   it("uses the first trip fixture totals without unlocking the application", () => {
-    const state = appReducer(readyState(), { type: "COMPLETE_TRIP" });
+    const state = completeTrip();
 
     expect(state).toMatchObject({
       tripsCompleted: 1,
@@ -42,8 +52,8 @@ describe("appReducer", () => {
   });
 
   it("uses the second trip fixture totals and unlocks the ten percent application", () => {
-    const afterFirstTrip = appReducer(readyState(), { type: "COMPLETE_TRIP" });
-    const state = appReducer(afterFirstTrip, { type: "COMPLETE_TRIP" });
+    const afterFirstTrip = completeTrip();
+    const state = completeTrip(afterFirstTrip);
 
     expect(state).toMatchObject({
       tripsCompleted: 2,
@@ -57,25 +67,19 @@ describe("appReducer", () => {
   });
 
   it("leaves the finished demo unchanged when a third trip is completed", () => {
-    const completeState = appReducer(
-      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
-      { type: "COMPLETE_TRIP" },
-    );
+    const completeState = completeTrip(completeTrip());
 
     expect(appReducer(completeState, { type: "COMPLETE_TRIP" })).toBe(completeState);
   });
 
   it("rejects an application submission before the second trip makes it eligible", () => {
-    const afterFirstTrip = appReducer(readyState(), { type: "COMPLETE_TRIP" });
+    const afterFirstTrip = completeTrip();
 
     expect(appReducer(afterFirstTrip, { type: "SUBMIT_APPLICATION" })).toBe(afterFirstTrip);
   });
 
   it("moves an eligible application into the pending stage", () => {
-    const eligibleState = appReducer(
-      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
-      { type: "COMPLETE_TRIP" },
-    );
+    const eligibleState = completeTrip(completeTrip());
 
     expect(appReducer(eligibleState, { type: "SUBMIT_APPLICATION" }).applicationStage).toBe(
       "pending",
@@ -83,10 +87,7 @@ describe("appReducer", () => {
   });
 
   it("allows demo approval only from the pending application stage", () => {
-    const eligibleState = appReducer(
-      appReducer(readyState(), { type: "COMPLETE_TRIP" }),
-      { type: "COMPLETE_TRIP" },
-    );
+    const eligibleState = completeTrip(completeTrip());
     const pendingState = appReducer(eligibleState, { type: "SUBMIT_APPLICATION" });
 
     expect(appReducer(pendingState, { type: "APPROVE_APPLICATION" }).applicationStage).toBe(
@@ -115,6 +116,7 @@ describe("appReducer", () => {
       hasConsented: true,
       selectedPolicyId: "policy-safe-driver",
       tripsCompleted: 2,
+      driveStage: "idle",
       totals: {
         distanceKm: 550,
         score: 87,
@@ -153,7 +155,7 @@ describe("appReducer", () => {
     expect(appReducer(consentedState, { type: "SELECT_INSURANCE", policyId: "policy-tampered" })).toBe(
       consentedState,
     );
-    expect(appReducer(consentedState, { type: "COMPLETE_TRIP" })).toBe(consentedState);
+    expect(appReducer(consentedState, { type: "START_TRIP" } as never)).toBe(consentedState);
   });
 
   it("does not approve a pending application unless the policy-scoped state is eligible", () => {
@@ -165,5 +167,18 @@ describe("appReducer", () => {
     };
 
     expect(appReducer(invalidPendingState, { type: "APPROVE_APPLICATION" })).toBe(invalidPendingState);
+  });
+
+  it("consumes a valid processing session once and rejects direct completion", () => {
+    const ready = readyState();
+    const active = appReducer(ready, { type: "START_TRIP" } as never);
+    const processing = appReducer(active, { type: "FINISH_TRIP" } as never);
+    const result = appReducer(processing, { type: "COMPLETE_TRIP" });
+
+    expect(appReducer(ready, { type: "COMPLETE_TRIP" })).toBe(ready);
+    expect(active.driveStage).toBe("active");
+    expect(processing.driveStage).toBe("processing");
+    expect(result).toMatchObject({ tripsCompleted: 1, driveStage: "result" });
+    expect(appReducer(result, { type: "COMPLETE_TRIP" })).toBe(result);
   });
 });

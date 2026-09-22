@@ -30,6 +30,7 @@ function stateForTrips(tripsCompleted: 0 | 1 | 2): AppState {
     hasConsented: true,
     selectedPolicyId: "policy-safe-driver",
     tripsCompleted,
+    driveStage: "idle",
     totals,
     applicationStage: "idle",
   };
