@@ -20,9 +20,12 @@ import { colors, tokens } from "@/theme/tokens";
 
 interface ConsentRowProps {
   checked: boolean;
+  description: string;
+  eyebrow: string;
   label: string;
   onPress: () => void;
   testID: string;
+  title: string;
 }
 
 type WebCheckboxProps = ComponentProps<typeof View> & {
@@ -32,13 +35,22 @@ type WebCheckboxProps = ComponentProps<typeof View> & {
 
 const WebCheckboxView = View as unknown as ComponentType<WebCheckboxProps>;
 
-function ConsentRow({ checked, label, onPress, testID }: ConsentRowProps) {
+function ConsentRow({ checked, description, eyebrow, label, onPress, testID, title }: ConsentRowProps) {
   const contents = (
     <>
       <View style={[styles.checkbox, checked && styles.checkedBox]}>
         {checked ? <Text style={styles.checkmark}>✓</Text> : null}
       </View>
-      <Text style={styles.consentLabel}>{label}</Text>
+      <View style={styles.consentContent}>
+        <View style={styles.consentMetaRow}>
+          <Text style={styles.consentEyebrow}>{eyebrow}</Text>
+          <View style={styles.requiredBadge}>
+            <Text style={styles.requiredText}>필수</Text>
+          </View>
+        </View>
+        <Text style={styles.consentTitle}>{title}</Text>
+        <Text style={styles.consentDescription}>{description}</Text>
+      </View>
     </>
   );
 
@@ -183,19 +195,31 @@ export default function Onboarding() {
 
                 <ConsentRow
                   checked={consents[0]}
+                  description="선택한 보험, 안전운전 점수, 누적 주행 거리와 할인 조건 충족 여부를 이 데모에서 처리합니다."
+                  eyebrow="처리하는 정보"
                   label="개인정보 처리와 주행 결과 확인에 동의합니다"
                   onPress={() => toggleConsent(0)}
                   testID="consent-row-privacy"
+                  title="개인정보 처리 및 주행 결과 확인"
                 />
                 <ConsentRow
                   checked={consents[1]}
+                  description="보험사명, 특약명, 평가기간, 점수·누적 거리와 예상 할인율만 제공합니다."
+                  eyebrow="보험사에 제공하는 요약"
                   label="보험사에 요약 결과를 제공하는 데 동의합니다"
                   onPress={() => toggleConsent(1)}
                   testID="consent-row-sharing"
+                  title="요약 결과 제공"
                 />
 
+                <View style={styles.protectedInfo}>
+                  <Text style={styles.protectedInfoTitle}>제공하지 않는 정보</Text>
+                  <Text style={styles.protectedInfoValue}>
+                    정확한 위치·이동 경로·구간별 속도·정확한 운행 시각
+                  </Text>
+                </View>
                 <Text style={styles.sheetNote}>
-                  요약 결과만 공유하며, 상세 위치·경로·구간별 속도·정확한 운행 시각은 공유하지 않습니다.
+                  이 동의는 로컬 데모 진행에만 사용되며 실제 보험사 제출은 수행하지 않습니다.
                 </Text>
                 <PrimaryButton
                   disabled={!allConsentsAccepted}
@@ -326,10 +350,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   consentRow: {
-    alignItems: "center",
+    alignItems: "flex-start",
+    backgroundColor: "#F8F9FB",
+    borderColor: "#E4E7ED",
+    borderRadius: 16,
+    borderWidth: 1,
     flexDirection: "row",
     minHeight: tokens.minTouchTarget,
-    paddingVertical: 9,
+    marginBottom: 12,
+    padding: 16,
   },
   consentRowPressed: {
     opacity: 0.72,
@@ -342,6 +371,7 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: "center",
     marginRight: 12,
+    marginTop: 2,
     width: 24,
   },
   checkedBox: {
@@ -353,17 +383,64 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
   },
-  consentLabel: {
-    color: colors.textPrimary,
+  consentContent: {
     flex: 1,
+  },
+  consentMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  consentEyebrow: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  requiredBadge: {
+    backgroundColor: "#EAF0FF",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  requiredText: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  consentTitle: {
+    color: colors.textPrimary,
     fontSize: 14,
+    fontWeight: "700",
     lineHeight: 20,
+    marginTop: 6,
+  },
+  consentDescription: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  protectedInfo: {
+    backgroundColor: "#EEF4FF",
+    borderRadius: 14,
+    padding: 14,
+  },
+  protectedInfoTitle: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  protectedInfoValue: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 5,
   },
   sheetNote: {
     color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 20,
-    marginTop: 14,
+    marginTop: 12,
   },
 });

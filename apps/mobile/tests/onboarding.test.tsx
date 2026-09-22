@@ -42,6 +42,17 @@ describe("Onboarding", () => {
     );
   });
 
+  it("explains what is processed, what is shared, and what stays private before consent", async () => {
+    const { getByRole, getByText } = await render(<Onboarding />);
+
+    await fireEvent.press(getByRole("button", { name: "동의하고 시작하기" }));
+
+    expect(getByText("처리하는 정보")).toBeTruthy();
+    expect(getByText("보험사에 제공하는 요약")).toBeTruthy();
+    expect(getByText("제공하지 않는 정보")).toBeTruthy();
+    expect(getByText("정확한 위치·이동 경로·구간별 속도·정확한 운행 시각")).toBeTruthy();
+  });
+
   it("keeps consent content in a bottom-safe-area scroll container", async () => {
     const { getByRole, getByTestId } = await render(<Onboarding />);
 
