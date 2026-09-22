@@ -53,12 +53,13 @@ export class PgChainProcessingRepository implements ChainProcessingRepository {
          JOIN public.chain_scope_deployments d
            ON d.evaluation_scope_id=es.id AND d.network=$3 AND d.adapter_profile=$4
          JOIN public.rule_registrations rr
-           ON rr.chain_scope_deployment_id=d.id AND rr.rule_version_id=d.current_rule_version_id
-         JOIN public.rule_versions rv ON rv.id=d.current_rule_version_id
+           ON rr.chain_scope_deployment_id=d.id AND rr.rule_version_id=ds.rule_version_id
+         JOIN public.rule_versions rv ON rv.id=ds.rule_version_id
          JOIN public.chain_states cs
            ON cs.owner_user_id=es.owner_user_id
           AND cs.insurance_contract_id=es.insurance_contract_id
           AND cs.special_contract_id=es.special_contract_id
+          -- Rule이 갱신돼도 과거 운행의 계산 기준이 바뀌지 않도록 Session 생성 당시 Rule Version을 사용한다.
           AND cs.registered_rule->>'ruleHash'=rr.rule_hash
           AND cs.registered_rule #>> '{rule,version}'=rv.version::text
         WHERE ds.id=$1 AND es.owner_user_id=$2 AND ds.status='ENDED'`,

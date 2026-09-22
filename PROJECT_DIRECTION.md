@@ -1,6 +1,6 @@
 # Drivacy 프로젝트 방향성
 
-마지막 업데이트: 2026-09-21 (KST)
+마지막 업데이트: 2026-09-22 (KST)
 
 이 문서는 팀과 개발 도구가 공유하는 현재 방향의 기준이다. 실제 구현·검증 결과는 README와 코드가 증명하며, 이 문서의 계획을 구현 완료로 표현하지 않는다.
 
@@ -62,12 +62,12 @@ Drivacy는 가입자의 상세 주행기록을 보험사에 제공하지 않고,
 ### 모의 주행 시작 계약과 migration 선행조건 — 2026-09-18 결정
 
 - 가입자의 운행 시작 요청은 보험계약, 선택 특약, 평가기간만 전달한다. 멱등성은 `Idempotency-Key` 헤더로 식별하며, Rule Version·직전 Confirmed State·거리·점수·이벤트·할인 결과를 클라이언트가 전달하지 않는다.
-- Backend가 로그인 사용자, 계약·특약, 평가기간, Active Rule Version과 직전 Confirmed State를 조회해 모의 기록을 한 번 생성하고 재시도에 재사용하는 방향이다. 이는 구현 계획이며 운행 API·생성기·Core·증명 경로는 아직 구현하지 않았다.
+- Backend는 로그인 사용자, 계약·특약, 평가기간, 생성 당시 Active Rule Version과 직전 Confirmed State를 조회해 모의 기록을 한 번 생성하고 같은 Idempotency-Key 재시도에 재사용한다. 동일 Confirmed State의 다른 Key 소비는 DB에서 차단한다. Core·실제 증명 경로는 이 운행 생성 구현과 구분한다.
 - 현재 저장소에는 `TripSchema`, `CalculateTripRequest`, Rule Version, Confirmed State, State Transition, Processing Job의 확정 계약·테이블·PK가 없다. 따라서 `driving_sessions`/`processing_jobs` migration은 FK 없이 만들지 않고 선행 계약이 확정될 때까지 보류한다. 원격 Supabase에는 어떤 migration도 적용하지 않았다.
 
 1. 예시 보험사 한 곳과 안전운전 특약 한 종을 사용한다.
 2. 예시 약관 한 종의 **LLM·Document Agent 규칙 초안 생성을 우선 시도**한다. 보험사 담당자가 초안을 수정·검토하고 최종 승인한다. 변환 실패 시 지원하는 규칙 값을 수기로 입력하며 동일한 검토·승인 경로를 사용한다. LLM 방식이 구현되지 않으면 제외하고 수기 입력 경로를 유지한다. 이는 기존의 수기 입력 전용 결정을 변경한 2026-09-16 합의다.
-3. 가입자는 해당 특약을 선택하고 **두 번 이상의 모의 운행**을 순차적으로 처리한다. 2026-09-18 논의에 따라 주행 문서 업로드 대신 `운행 시작` 요청으로 Backend가 모의 기록을 생성하는 방향을 정리했다. 승인된 최소 거리와 이전 확정 누적 거리에 맞춰 데모 거리를 생성하고 시간·이벤트는 합리적인 관계를 갖도록 구성한다. 상세 비율·확률은 추천안이며 생성기·API·화면은 미구현이다. [모의 주행 설계](docs/DRIVING_SIMULATION.md)를 따른다. 실제 GPS, 외부 내비게이션 및 실제 보험사 시스템 연동은 데모 범위 밖이다.
+3. 가입자는 해당 특약을 선택하고 **두 번 이상의 모의 운행**을 순차적으로 처리한다. 주행 문서 업로드 대신 `운행 시작` 요청으로 Backend가 모의 기록을 생성한다. 생성기는 승인된 최소 거리와 이전 확정 누적 거리에 맞춰 데모 거리를 생성하고 시간·이벤트는 합리적인 관계를 갖도록 구성한다. 상세 비율·확률은 추천안이며 화면과 실제 GPS·외부 내비게이션·실제 보험사 시스템 연동은 데모 범위 밖이다. [모의 주행 설계](docs/DRIVING_SIMULATION.md)를 따른다.
 4. 승인된 규칙으로 계산된 누적 결과와 이전·신규 상태의 관계를 Midnight에서 검증 가능하게 만드는 것이 핵심 기술 목표다.
 5. 가입자는 보험사에 제공할 결과를 확인하고 제출을 승인한다. 보험사 화면과 API에는 원본 위치, 구간별 속도, 정확한 운행시각, 이동경로를 제공하지 않는다.
 6. 보험사는 검증 결과와 특약 판단에 필요한 최소한의 결과를 보고 할인 여부를 결정한다. `증명 유효`와 `할인 승인`은 별개 상태다.
@@ -396,6 +396,14 @@ C는 작은 실제 Compact 계약의 전체 컴파일 → 로컬 node/indexer/pr
 확인했다. onchain-runtime 중복 설치로 발생한 StateValue 실행 오류는 protocol의
 3.0.0 pin과 npm dedupe로 해결했다. Preprod와 가입자 브라우저 승인 E2E는
 이 검증에 포함되지 않는다.
+
+### B 운행 생성 State 소비 보호 — 2026-09-22 구현·원격 적용 완료
+
+- 새 운행은 생성 당시 읽은 Confirmed State의 commitment를 `driving_sessions`에 함께 기록하고, Scope·commitment 부분 UNIQUE 제약으로 같은 확정 State를 다른 Idempotency-Key가 다시 소비하지 못하게 한다. 같은 Key의 재시도는 기존 Session을 반환한다.
+- Session INSERT는 현재 `chain_states` commitment 대조와 함께 DB에서 원자적으로 실행한다. Genesis만이 아니라 이후 모든 Confirmed State에 적용되며, 경쟁 요청 중 하나만 Session을 만든다.
+- 운행 처리 시에는 Deployment의 최신 Rule이 아니라 Session에 저장된 Rule Version을 조회한다. 따라서 Rule 갱신은 새 운행에만 적용되고 과거 운행의 계산 기준을 바꾸지 않는다.
+- stage 충돌에서 원본 source key를 삭제하지 않는다. 동일 operation의 pending Job이 같은 key를 참조할 수 있으므로, 원본 삭제는 확정된 Job의 별도 cleanup 경로에서만 수행한다.
+- `20260922071137_guard_driving_generation_state.sql`은 Supabase 원격에 이미 적용된 migration의 동일본이다. 기존 Session은 commitment를 복원하지 않고 NULL로 보존한다.
 
 ## 미해결 질문
 

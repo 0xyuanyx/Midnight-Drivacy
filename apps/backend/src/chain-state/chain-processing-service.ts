@@ -56,12 +56,8 @@ export class ChainProcessingService {
   public async stage(user: User, sessionId: string, idempotencyKey: string): Promise<{ operationId: string }> {
     const request = await this.assemble(user, sessionId, idempotencyKey);
     const sourceKey = await this.source.save(request);
-    try {
-      await this.finalizer.createJob(user, request, sourceKey);
-      return { operationId: request.operationId };
-    } catch (error) {
-      await this.source.delete(sourceKey);
-      throw error;
-    }
+    // 같은 operation의 save는 기존 pending Job과 같은 source key를 반환할 수 있어, 충돌만으로 삭제하면 기존 Job의 원본을 잃는다.
+    await this.finalizer.createJob(user, request, sourceKey);
+    return { operationId: request.operationId };
   }
 }

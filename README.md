@@ -79,7 +79,7 @@ strict 검사와 106개 테스트, 실제 로컬 브라우저 월렛·격리 Pos
 체인 단계에 도달하지 못했습니다. 이전 브라우저 통합 증거는 이 두 초기 승인 거래를
 검증한 증거로 사용하지 않습니다.
 
-2026-09-18 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. 모의 주행 시작 Shared 요청은 계약·특약·평가기간과 `Idempotency-Key` 규약만 정의하며, 실제 운행 API·Trip 생성·Rule/State/Core/증명 처리는 아직 구현하지 않았습니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 일곱 테이블과 `insurer_memberships`, `rules`, `rule_versions`를 정의합니다. Rule DB 기반은 적용됐지만 Rule API·Shared Rule DTO·Rule Hash·LLM·Midnight 연동은 구현되지 않았습니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. 이 단계는 로그인 proxy, 신규 사용자 자동 provisioning, 주행·State/ZK/Midnight 구현을 포함하지 않습니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
+2026-09-22 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. Backend는 모의 운행 시작·종료와 Trip 생성을 구현했으며, 시작 당시 Rule Version과 Confirmed State commitment를 고정합니다. 동일 commitment의 동시 중복 소비는 DB 제약으로 막지만, Core 계산·실제 증명·Midnight 운영 연동은 이 구현 범위에 포함하지 않습니다. Supabase 원격 프로젝트에 적용된 migration 동일본은 `db/migrations/`에 보존하며, 기존 일곱 테이블과 `insurer_memberships`, `rules`, `rule_versions`, 운행·처리 관련 테이블을 정의합니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Auth 사용자·DB 역할을 결합하고, `GET /auth/me`을 제공합니다. DRIVER 전용으로 `GET`/`POST /consent`, `GET /insurance-contracts`, `GET /insurance-contracts/:id`, 특약 목록·현재 선택 조회 및 특약 선택 API를 구현했습니다. 계약 조회는 SQL의 `owner_user_id` 조건으로 객체 권한을 확인하고, 특약 선택은 계약당 하나의 현재 선택을 atomic UPSERT로 유지합니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB·인증은 Supabase Postgres·Auth, 배포는 Cloud Run으로 선정했습니다.
 
 2026-09-21 B의 DB recovery worker는 영속화된 due action을 읽어 `TEMPORARY_FAILURE`의 1·5·15분 재시도와 `chain-unknown` 상태 재조회를 분리합니다. 기존 operationId·원본을 재사용하고 claim/lease와 조건부 증가로 동시 worker를 막으며, C가 안전 종료를 확인한 작업만 7일 보관 후 cleanup합니다. 이 구현은 injected C 경계와 테스트 fixture 범위이며 production C Adapter, 실제 Midnight network, ZK/Proof E2E 또는 production chain-confirmed 연동 완료를 의미하지 않습니다.
 
@@ -123,13 +123,15 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 ## Backend foundation
 
+2026-09-22 Backend는 운행 Session을 생성 당시의 Confirmed State commitment에 묶어, 같은 Scope의 같은 State가 서로 다른 Idempotency-Key로 중복 소비되지 않게 DB에서 원자적으로 생성합니다. 같은 Key 재요청은 기존 Session을 반환합니다. 운행 처리에는 Deployment의 최신 Rule 대신 Session 저장 Rule Version을 사용하며, stage 충돌은 기존 pending Job이 참조할 수 있는 원본 source를 삭제하지 않습니다. 이 보호를 위한 `20260922071137_guard_driving_generation_state.sql`은 Supabase 원격에 적용 완료됐고, 기존 Session의 commitment는 안전하게 복원할 수 없어 NULL로 보존됩니다.
+
 The repository now includes the phase-one shared backend foundation. It provides
 an npm workspace, a strict TypeScript Express 5 service, a Zod-backed shared
 contract package, a `GET /health` endpoint, automated health and contract
 testing, and a production Dockerfile. It connects Supabase Auth and Postgres
 for the implemented first-vertical authentication, consent, contract, and
 special-contract selection APIs. The applied Rule database foundation is stored
-as migrations, while Rule APIs, trips, and Midnight remain unimplemented.
+as migrations. Simulated driving sessions preserve their creation-time Rule Version and Confirmed State commitment; production Core calculation, proof, and Midnight integration remain outside this implemented boundary.
 
 Requirements: Node.js 24 LTS and npm.
 

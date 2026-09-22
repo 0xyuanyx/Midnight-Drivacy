@@ -6,7 +6,7 @@
 
 개발용 demo fixture는 migration과 분리된 `db/seeds/dev_first_vertical.sql`에 있다. 실행 시 개발 DRIVER UUID를 명시적으로 넘겨야 하며, 실제 UUID나 인증정보를 저장소에 넣지 않는다.
 
-모의 주행 `driving_sessions` 및 `processing_jobs` migration은 아직 만들지 않았다. 현재 저장소에는 적용 Rule Version과 Confirmed State의 확정 테이블·PK·처리 job 계약이 없어, FK 없는 UUID 참조나 임의 Rule/State 구조를 추가하지 않는다.
+모의 주행과 처리 계약은 이후 원격 적용된 migration으로 추가됐다. `driving_sessions`는 생성 당시 Rule Version과 Idempotency-Key를 보관하고, `chain_states`·`chain_jobs`는 확정 State 및 처리 작업을 보관한다. 이 문서는 해당 원격 이력의 동일본을 보존하며, 로컬 파일을 기존 원격 Supabase에 다시 실행하지 않는다.
 
 ## Rule DB 기반
 
@@ -29,6 +29,8 @@
 `20260919131613_add_current_rule_version_to_chain_deployments.sql`과 `20260919131643_index_current_rule_registration_fk.sql`은 현재 runtime Deployment의 실제 chain-confirmed 적용 Rule을 명시한다. `current_rule_version_id`는 단순 APPROVED Rule이 아니라 같은 Deployment의 `rule_registrations` 이력에 존재하는 version만 가리킬 수 있다.
 
 `20260919125224_add_driving_simulation_sessions.sql`은 모의 운행 metadata인 `driving_sessions`와 비공개 원본인 `driving_segments`를 추가한다. Session은 Scope·생성 당시 Rule Version·Idempotency-Key와 연결하고, Segment의 contiguous 순서가 후속 Core/Merkle 입력이 된다. DB `bigint` metric은 Backend에서 Shared uint32 number로 범위를 검증해 변환한다.
+
+`20260922071137_guard_driving_generation_state.sql`은 **Supabase 원격에 이미 적용된** migration의 동일본이다. 새 Session에 `generation_state_commitment`를 기록하고 `(evaluation_scope_id, generation_state_commitment)` 부분 UNIQUE 인덱스로 동일 Confirmed State의 중복 소비를 막는다. 과거 Session은 당시 commitment를 안전하게 복원할 수 없으므로 NULL로 유지하며, 부분 인덱스 대상이 아니다. 이 파일은 원격 이력을 보존하는 용도이므로 기존 원격 Supabase에 다시 실행하지 않는다.
 
 Rule 변경은 평가 Scope나 누적 State를 초기화하지 않고, 기존 deployment와 v1 registration을 보존한 채 새 version registration만 추가한다. 신규 세 테이블도 RLS를 활성화하고 `PUBLIC`, `anon`, `authenticated`의 직접 권한을 부여하지 않는다.
 

@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AdapterRuntime, ConfirmedState, RegisteredRule, Scope, Trip, User } from "@drivacy/shared";
 
 import { ChainProcessingService } from "../src/chain-state/chain-processing-service.js";
-import type { ChainProcessingRepository, ChainProcessingTarget } from "../src/chain-state/chain-processing-repository.js";
+import { PgChainProcessingRepository, type ChainProcessingRepository, type ChainProcessingTarget } from "../src/chain-state/chain-processing-repository.js";
 
 const runtime: AdapterRuntime = { network: "local", adapterProfile: "drivacy-test" };
 const driver: User = { id: "driver", email: "driver@example.invalid", role: "DRIVER" };
@@ -75,5 +75,26 @@ describe("ChainProcessingService", () => {
 
     await expect(service(repository).assemble(driver, "session", "session-key"))
       .rejects.toMatchObject({ code: "DRIVING_SESSION_NOT_READY" });
+  });
+
+  it("uses the Session Rule Version rather than the latest Deployment Rule in processing SQL", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const repository = new PgChainProcessingRepository({ query } as never);
+
+    await repository.findEndedSession(driver.id, "session", runtime);
+
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("rr.rule_version_id=ds.rule_version_id");
+    expect(sql).toContain("rv.id=ds.rule_version_id");
+    expect(sql).not.toContain("rr.rule_version_id=d.current_rule_version_id");
+  });
+
+  it("does not delete a source key when staging conflicts with an existing pending Job", async () => {
+    const source = { save: vi.fn().mockResolvedValue("existing-source"), delete: vi.fn() };
+    const finalizer = { createJob: vi.fn().mockRejectedValue(new Error("IDEMPOTENCY_CONFLICT")) };
+    const guarded = new ChainProcessingService(new MemoryRepository(), finalizer as never, source as never, runtime);
+
+    await expect(guarded.stage(driver, "session", "session-key")).rejects.toThrow("IDEMPOTENCY_CONFLICT");
+    expect(source.delete).not.toHaveBeenCalled();
   });
 });
