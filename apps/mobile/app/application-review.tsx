@@ -2,9 +2,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
-import { InfoCard } from "@/components/InfoCard";
+import { BottomTabBar } from "@/components/BottomTabBar";
+import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { StatusPill } from "@/components/StatusPill";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { demoPolicies } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
@@ -16,66 +17,58 @@ export default function ApplicationReview() {
 
   if (!state.totals.isEligible || state.applicationStage !== "idle") {
     return (
-      <AppScreen contentContainerStyle={styles.screen} testID="application-review-guard-screen">
-        <StatusPill tone="neutral">신청 검토</StatusPill>
-        <Text style={styles.title}>지금은 신청 검토를 열 수 없어요</Text>
-        <Text style={styles.description}>신청 조건과 현재 신청 상태를 다시 확인해 주세요.</Text>
-        <View style={styles.footer}>
-          <PrimaryButton title="할인 신청으로 돌아가기" onPress={() => router.replace("/(tabs)/application")} />
-        </View>
-      </AppScreen>
+      <View style={styles.page}>
+        <AppScreen
+          contentContainerStyle={styles.screen}
+          fixedFooter={<PrimaryButton title="할인 신청으로 돌아가기" onPress={() => router.replace("/(tabs)/application")} />}
+          testID="application-review-guard-screen"
+        >
+          <ScreenHeader title="서류" onBack={() => router.replace("/(tabs)/application")} />
+          <PageEyebrow position="withBack">안전운전 결과 제출</PageEyebrow>
+          <Text style={styles.title}>지금은 신청 검토를 열 수 없어요</Text>
+          <Text style={styles.description}>신청 조건과 현재 상태를 서류 탭에서 다시 확인해 주세요.</Text>
+        </AppScreen>
+        <BottomTabBar />
+      </View>
     );
   }
 
   return (
-    <AppScreen contentContainerStyle={styles.screen} testID="application-review-screen">
-      <PrimaryButton title="뒤로" variant="ghost" onPress={() => router.back()} style={styles.backButton} />
-      <StatusPill tone="primary">신청 전 검토</StatusPill>
-      <Text style={styles.title}>공유할 결과를 확인해 주세요</Text>
-      <Text style={styles.description}>아래의 최소 정보만 보험사에 보여주는 로컬 데모 흐름입니다.</Text>
-
-      <View style={styles.reviewCard}>
-        <Text style={styles.sectionLabel}>보험사</Text>
-        <Text style={styles.value}>{policy.insurerName}</Text>
-        <Text style={styles.sectionLabel}>특약</Text>
-        <Text style={styles.value}>{policy.riderName}</Text>
-        <Text style={styles.sectionLabel}>평가 결과</Text>
-        <Text style={styles.value}>안전운전 점수 {state.totals.score}점 · 누적 {state.totals.distanceKm} km</Text>
-        <Text style={styles.discount}>예상 할인 {state.totals.expectedDiscountPercent}%</Text>
-      </View>
-
-      <InfoCard title="공유하는 정보">
-        보험사 이름, 특약 이름, 안전운전 평가 결과처럼 할인 판단에 필요한 최소 정보만 포함합니다.
-      </InfoCard>
-      <InfoCard title="공유하지 않는 정보">
-        정확한 위치·경로·구간별 속도·정확한 운행시각은 공유하지 않습니다.
-      </InfoCard>
-
-      <InfoCard title="데모 안내">
-        이 화면의 신청 동작은 로컬 상태만 바꿉니다. 실제 보험사 제출, Midnight 증명, 체인 확인은 수행하지 않습니다.
-      </InfoCard>
-
-      <View style={styles.footer}>
-        <PrimaryButton
-          title="이 결과로 할인 신청하기"
-          onPress={() => {
-            dispatch({ type: "SUBMIT_APPLICATION" });
-            router.replace("/application-submitted");
-          }}
-        />
-      </View>
-    </AppScreen>
+    <View style={styles.page}>
+      <AppScreen
+        contentContainerStyle={styles.screen}
+        fixedFooter={(
+          <PrimaryButton title="증명 제출 승인" onPress={() => { dispatch({ type: "SUBMIT_APPLICATION" }); router.replace("/application-submitted"); }} />
+        )}
+        testID="application-review-screen"
+      >
+        <ScreenHeader title="서류" />
+        <PageEyebrow position="withBack">안전운전 결과 제출</PageEyebrow>
+        <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
+        <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>
+        <View style={styles.card}><Text style={styles.cardTitle}>제출 대상</Text><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 최근 90일</Text></View>
+        <View style={[styles.card, styles.selectedCard]}>
+          <Text style={styles.cardTitle}>제공되는 결과</Text>
+          <Text style={styles.line}>✓ 최종 안전운전점수 {state.totals.score}점</Text>
+          <Text style={styles.line}>✓ 예상 할인 구간 {state.totals.expectedDiscountPercent}%</Text>
+          <Text style={styles.line}>✓ 조건 충족 여부 충족</Text>
+          <Text style={styles.line}>✓ 평가기간 및 누적 거리</Text>
+        </View>
+        <View style={styles.card}><Text style={styles.cardTitle}>제공하지 않는 원본</Text><Text style={styles.cardText}>정확한 위치·경로·구간별 속도·정확한 운행시각은 공유하지 않습니다.</Text></View>
+      </AppScreen>
+      <BottomTabBar />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: 20 },
-  backButton: { alignSelf: "flex-start", marginBottom: 8, width: "auto" },
-  title: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", lineHeight: 36, marginTop: 20 },
-  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 12 },
-  reviewCard: { backgroundColor: colors.surface, borderRadius: 20, marginTop: 24, padding: 20 },
-  sectionLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginTop: 12 },
-  value: { color: colors.textPrimary, fontSize: 16, fontWeight: "700", lineHeight: 24, marginTop: 4 },
-  discount: { color: colors.success, fontSize: 22, fontWeight: "800", marginTop: 18 },
-  footer: { gap: 8, marginTop: "auto", paddingTop: 28 },
+  page: { backgroundColor: colors.background, flex: 1 },
+  screen: { paddingBottom: 8 },
+  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 9 },
+  description: { color: colors.textSecondary, fontSize: 11, marginBottom: 20, marginTop: 7 },
+  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 10, padding: 16 },
+  selectedCard: { borderColor: colors.primary },
+  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
+  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 17, marginTop: 8 },
+  line: { color: colors.textPrimary, fontSize: 10, lineHeight: 19, marginTop: 3 },
 });

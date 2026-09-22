@@ -45,6 +45,9 @@ const tabs = [
 ] as const;
 
 function isActivePath(pathname: string, href: (typeof tabs)[number]["href"]) {
+  if (href === "/application" && pathname.startsWith("/application-")) {
+    return true;
+  }
   return pathname === href || pathname === `/(tabs)${href}`;
 }
 
@@ -91,6 +94,7 @@ const styles = StyleSheet.create({
   safeArea: {
     alignItems: "center",
     backgroundColor: colors.background,
+    paddingBottom: 12,
     paddingTop: 6,
   },
   tabBar: {

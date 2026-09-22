@@ -10,6 +10,7 @@ import { useAppState } from "@/state/app-provider";
 import type { AppState } from "@/state/app-state";
 
 jest.mock("expo-router", () => ({
+  usePathname: jest.fn(() => "/application-review"),
   useRouter: jest.fn(),
 }));
 
@@ -59,12 +60,12 @@ describe("Discount application flow", () => {
   it("explains that the application is unavailable before eligibility", async () => {
     const { getByText, queryByRole } = await render(<Application />);
 
-    expect(getByText("아직 할인 신청 조건을 충족하지 않았어요")).toBeTruthy();
+    expect(getByText(/아직 할인 신청 조건을/)).toBeTruthy();
     expect(getByText("누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.")).toBeTruthy();
     expect(queryByRole("button", { name: "할인 신청 검토" })).toBeNull();
   });
 
-  it("opens review only after the second deterministic trip makes the driver eligible", async () => {
+  it("submits the reviewed result only after the second deterministic trip makes the driver eligible", async () => {
     mockUseAppState.mockReturnValue({
       state: stateForTrips(2),
       dispatch,
@@ -73,9 +74,10 @@ describe("Discount application flow", () => {
 
     const { getByRole } = await render(<Application />);
 
-    await fireEvent.press(getByRole("button", { name: "할인 신청 검토" }));
+    await fireEvent.press(getByRole("button", { name: "증명 제출 승인" }));
 
-    expect(push).toHaveBeenCalledWith("/application-review");
+    expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
+    expect(push).toHaveBeenCalledWith("/application-submitted");
   });
 
   it("shows the insurer, rider, evaluation result, and excluded raw driving details in review", async () => {
@@ -87,11 +89,19 @@ describe("Discount application flow", () => {
 
     const { getByText, queryByText } = await render(<ApplicationReview />);
 
-    expect(getByText("미래손해보험")).toBeTruthy();
-    expect(getByText("안전운전 할인 특약")).toBeTruthy();
-    expect(getByText("예상 할인 10%")).toBeTruthy();
+    expect(getByText(/미래손해보험/)).toBeTruthy();
+    expect(getByText(/안전운전 할인 특약/)).toBeTruthy();
+    expect(getByText(/예상 할인 구간 10%/)).toBeTruthy();
     expect(getByText("정확한 위치·경로·구간별 속도·정확한 운행시각은 공유하지 않습니다.")).toBeTruthy();
     expect(queryByText(/GPS|좌표|위도|경도/)).toBeNull();
+  });
+
+  it("lets an ineligible direct review route return to the Documents tab", async () => {
+    const { getByRole } = await render(<ApplicationReview />);
+
+    await fireEvent.press(getByRole("button", { name: "할인 신청으로 돌아가기" }));
+
+    expect(replace).toHaveBeenCalledWith("/(tabs)/application");
   });
 
   it("can go back from review and submits an eligible application", async () => {
@@ -106,7 +116,7 @@ describe("Discount application flow", () => {
     await fireEvent.press(getByRole("button", { name: "뒤로" }));
     expect(back).toHaveBeenCalledTimes(1);
 
-    await fireEvent.press(getByRole("button", { name: "이 결과로 할인 신청하기" }));
+    await fireEvent.press(getByRole("button", { name: "증명 제출 승인" }));
     expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
     expect(replace).toHaveBeenCalledWith("/application-submitted");
   });
@@ -120,10 +130,10 @@ describe("Discount application flow", () => {
 
     const { getByText, getByRole } = await render(<ApplicationSubmitted />);
 
-    expect(getByText("보험사 심사 대기 중")).toBeTruthy();
+    expect(getByText("보험사가 결과를 검토하고 있어요.")).toBeTruthy();
     expect(getByText("신청 번호")).toBeTruthy();
     expect(getByText("DR-DEMO-001")).toBeTruthy();
-    expect(getByText(/실제 보험사 제출·심사·결정이 이루어진 것은 아닙니다/)).toBeTruthy();
+    expect(getByText(/실제 보험사 제출·심사가 아니라/)).toBeTruthy();
 
     await fireEvent.press(getByRole("button", { name: "데모 결과 반영" }));
 
@@ -140,10 +150,9 @@ describe("Discount application flow", () => {
 
     const { getByRole } = await render(<Application />);
 
-    await fireEvent.press(getByRole("button", { name: "데모 결과 반영" }));
+    await fireEvent.press(getByRole("button", { name: "신청 내역 보기" }));
 
-    expect(dispatch).toHaveBeenCalledWith({ type: "APPROVE_APPLICATION" });
-    expect(replace).toHaveBeenCalledWith("/application-result");
+    expect(push).toHaveBeenCalledWith("/application-submitted");
   });
 
   it("shows the approved ten percent result and returns to Home", async () => {
@@ -155,11 +164,11 @@ describe("Discount application flow", () => {
 
     const { getByText, getByRole } = await render(<ApplicationResult />);
 
-    expect(getByText("할인 10% 적용 결과")).toBeTruthy();
+    expect(getByText("보험료 할인이 적용되었어요")).toBeTruthy();
     expect(getByText("10%")).toBeTruthy();
-    expect(getByText("미래손해보험")).toBeTruthy();
+    expect(getByText("개인용 자동차보험")).toBeTruthy();
     expect(getByText("안전운전 할인 특약")).toBeTruthy();
-    expect(getByText(/로컬 데모 결과이며 실제 보험사 결정/)).toBeTruthy();
+    expect(getByText(/실제 보험사 결정·제출/)).toBeTruthy();
 
     await fireEvent.press(getByRole("button", { name: "홈으로 돌아가기" }));
 

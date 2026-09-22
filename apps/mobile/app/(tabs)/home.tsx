@@ -2,12 +2,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
-import { InfoCard } from "@/components/InfoCard";
-import { MetricCard } from "@/components/MetricCard";
+import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
-import { StatusPill } from "@/components/StatusPill";
-import { demoPolicies } from "@/fixtures/demo";
+import { Wordmark } from "@/components/Wordmark";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
@@ -19,84 +17,91 @@ function homeAction(tripsCompleted: 0 | 1 | 2) {
 
 export default function Home() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
-  const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
-  const actionLabel = homeAction(state.tripsCompleted);
-  const distanceProgress = state.totals.distanceKm / 550;
-
-  function continueDemo() {
-    router.push((state.tripsCompleted === 2 ? "/application" : "/drive") as never);
-  }
-
-  function resetDemo() {
-    dispatch({ type: "RESET_DEMO" });
-    router.replace("/onboarding");
-  }
+  const { state } = useAppState();
+  const progress = Math.min(state.totals.distanceKm / 550, 1);
 
   return (
-    <AppScreen contentContainerStyle={styles.screen} testID="home-screen">
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>안녕하세요, 드라이버님</Text>
-          <Text style={styles.policyName}>{policy.riderName}</Text>
-        </View>
-        <StatusPill tone="primary">로컬 데모</StatusPill>
+    <AppScreen
+      contentContainerStyle={styles.screen}
+      fixedFooter={(
+        <PrimaryButton
+          title={homeAction(state.tripsCompleted)}
+          onPress={() => router.push((state.tripsCompleted === 2 ? "/application" : "/drive") as never)}
+        />
+      )}
+      testID="home-screen"
+    >
+      <Wordmark />
+      <View style={styles.hero}>
+        <PageEyebrow position="afterWordmark">안전운전 할인</PageEyebrow>
+        <Text style={styles.title}>민준님, 이번 달도{`\n`}안전하게 달리고 있어요.</Text>
       </View>
 
       <View style={styles.scoreCard}>
-        <Text style={styles.scoreLabel}>안전운전 점수</Text>
-        <Text style={styles.scoreValue}>{state.totals.score}점</Text>
-        <Text style={styles.scoreNote}>결정된 데모 주행 결과로 표시됩니다.</Text>
-      </View>
-
-      <View style={styles.metrics}>
-        <MetricCard label="누적 주행 거리" value={`${state.totals.distanceKm} km`} helper="할인 조건 기준 550 km" />
-        <MetricCard
-          helper={state.totals.isEligible ? "조건을 충족했어요" : "조건 달성 후 확인"
-          }
-          label="예상 할인"
-          tone={state.totals.isEligible ? "success" : "default"}
-          value={state.totals.isEligible ? `${state.totals.expectedDiscountPercent}%` : "—"}
-        />
-      </View>
-
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.sectionTitle}>할인 조건 진행도</Text>
-          <Text style={styles.progressValue}>{state.totals.distanceKm} / 550 km</Text>
+        <View style={styles.scoreHeader}>
+          <Text style={styles.scoreLabel}>내 안전운전 점수</Text>
+          {state.totals.isEligible ? <Text style={styles.status}>조건 충족</Text> : null}
         </View>
-        <ProgressBar progress={distanceProgress} />
-        <Text style={styles.progressHint}>
-          {state.totals.isEligible ? "두 번의 데모 주행으로 조건을 충족했어요." : "두 번의 모의 주행 후 할인 조건을 확인할 수 있어요."}
-        </Text>
+        <View style={styles.scoreRow}>
+          <Text style={styles.scoreValue}>{state.totals.score}점</Text>
+          <View style={styles.discountBlock}>
+            <Text style={styles.discountLabel}>예상 할인</Text>
+            <Text style={styles.discountValue}>{state.totals.isEligible ? `${state.totals.expectedDiscountPercent}%` : "—"}</Text>
+          </View>
+        </View>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressLabel}>할인 조건까지 {Math.round(progress * 100)}%</Text>
+          <Text style={styles.distance}>{state.totals.distanceKm} / 550 km</Text>
+        </View>
+        <ProgressBar progress={progress} />
+        <View style={styles.metaRow}>
+          <View>
+            <Text style={styles.metaLabel}>평가 기간</Text>
+            <Text style={styles.metaValue}>D-42</Text>
+          </View>
+          <View style={styles.metaRight}>
+            <Text style={styles.metaLabel}>누적거리</Text>
+            <Text style={styles.metaValue}>{state.totals.distanceKm} km</Text>
+          </View>
+        </View>
       </View>
 
-      <InfoCard title="개인정보는 직접 공유하지 않아요">
-        이 화면은 로컬 데모 데이터입니다. 실제 Midnight 증명, 체인 확인 또는 보험사 제출을 수행하지 않습니다.
-      </InfoCard>
-
-      <View style={styles.footer}>
-        <PrimaryButton title={actionLabel} onPress={continueDemo} />
-        <PrimaryButton title="데모 초기화" variant="ghost" onPress={resetDemo} />
+      <View style={styles.privacyCard}>
+        <View style={styles.privacyIcon}><Text style={styles.privacyCheck}>✓</Text></View>
+        <View style={styles.privacyCopy}>
+          <Text style={styles.privacyTitle}>보험사에는 결과만 보내요</Text>
+          <Text style={styles.privacyText}>위치와 이동경로는 보내지 않아요.</Text>
+        </View>
       </View>
+
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: 20 },
-  header: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  greeting: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.5 },
-  policyName: { color: colors.textSecondary, fontSize: 13, marginTop: 7 },
-  scoreCard: { backgroundColor: colors.primary, borderRadius: 20, marginTop: 24, padding: 22 },
-  scoreLabel: { color: "#DDE8FF", fontSize: 13, fontWeight: "700" },
-  scoreValue: { color: colors.surface, fontSize: 42, fontWeight: "800", letterSpacing: -1, marginTop: 8 },
-  scoreNote: { color: "#DDE8FF", fontSize: 12, marginTop: 5 },
-  metrics: { flexDirection: "row", gap: 12, marginTop: 12 },
-  progressSection: { marginBottom: 20, marginTop: 28 },
-  progressHeader: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
-  progressValue: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
-  progressHint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 9 },
-  footer: { gap: 8, marginTop: "auto", paddingTop: 24 },
+  screen: { paddingBottom: 8 },
+  hero: {},
+  title: { color: colors.textPrimary, fontSize: 27, fontWeight: "800", letterSpacing: -0.9, lineHeight: 36, marginTop: 9 },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 24, padding: 18 },
+  scoreHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  scoreLabel: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
+  status: { backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 10, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
+  scoreValue: { color: colors.textPrimary, fontSize: 38, fontWeight: "900", letterSpacing: -1.2 },
+  discountBlock: { alignItems: "flex-end", paddingBottom: 4 },
+  discountLabel: { color: colors.textSecondary, fontSize: 10 },
+  discountValue: { color: colors.primary, fontSize: 18, fontWeight: "900", marginTop: 3 },
+  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 21 },
+  progressLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
+  distance: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
+  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 18, paddingTop: 15 },
+  metaRight: { marginLeft: "auto" },
+  metaLabel: { color: colors.textSecondary, fontSize: 10 },
+  metaValue: { color: colors.textPrimary, fontSize: 13, fontWeight: "800", marginTop: 4 },
+  privacyCard: { alignItems: "center", backgroundColor: "#EAF2FF", borderRadius: 16, flexDirection: "row", marginTop: 13, padding: 16 },
+  privacyIcon: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 999, height: 28, justifyContent: "center", width: 28 },
+  privacyCheck: { color: colors.surface, fontSize: 14, fontWeight: "900" },
+  privacyCopy: { flex: 1, marginLeft: 12 },
+  privacyTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
+  privacyText: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
 });

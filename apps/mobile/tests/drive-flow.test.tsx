@@ -61,11 +61,22 @@ describe("Driving flow", () => {
     expect(getByText("두 번의 데모 주행이 완료되었습니다.")).toBeTruthy();
   });
 
+  it("offers an active trip resume action instead of claiming all trips are complete", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
+    const { getByRole, queryByText } = await render(<Drive />);
+
+    expect(queryByText("두 번의 데모 주행이 완료되었습니다.")).toBeNull();
+    await fireEvent.press(getByRole("button", { name: "모의 주행으로 돌아가기" }));
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/drive-session");
+  });
+
   it("moves an active simulated drive into persisted processing without changing totals", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
     const { getByRole, getByText } = await render(<DriveSession />);
 
-    expect(getByText("모의 주행 진행 중")).toBeTruthy();
+    expect(getByText("모의 주행 중")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "주행 종료" }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: "FINISH_TRIP" });
@@ -111,13 +122,23 @@ describe("Driving flow", () => {
 
   it("shows fixture totals and replaces navigation when returning home", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
-    const { getByRole, getByText } = await render(<DriveResult />);
+    const { getAllByText, getByRole, getByText } = await render(<DriveResult />);
 
-    expect(getByText("+300 km")).toBeTruthy();
-    expect(getByText("300 km")).toBeTruthy();
+    expect(getByText("-8점")).toBeTruthy();
+    expect(getAllByText("300 km")).toHaveLength(2);
     expect(getByText("92점")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "홈으로 돌아가기" }));
 
+    expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
+  it("dismisses a result when the result header back action returns home", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
+    const { getByRole } = await render(<DriveResult />);
+
+    await fireEvent.press(getByRole("button", { name: "뒤로" }));
+
+    expect(dispatch).toHaveBeenCalledWith({ type: "DISMISS_TRIP_RESULT" });
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
   });
 });

@@ -2,140 +2,122 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
-import { InfoCard } from "@/components/InfoCard";
+import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { StatusPill } from "@/components/StatusPill";
 import { demoPolicies } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
+
+function Card({ children, selected = false, title }: { children: React.ReactNode; selected?: boolean; title: string }) {
+  return (
+    <View style={[styles.card, selected && styles.cardSelected]}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
 
 export default function Application() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
-  if (state.applicationStage === "approved") {
+  if (!state.totals.isEligible) {
     return (
-      <AppScreen contentContainerStyle={styles.screen} testID="application-approved-screen">
-        <StatusPill tone="success">데모 승인 결과</StatusPill>
-        <Text style={styles.title}>할인 10% 적용 결과</Text>
-        <Text style={styles.description}>신청 결과를 다시 확인할 수 있어요.</Text>
-
-        <View style={styles.resultCard}>
-          <Text style={styles.resultValue}>{`${state.totals.expectedDiscountPercent}%`}</Text>
-          <Text style={styles.resultLabel}>예상 할인율</Text>
-        </View>
-
-        <InfoCard title="가입 정보">
-          {`${policy.insurerName} · ${policy.riderName}`}
-        </InfoCard>
-        <InfoCard title="데모 범위">
-          로컬 데모 결과이며 실제 보험사 결정·제출, Midnight 증명, 체인 확인을 수행하지 않습니다.
-        </InfoCard>
-
-        <View style={styles.footer}>
-          <PrimaryButton title="결과 자세히 보기" onPress={() => router.push("/application-result")} />
-          <PrimaryButton title="홈으로 돌아가기" variant="ghost" onPress={() => router.replace("/(tabs)/home")} />
-        </View>
+      <AppScreen
+        contentContainerStyle={styles.screen}
+        fixedFooter={<PrimaryButton title="주행으로 이동" onPress={() => router.replace("/drive")} />}
+        testID="application-ineligible-screen"
+      >
+        <PageEyebrow>안전운전 결과 제출</PageEyebrow>
+        <Text style={styles.title}>아직 할인 신청 조건을{`\n`}충족하지 않았어요.</Text>
+        <Text style={styles.description}>두 번의 모의 주행을 완료하면 결과를 확인할 수 있어요.</Text>
+        <Card title="현재 진행도">
+          <Text style={styles.largeValue}>{state.totals.distanceKm} / 550 km</Text>
+          <Text style={styles.cardText}>누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.</Text>
+        </Card>
       </AppScreen>
     );
   }
 
   if (state.applicationStage === "pending") {
     return (
-      <AppScreen contentContainerStyle={styles.screen} testID="application-pending-screen">
-        <StatusPill tone="primary">심사 대기</StatusPill>
-        <Text style={styles.title}>보험사 심사 대기 중</Text>
-        <Text style={styles.description}>
-          로컬 데모에서 신청 후 심사 대기 상태를 표시하고 있어요.
-        </Text>
-
-        <View style={styles.applicationCard}>
-          <Text style={styles.cardLabel}>신청 번호</Text>
-          <Text style={styles.cardValue}>DR-DEMO-001</Text>
-          <Text style={styles.cardHelper}>2026.09.22 10:00 신청한 데모 건</Text>
-        </View>
-
-        <InfoCard title="중요 안내">
-          실제 보험사 제출·심사·결정이 이루어진 것은 아닙니다. 아래 버튼은 데모 결과를 다음 상태로 바꾸는 동작입니다.
-        </InfoCard>
-
-        <View style={styles.footer}>
-          <PrimaryButton
-            title="데모 결과 반영"
-            onPress={() => {
-              dispatch({ type: "APPROVE_APPLICATION" });
-              router.replace("/application-result");
-            }}
-          />
-          <PrimaryButton title="홈으로 돌아가기" variant="ghost" onPress={() => router.replace("/(tabs)/home")} />
-        </View>
+      <AppScreen
+        contentContainerStyle={styles.screen}
+        fixedFooter={<PrimaryButton title="신청 내역 보기" onPress={() => router.push("/application-submitted")} />}
+        testID="application-pending-screen"
+      >
+        <PageEyebrow>신청 완료</PageEyebrow>
+        <Text style={styles.title}>보험사가 결과를 검토하고 있어요.</Text>
+        <Text style={styles.description}>표시된 신청 정보는 로컬 데모 상태예요.</Text>
+        <Card title="신청 상태"><Text style={styles.statusBadge}>검토 중</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
+        <Card title="제출한 결과"><Text style={styles.cardText}>최종 점수 {state.totals.score}점 · 조건 충족{`\n`}평가 기간 최근 90일</Text></Card>
+        <Card title="신청 내역"><Text style={styles.cardText}>신청 번호 DR-DEMO-001{`\n`}제출 시각 2026.09.22 10:00</Text></Card>
       </AppScreen>
     );
   }
 
-  if (!state.totals.isEligible) {
+  if (state.applicationStage === "approved") {
     return (
-      <AppScreen contentContainerStyle={styles.screen} testID="application-ineligible-screen">
-        <StatusPill tone="neutral">신청 전</StatusPill>
-        <Text style={styles.title}>아직 할인 신청 조건을 충족하지 않았어요</Text>
-        <Text style={styles.description}>두 번의 모의 주행을 완료하면 결과를 확인하고 신청할 수 있습니다.</Text>
-
-        <View style={styles.requirementCard}>
-          <Text style={styles.requirementTitle}>현재 진행도</Text>
-          <Text style={styles.requirementValue}>{state.totals.distanceKm} / 550 km</Text>
-          <Text style={styles.requirementHelper}>누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.</Text>
-        </View>
-
-        <InfoCard title="개인정보 보호">
-          할인 신청 전에는 어떤 결과도 공유하지 않습니다. 이 앱은 상세 위치·경로를 보험사에 제공하지 않는 로컬 데모입니다.
-        </InfoCard>
-
-        <View style={styles.footer}>
-          <PrimaryButton title="주행으로 이동" onPress={() => router.replace("/drive")} />
-        </View>
+      <AppScreen
+        contentContainerStyle={styles.screen}
+        fixedFooter={<PrimaryButton title="결과 자세히 보기" onPress={() => router.push("/application-result")} />}
+        testID="application-approved-screen"
+      >
+        <PageEyebrow>보험사 결정 완료</PageEyebrow>
+        <Text style={styles.title}>보험료 할인이 적용되었어요</Text>
+        <Text style={styles.description}>로컬 데모의 최종 결과를 확인하세요.</Text>
+        <View style={styles.resultHero}><Text style={styles.resultValue}>{state.totals.expectedDiscountPercent}%</Text><Text style={styles.resultLabel}>안전 운전 할인 적용</Text></View>
+        <Card title="처리 상태"><Text style={styles.statusBadge}>적용 완료</Text><Text style={styles.cardText}>{policy.productName}{`\n`}{policy.riderName}</Text></Card>
+        <Card title="데모 안내"><Text style={styles.cardText}>실제 보험사 결정이나 Midnight 증명·체인 확인 결과가 아닙니다.</Text></Card>
       </AppScreen>
     );
   }
 
   return (
-    <AppScreen contentContainerStyle={styles.screen} testID="application-eligible-screen">
-      <StatusPill tone="success">신청 가능</StatusPill>
-      <Text style={styles.title}>할인 신청 결과를 확인해 보세요</Text>
-      <Text style={styles.description}>보험사와 공유할 최소 결과를 먼저 검토한 뒤 데모 신청을 진행합니다.</Text>
+    <AppScreen
+      contentContainerStyle={styles.screen}
+      fixedFooter={(
+        <PrimaryButton
+          title="증명 제출 승인"
+          onPress={() => {
+            dispatch({ type: "SUBMIT_APPLICATION" });
+            router.push("/application-submitted");
+          }}
+        />
+      )}
+      testID="application-eligible-screen"
+    >
+      <PageEyebrow>안전운전 결과 제출</PageEyebrow>
+      <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
+      <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>
 
-      <View style={styles.applicationCard}>
-        <Text style={styles.cardLabel}>예상 할인</Text>
-        <Text style={styles.discountValue}>{`${state.totals.expectedDiscountPercent}%`}</Text>
-        <Text style={styles.cardHelper}>{policy.riderName}</Text>
-      </View>
-
-      <InfoCard title="원본 주행 데이터는 공유하지 않아요">
-        보험사에는 안전운전 평가 결과와 특약 정보만 보여줍니다. 정확한 위치, 이동 경로, 구간별 속도, 정확한 운행시각은 포함하지 않습니다.
-      </InfoCard>
-
-      <View style={styles.footer}>
-        <PrimaryButton title="할인 신청 검토" onPress={() => router.push("/application-review")} />
-      </View>
+      <Card title="제출 대상"><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 최근 90일</Text></Card>
+      <Card selected title="제공되는 결과">
+        <Text style={styles.checkLine}>✓ 최종 안전운전점수 {state.totals.score}점</Text>
+        <Text style={styles.checkLine}>✓ 예상 할인 구간 {state.totals.expectedDiscountPercent}%</Text>
+        <Text style={styles.checkLine}>✓ 조건 충족 여부 충족</Text>
+        <Text style={styles.checkLine}>✓ 평가기간 및 누적 거리</Text>
+      </Card>
+      <Card title="제공하지 않는 원본"><Text style={styles.cardText}>정확한 위치 · 이동경로 · 운행시각 · 구간별 속도</Text></Card>
+      <Text style={styles.demoNote}>버튼은 로컬 상태만 변경하며 실제 제출·증명 처리는 수행하지 않습니다.</Text>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: 20 },
-  title: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", lineHeight: 36, marginTop: 20 },
-  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 12 },
-  requirementCard: { backgroundColor: colors.surface, borderRadius: 20, marginTop: 28, padding: 20 },
-  requirementTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: "700" },
-  requirementValue: { color: colors.textPrimary, fontSize: 30, fontWeight: "800", marginTop: 8 },
-  requirementHelper: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 8 },
-  applicationCard: { backgroundColor: colors.surface, borderRadius: 20, marginTop: 28, padding: 20 },
-  cardLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: "700" },
-  cardValue: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", marginTop: 8 },
-  discountValue: { color: colors.success, fontSize: 38, fontWeight: "800", marginTop: 8 },
-  cardHelper: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 6 },
-  resultCard: { alignItems: "center", backgroundColor: colors.successBackground, borderRadius: 20, marginTop: 28, padding: 24 },
-  resultValue: { color: colors.success, fontSize: 44, fontWeight: "800" },
-  resultLabel: { color: colors.success, fontSize: 13, fontWeight: "700", marginTop: 4 },
-  footer: { gap: 8, marginTop: "auto", paddingTop: 28 },
+  screen: { paddingBottom: 10 },
+  title: { color: colors.textPrimary, fontSize: 24, fontWeight: "800", letterSpacing: -0.7, lineHeight: 32, marginTop: 10 },
+  description: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 22, marginTop: 8 },
+  card: { backgroundColor: colors.surface, borderColor: "transparent", borderRadius: 16, borderWidth: 1, marginBottom: 10, padding: 16 },
+  cardSelected: { borderColor: colors.primary },
+  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
+  cardText: { color: colors.textSecondary, fontSize: 10, lineHeight: 17, marginTop: 8 },
+  checkLine: { color: colors.textPrimary, fontSize: 10, lineHeight: 19, marginTop: 3 },
+  largeValue: { color: colors.textPrimary, fontSize: 28, fontWeight: "900", marginTop: 10 },
+  statusBadge: { alignSelf: "flex-end", backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 9, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  resultHero: { alignItems: "center", marginBottom: 24, marginTop: 6 },
+  resultValue: { color: colors.primary, fontSize: 42, fontWeight: "900" },
+  resultLabel: { color: colors.textSecondary, fontSize: 10, marginTop: 5 },
+  demoNote: { color: colors.textSecondary, fontSize: 9, lineHeight: 15, marginTop: 3, textAlign: "center" },
 });

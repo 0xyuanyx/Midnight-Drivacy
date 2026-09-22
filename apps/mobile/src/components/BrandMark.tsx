@@ -12,7 +12,7 @@ export function BrandMark({ compact = false }: BrandMarkProps) {
       <View style={[styles.mark, compact && styles.compactMark]}>
         <Text style={[styles.markText, compact && styles.compactMarkText]}>D</Text>
       </View>
-      <Text style={[styles.name, compact && styles.compactName]}>Drivacy</Text>
+      <Text style={[styles.name, compact && styles.compactName]}>Dri<Text style={styles.accent}>V</Text>acy</Text>
     </View>
   );
 }
@@ -52,5 +52,8 @@ const styles = StyleSheet.create({
   },
   compactName: {
     fontSize: 18,
+  },
+  accent: {
+    color: colors.primary,
   },
 });

@@ -6,6 +6,7 @@ import { colors } from "@/theme/tokens";
 interface AppScreenProps {
   children: React.ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  fixedFooter?: React.ReactNode;
   scroll?: boolean;
   scrollTestID?: string;
   testID?: string;
@@ -15,6 +16,7 @@ interface AppScreenProps {
 export function AppScreen({
   children,
   contentContainerStyle,
+  fixedFooter,
   scroll = true,
   scrollTestID,
   testID,
@@ -29,7 +31,7 @@ export function AppScreen({
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, fixedFooter ? styles.scrollContentWithFooter : null]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           testID={scrollTestID}
@@ -37,8 +39,13 @@ export function AppScreen({
           {content}
         </ScrollView>
       ) : (
-        content
+        <View style={[styles.nonScrollContent, fixedFooter ? styles.nonScrollContentWithFooter : null]}>{content}</View>
       )}
+      {fixedFooter ? (
+        <View pointerEvents="box-none" style={styles.fixedFooter}>
+          <View style={styles.fixedFooterInner}>{fixedFooter}</View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -51,12 +58,34 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  scrollContentWithFooter: {
+    paddingBottom: 82,
+  },
+  nonScrollContent: {
+    flex: 1,
+  },
+  nonScrollContentWithFooter: {
+    paddingBottom: 82,
+  },
   content: {
     flex: 1,
     width: "100%",
     maxWidth: 520,
     alignSelf: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+  },
+  fixedFooter: {
+    alignItems: "center",
+    bottom: 0,
+    left: 0,
+    paddingBottom: 12,
+    position: "absolute",
+    right: 0,
+  },
+  fixedFooterInner: {
+    maxWidth: 520,
+    paddingHorizontal: 20,
+    width: "100%",
   },
 });

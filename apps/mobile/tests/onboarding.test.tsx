@@ -33,24 +33,29 @@ describe("Onboarding", () => {
   it("opens the consent sheet from the start action", async () => {
     const { getByRole, getByText, queryByText } = await render(<Onboarding />);
 
-    expect(queryByText("필수 동의")).toBeNull();
+    expect(queryByText(/DriVacy를 시작하려면/)).toBeNull();
     await fireEvent.press(getByRole("button", { name: "동의하고 시작하기" }));
 
-    expect(getByText("필수 동의")).toBeTruthy();
+    expect(getByText(/DriVacy를 시작하려면/)).toBeTruthy();
     expect(getByRole("button", { name: "동의하고 계속하기" }).props.accessibilityState?.disabled).toBe(
       true,
     );
   });
 
-  it("explains what is processed, what is shared, and what stays private before consent", async () => {
-    const { getByRole, getByText } = await render(<Onboarding />);
+  it("opens each required consent disclosure from its chevron and returns to the list", async () => {
+    const { getByRole, getByText, queryByText } = await render(<Onboarding />);
 
     await fireEvent.press(getByRole("button", { name: "동의하고 시작하기" }));
 
-    expect(getByText("처리하는 정보")).toBeTruthy();
-    expect(getByText("보험사에 제공하는 요약")).toBeTruthy();
-    expect(getByText("제공하지 않는 정보")).toBeTruthy();
-    expect(getByText("정확한 위치·이동 경로·구간별 속도·정확한 운행 시각")).toBeTruthy();
+    await fireEvent.press(getByRole("button", { name: "보험 계약 및 특약 조회 동의 상세 보기" }));
+    expect(getByText("조회하는 정보")).toBeTruthy();
+    expect(getByText(/보험사명, 상품명, 차량번호, 보험기간/)).toBeTruthy();
+    await fireEvent.press(getByRole("button", { name: "동의 목록으로 돌아가기" }));
+    expect(queryByText("조회하는 정보")).toBeNull();
+
+    await fireEvent.press(getByRole("button", { name: "선택한 운행 기록 처리 동의 상세 보기" }));
+    expect(getByText("처리하는 운행 정보")).toBeTruthy();
+    expect(getByText(/정확한 위치, 이동 경로, 구간별 속도/)).toBeTruthy();
   });
 
   it("keeps consent content in a bottom-safe-area scroll container", async () => {
@@ -101,7 +106,7 @@ describe("Onboarding", () => {
     await fireEvent.press(getAllByRole("checkbox")[0]);
     await fireEvent.press(getByRole("button", { name: "닫기" }));
 
-    expect(queryByText("필수 동의")).toBeNull();
+    expect(queryByText(/DriVacy를 시작하려면/)).toBeNull();
     expect(dispatch).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
 

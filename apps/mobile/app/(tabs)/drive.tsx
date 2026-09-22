@@ -2,77 +2,109 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "@/components/AppScreen";
-import { InfoCard } from "@/components/InfoCard";
-import { MetricCard } from "@/components/MetricCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
-import { StatusPill } from "@/components/StatusPill";
-import { demoTrips } from "@/fixtures/demo";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function Drive() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
-  const completedTrips = demoTrips.slice(0, state.tripsCompleted);
   const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
+  const progress = Math.min(state.totals.distanceKm / 550, 1);
+  const footer = state.driveStage === "active" ? (
+    <PrimaryButton title="모의 주행으로 돌아가기" onPress={() => router.push("/drive-session")} />
+  ) : state.driveStage === "result" ? (
+    <PrimaryButton title="주행 결과 보기" onPress={() => router.push("/drive-result")} />
+  ) : canStart ? (
+    <PrimaryButton
+      title="모의 주행 시작"
+      onPress={() => {
+        dispatch({ type: "START_TRIP" });
+        router.push("/drive-session");
+      }}
+    />
+  ) : state.driveStage === "processing" ? (
+    <View style={styles.completeCard}>
+      <Text style={styles.completeTitle}>주행 결과를 처리하고 있어요.</Text>
+    </View>
+  ) : (
+    <View style={styles.completeCard}>
+      <Text style={styles.completeTitle}>두 번의 데모 주행이 완료되었습니다.</Text>
+      <Text style={styles.completeText}>서류 탭에서 할인 신청 결과를 확인해 주세요.</Text>
+    </View>
+  );
 
   return (
-    <AppScreen contentContainerStyle={styles.screen} testID="drive-screen">
-      <StatusPill tone="primary">모의 주행 데모</StatusPill>
-      <Text style={styles.title}>다음 안전운전{`\n`}기록을 시작해 볼까요?</Text>
-      <Text style={styles.description}>실제 GPS나 주행 데이터는 수집하지 않는 결정된 로컬 시뮬레이션입니다.</Text>
-
-      <View style={styles.metrics}>
-        <MetricCard label="현재 거리" value={`${state.totals.distanceKm} km`} />
-        <MetricCard label="안전운전 점수" value={`${state.totals.score}점`} />
+    <AppScreen
+      contentContainerStyle={styles.screen}
+      fixedFooter={footer}
+      testID="drive-screen"
+    >
+      <ScreenHeader title="내 보험 조회하기" onBack={() => router.replace("/(tabs)/home")} />
+      <View style={styles.policyLine}>
+        <View style={styles.policyIcon}><Text style={styles.policyIconText}>▣</Text></View>
+        <Text style={styles.policyText}>미래손해보험 · 안전운전 할인특약</Text>
+      </View>
+      <Text style={styles.title}>내 안전운전 현황</Text>
+      <View style={styles.scoreBlock}>
+        <Text style={styles.score}>{state.totals.score}점</Text>
+        <Text style={styles.scoreHelper}>현재 점수 · 100점 만점</Text>
       </View>
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.sectionTitle}>데모 주행 진행도</Text>
-          <Text style={styles.progressValue}>{state.tripsCompleted} / 2회</Text>
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>할인 조건 · 점수 충족</Text>
+          <Text style={styles.successBadge}>{state.totals.score >= 80 ? "점수 충족" : "확인 중"}</Text>
         </View>
-        <ProgressBar progress={state.tripsCompleted / 2} />
+        <View style={styles.progressSpace}><ProgressBar progress={progress} /></View>
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardDetail}>누적 {state.totals.distanceKm} / 550 km · 남은 거리 {Math.max(550 - state.totals.distanceKm, 0)} km</Text>
+          <Text style={styles.percent}>{Math.round(progress * 100)}%</Text>
+        </View>
       </View>
 
-      <InfoCard title="최근 모의 주행">
-        {completedTrips.length === 0
-          ? "아직 완료된 모의 주행이 없습니다."
-          : completedTrips.map((trip) => `${trip.sequence}회차  +${trip.distanceKm} km`).join("  ·  ")}
-      </InfoCard>
-
-      <View style={styles.footer}>
-        {canStart ? (
-          <PrimaryButton
-            title="모의 주행 시작"
-            onPress={() => {
-              dispatch({ type: "START_TRIP" });
-              router.push("/drive-session");
-            }}
-          />
-        ) : (
-          <View style={styles.completeCard}>
-            <Text style={styles.completeTitle}>두 번의 데모 주행이 완료되었습니다.</Text>
-            <Text style={styles.completeText}>할인 신청은 다음 단계의 데모 화면에서 이어집니다.</Text>
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View>
+            <Text style={styles.cardTitle}>평가 기간</Text>
+            <Text style={styles.cardDetailTop}>최근 운행을 기준으로 평가해요</Text>
           </View>
-        )}
+          <Text style={styles.day}>D-42</Text>
+        </View>
       </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>주행 기록</Text>
+        <Text style={styles.cardDetailTop}>최근 운행 {state.tripsCompleted}건 · 점수 변화 확인</Text>
+      </View>
+
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: 20 },
-  title: { color: colors.textPrimary, fontSize: 30, fontWeight: "800", letterSpacing: -0.8, lineHeight: 39, marginTop: 20 },
-  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 13 },
-  metrics: { flexDirection: "row", gap: 12, marginTop: 24 },
-  progressSection: { marginVertical: 28 },
-  progressHeader: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
-  progressValue: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
-  footer: { marginTop: "auto", paddingTop: 24 },
-  completeCard: { backgroundColor: "#EAF8F0", borderRadius: 16, padding: 18 },
-  completeTitle: { color: colors.success, fontSize: 15, fontWeight: "800" },
-  completeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 6 },
+  screen: { paddingBottom: 12 },
+  policyLine: { alignItems: "center", flexDirection: "row", marginTop: 24 },
+  policyIcon: { alignItems: "center", backgroundColor: "#E9F1FF", borderRadius: 999, height: 24, justifyContent: "center", width: 24 },
+  policyIconText: { color: colors.primary, fontSize: 11, fontWeight: "900" },
+  policyText: { color: colors.primary, fontSize: 11, fontWeight: "800", marginLeft: 8 },
+  title: { color: colors.textPrimary, fontSize: 25, fontWeight: "800", letterSpacing: -0.7, marginTop: 11 },
+  scoreBlock: { alignItems: "center", marginVertical: 22 },
+  score: { color: colors.textPrimary, fontSize: 43, fontWeight: "900", letterSpacing: -1.4 },
+  scoreHelper: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 10, padding: 16 },
+  cardHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  cardTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: "800" },
+  successBadge: { backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, fontSize: 9, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  progressSpace: { marginTop: 15 },
+  cardFooter: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
+  cardDetail: { color: colors.textSecondary, fontSize: 9 },
+  cardDetailTop: { color: colors.textSecondary, fontSize: 10, marginTop: 6 },
+  percent: { color: colors.primary, fontSize: 10, fontWeight: "800" },
+  day: { color: colors.primary, fontSize: 22, fontWeight: "900" },
+  completeCard: { backgroundColor: colors.successBackground, borderRadius: 16, padding: 16 },
+  completeTitle: { color: colors.success, fontSize: 14, fontWeight: "800" },
+  completeText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5 },
 });

@@ -93,12 +93,4 @@ describe("Home and bottom tabs", () => {
     expect(push).toHaveBeenCalledWith("/drive");
   });
 
-  it("resets the persisted demo before returning to onboarding", async () => {
-    const { getByRole } = await render(<Home />);
-
-    await fireEvent.press(getByRole("button", { name: "데모 초기화" }));
-
-    expect(dispatch).toHaveBeenCalledWith({ type: "RESET_DEMO" });
-    expect(replace).toHaveBeenCalledWith("/onboarding");
-  });
 });
