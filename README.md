@@ -28,6 +28,10 @@ production adapter는 `C_WALLET_ADAPTER_URL`과 `C_WALLET_ADAPTER_TOKEN`으로 �
 
 Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 업무 앱은 아직 구현되지 않았습니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 업무 앱·Preprod·가입자 브라우저 월렛 연동과는 구분합니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록하며 업무 데모 흐름은 구현 목표입니다.
 
+### 가입자 모바일 회원가입 UX
+
+[회원가입 MVP 기준](docs/frontend/DRIVER_SIGNUP_MVP_UX.md)은 이메일 6자리 코드만 인증하고, 신규 가입자의 이름·생년월일·휴대전화 번호는 인증 없는 프로필 정보로 받도록 정합니다. [HTML 화면 레퍼런스](docs/frontend/DRIVER_AUTH_WALLET_UX_REFERENCE.html)는 첫 가입의 정보 입력과 재방문자의 기존 월렛 잠금 해제 흐름을 보여줍니다. 이는 정적 와이어프레임으로 실제 인증·정보 저장·월렛 연결을 호출하지 않습니다. 해당 OTP 및 기본 정보 입력 UX는 아직 실행 앱에 반영·검증되지 않았습니다.
+
 2026-09-17 C의 1단계 결과로 [B↔C 내부 연결 계약](docs/BC_CONTRACT.md), `packages/shared/src/bc-contract.ts`의 공유 타입·Zod 스키마·고정 직렬화와 계약 검증 하네스를 추가했습니다. Rule·운행·후보/확정 상태·체인 결과의 연결 기준이며 업무 API·Core 계산·실제 증명·월렛·체인 구현 완료를 뜻하지 않습니다. 저장소 workspace·서버 설정·lockfile은 변경하지 않았습니다. 계약 검사만 실행하려면 PowerShell에서 `./scripts/check-bc-contract.ps1`을 실행합니다. Node.js 24와 npm, 패키지 설치용 인터넷이 필요하며 하네스는 임시 폴더에서 실행하고 서비스 키·LLM·체인 요청은 사용하지 않습니다.
 
 2026-09-18 C의 3단계로 [누적 Core 계산](docs/CORE_CALCULATION.md)을 추가했습니다.
