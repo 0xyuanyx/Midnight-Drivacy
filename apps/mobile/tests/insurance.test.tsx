@@ -64,6 +64,18 @@ describe("Insurance selection", () => {
     expect(confirmButton.props.accessibilityState?.disabled).toBe(false);
   });
 
+  it("shows the policy status, vehicle, and coverage period used to identify each card", async () => {
+    const { getAllByText, getByText } = await render(<Insurance />);
+
+    await act(() => {
+      jest.advanceTimersByTime(250);
+    });
+
+    expect(getAllByText("정상")).toHaveLength(3);
+    expect(getByText("12가 3456")).toBeTruthy();
+    expect(getAllByText("2026.01–2026.12")).toHaveLength(3);
+  });
+
   it("dispatches the selected policy and routes home after confirmation", async () => {
     const { getByRole, getAllByTestId } = await render(<Insurance />);
 

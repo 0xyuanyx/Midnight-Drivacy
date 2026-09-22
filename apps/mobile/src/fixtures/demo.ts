@@ -10,6 +10,9 @@ export interface DemoPolicy {
   insurerName: string;
   productName: string;
   riderName: string;
+  statusLabel: string;
+  vehicleNumber: string;
+  coveragePeriod: string;
 }
 
 export interface DemoTrip {
@@ -22,21 +25,30 @@ export interface DemoTrip {
 export const demoPolicies: readonly DemoPolicy[] = [
   {
     id: "policy-safe-driver",
-    insurerName: "드리바시 보험",
-    productName: "안전운전 자동차보험",
+    insurerName: "미래손해보험",
+    productName: "개인용 자동차보험",
     riderName: "안전운전 할인 특약",
+    statusLabel: "정상",
+    vehicleNumber: "12가 3456",
+    coveragePeriod: "2026.01–2026.12",
   },
   {
     id: "policy-family-driver",
-    insurerName: "드리바시 보험",
-    productName: "가족 안심 자동차보험",
+    insurerName: "미래손해보험",
+    productName: "개인용 자동차보험",
     riderName: "안전운전 할인 특약",
+    statusLabel: "정상",
+    vehicleNumber: "34나 7890",
+    coveragePeriod: "2026.01–2026.12",
   },
   {
     id: "policy-weekend-driver",
-    insurerName: "드리바시 보험",
-    productName: "주말 운전자 자동차보험",
+    insurerName: "미래손해보험",
+    productName: "개인용 자동차보험",
     riderName: "안전운전 할인 특약",
+    statusLabel: "정상",
+    vehicleNumber: "56다 1234",
+    coveragePeriod: "2026.01–2026.12",
   },
 ];
 

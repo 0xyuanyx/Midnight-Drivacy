@@ -53,10 +53,18 @@ describe("Home and bottom tabs", () => {
 
     expect(getByText("홈")).toBeTruthy();
     expect(getByText("주행")).toBeTruthy();
-    expect(getByText("할인 신청")).toBeTruthy();
+    expect(getByText("서류")).toBeTruthy();
     expect(getByTestId("bottom-tab-home").props.accessibilityState?.selected).toBe(true);
     expect(getByTestId("bottom-tab-drive").props.accessibilityState?.selected).toBe(false);
     expect(getByTestId("bottom-tab-application").props.accessibilityState?.selected).toBe(false);
+  });
+
+  it("opens the application flow from the Documents pill tab", async () => {
+    const { getByRole } = await render(<BottomTabBar />);
+
+    await fireEvent.press(getByRole("tab", { name: "서류" }));
+
+    expect(replace).toHaveBeenCalledWith("/application");
   });
 
   it.each([

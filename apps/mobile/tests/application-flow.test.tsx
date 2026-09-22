@@ -87,7 +87,7 @@ describe("Discount application flow", () => {
 
     const { getByText, queryByText } = await render(<ApplicationReview />);
 
-    expect(getByText("드리바시 보험")).toBeTruthy();
+    expect(getByText("미래손해보험")).toBeTruthy();
     expect(getByText("안전운전 할인 특약")).toBeTruthy();
     expect(getByText("예상 할인 10%")).toBeTruthy();
     expect(getByText("정확한 위치·경로·구간별 속도·정확한 운행시각은 공유하지 않습니다.")).toBeTruthy();
@@ -157,7 +157,7 @@ describe("Discount application flow", () => {
 
     expect(getByText("할인 10% 적용 결과")).toBeTruthy();
     expect(getByText("10%")).toBeTruthy();
-    expect(getByText("드리바시 보험")).toBeTruthy();
+    expect(getByText("미래손해보험")).toBeTruthy();
     expect(getByText("안전운전 할인 특약")).toBeTruthy();
     expect(getByText(/로컬 데모 결과이며 실제 보험사 결정/)).toBeTruthy();
 

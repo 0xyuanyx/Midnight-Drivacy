@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { DemoPolicy } from "@/fixtures/demo";
-import { colors, tokens } from "@/theme/tokens";
+import { colors } from "@/theme/tokens";
 
 export interface PolicyCardProps {
   onPress: () => void;
@@ -24,17 +24,23 @@ export function PolicyCard({ onPress, policy, selected }: PolicyCardProps) {
       testID="policy-card"
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.insurer}>{policy.insurerName}</Text>
-        <View style={[styles.radio, selected && styles.selectedRadio]}>
-          {selected ? <View style={styles.radioDot} /> : null}
+        <View>
+          <Text style={styles.insurer}>{policy.insurerName}</Text>
+          <Text style={styles.product}>{policy.productName}</Text>
+        </View>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>{policy.statusLabel}</Text>
         </View>
       </View>
-      <Text style={styles.product}>{policy.productName}</Text>
-      <Text style={styles.rider}>{policy.riderName}</Text>
-      <View style={styles.divider} />
-      <View style={styles.cardFooter}>
-        <Text style={styles.footerLabel}>가입 가능한 특약</Text>
-        <Text style={styles.footerValue}>{policy.riderName}</Text>
+      <View style={styles.details}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>차량</Text>
+          <Text style={styles.detailValue}>{policy.vehicleNumber}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>보험기간</Text>
+          <Text style={styles.detailValue}>{policy.coveragePeriod}</Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -44,10 +50,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderColor: "transparent",
-    borderRadius: tokens.cardRadius,
-    borderWidth: 2,
+    borderRadius: 14,
+    borderWidth: 1,
     marginBottom: 12,
-    padding: 18,
+    padding: 16,
   },
   selectedCard: {
     borderColor: colors.primary,
@@ -61,55 +67,42 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   insurer: {
-    color: colors.textSecondary,
+    color: colors.textPrimary,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "800",
   },
   product: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 10,
-  },
-  rider: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 6,
-  },
-  divider: {
-    backgroundColor: "#ECEEF3",
-    height: 1,
-    marginVertical: 16,
-  },
-  cardFooter: {
-    gap: 4,
-  },
-  footerLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
+    marginTop: 4,
   },
-  footerValue: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: "600",
+  statusBadge: {
+    backgroundColor: colors.successBackground,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  radio: {
+  statusText: {
+    color: colors.success,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  details: {
+    gap: 6,
+    marginTop: 17,
+  },
+  detailRow: {
     alignItems: "center",
-    borderColor: "#C4CAD4",
-    borderRadius: 12,
-    borderWidth: 2,
-    height: 24,
-    justifyContent: "center",
-    width: 24,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  selectedRadio: {
-    borderColor: colors.primary,
+  detailLabel: {
+    color: colors.textSecondary,
+    fontSize: 10,
   },
-  radioDot: {
-    backgroundColor: colors.primary,
-    borderRadius: 6,
-    height: 12,
-    width: 12,
+  detailValue: {
+    color: colors.textPrimary,
+    fontSize: 10,
+    fontWeight: "700",
   },
 });
