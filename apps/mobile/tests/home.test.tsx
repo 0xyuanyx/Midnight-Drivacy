@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { usePathname, useRouter } from "expo-router";
 
-import Home from "./(tabs)/home";
+import Home from "../app/(tabs)/home";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { useAppState } from "@/state/app-provider";
 import type { AppState } from "@/state/app-state";

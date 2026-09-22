@@ -18,7 +18,7 @@ Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
 ## Project status
 
-Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 업무 앱은 아직 구현되지 않았습니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 업무 앱·Preprod·가입자 브라우저 월렛 연동과는 구분합니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록하며 업무 데모 흐름은 구현 목표입니다.
+Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 가입자용 Expo 모바일 데모는 구현됐지만, 실제 업무 API·보험사·Midnight 연동과는 구분합니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록합니다.
 
 2026-09-17 C의 1단계 결과로 [B↔C 내부 연결 계약](docs/BC_CONTRACT.md), `packages/shared/src/bc-contract.ts`의 공유 타입·Zod 스키마·고정 직렬화와 계약 검증 하네스를 추가했습니다. Rule·운행·후보/확정 상태·체인 결과의 연결 기준이며 업무 API·Core 계산·실제 증명·월렛·체인 구현 완료를 뜻하지 않습니다. 저장소 workspace·서버 설정·lockfile은 변경하지 않았습니다. 계약 검사만 실행하려면 PowerShell에서 `./scripts/check-bc-contract.ps1`을 실행합니다. Node.js 24와 npm, 패키지 설치용 인터넷이 필요하며 하네스는 임시 폴더에서 실행하고 서비스 키·LLM·체인 요청은 사용하지 않습니다.
 
@@ -114,6 +114,27 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 목표는 제출된 기록과 승인 규칙 사이의 계산 관계를 검증하는 것입니다. 입력 기록의 실제 운행 여부, 미제출 운행, 전체 운행의 완전성, 원본 삭제 사실 또는 보험사의 결과 재사용 방지까지 ZK가 보장하는 것은 아닙니다.
 
 원본 기록은 설계상 Drivacy의 계산·증명 처리 영역에 일시적으로 존재합니다. 보험사와 공개 원장에 원본을 전달하지 않는 것이 목표이며, Drivacy 자체가 원본에 접근하지 않는 구조로 표현하지 않습니다.
+
+## Mobile demo (Expo Go scope)
+
+`apps/mobile` is a deterministic subscriber-facing Expo Router demo. It covers onboarding consent, selecting one of three local example policies, and a three-tab flow: **Home**, **Driving**, and **Discount application**. Two simulated trips deterministically progress from 0 km / 100 points through 300 km / 92 points to 550 km / 87 points and a 10% expected discount. The application review expressly excludes precise location, route, segment speed, and exact driving time.
+
+The app persists only this demo state locally with AsyncStorage. It does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number/time, and “demo approval” are presentation states only. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
+
+Requirements: Node.js 24 LTS and npm.
+
+```bash
+npm install
+npm run mobile                 # Expo dev server; choose Expo Go, Android, iOS, or web
+npm run web --workspace=@drivacy/mobile
+npm run mobile:test -- --runInBand
+npm run mobile:typecheck
+npm run lint --workspace=@drivacy/mobile
+npm run mobile:export          # Expo bundles web, iOS, and Android
+cd apps/mobile && npx expo-doctor
+```
+
+Verification on 2026-09-22: 34 mobile Jest tests, mobile typecheck/lint, Expo Doctor (21/21), and Expo web/iOS/Android export passed. The web flow was manually checked at 402×874 and 360×740 with consent, insurance, two drives, review, pending demo approval, and result. This is browser QA only; physical iOS/Android devices and Expo Go have not been exercised.
 
 ## Backend foundation
 

@@ -1,10 +1,10 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
 
-import Application from "./(tabs)/application";
-import ApplicationReview from "./application-review";
-import ApplicationResult from "./application-result";
-import ApplicationSubmitted from "./application-submitted";
+import Application from "../app/(tabs)/application";
+import ApplicationReview from "../app/application-review";
+import ApplicationResult from "../app/application-result";
+import ApplicationSubmitted from "../app/application-submitted";
 import { demoPolicies } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import type { AppState } from "@/state/app-state";

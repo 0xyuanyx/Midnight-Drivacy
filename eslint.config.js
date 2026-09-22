@@ -8,6 +8,14 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ["apps/mobile/babel.config.cjs"],
+    languageOptions: {
+      globals: {
+        module: "readonly",
+      },
+    },
+  },
+  {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
     },

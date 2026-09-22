@@ -1,7 +1,7 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
 
-import Insurance from "./insurance";
+import Insurance from "../app/insurance";
 import { useAppState } from "@/state/app-provider";
 import { initialAppState } from "@/state/app-state";
 

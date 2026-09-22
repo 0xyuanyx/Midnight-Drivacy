@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type ComponentProps, type ComponentType } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,51 @@ interface ConsentRowProps {
   testID: string;
 }
 
+type WebCheckboxProps = ComponentProps<typeof View> & {
+  onKeyDown: (event: { nativeEvent: { key: string }; preventDefault: () => void }) => void;
+  onKeyUp: (event: { nativeEvent: { key: string }; preventDefault: () => void }) => void;
+};
+
+const WebCheckboxView = View as unknown as ComponentType<WebCheckboxProps>;
+
 function ConsentRow({ checked, label, onPress, testID }: ConsentRowProps) {
+  const contents = (
+    <>
+      <View style={[styles.checkbox, checked && styles.checkedBox]}>
+        {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+      </View>
+      <Text style={styles.consentLabel}>{label}</Text>
+    </>
+  );
+
+  if (Platform.OS === "web") {
+    return (
+      <WebCheckboxView
+        accessibilityLabel={label}
+        accessibilityRole="checkbox"
+        aria-checked={checked}
+        onResponderRelease={onPress}
+        onStartShouldSetResponder={() => true}
+        onKeyDown={(event) => {
+          if (["Enter", " ", "Space", "Spacebar"].includes(event.nativeEvent.key)) {
+            event.preventDefault();
+            onPress();
+          }
+        }}
+        onKeyUp={(event) => {
+          if ([" ", "Space", "Spacebar"].includes(event.nativeEvent.key)) {
+            event.preventDefault();
+          }
+        }}
+        style={styles.consentRow}
+        tabIndex={0}
+        testID={testID}
+      >
+        {contents}
+      </WebCheckboxView>
+    );
+  }
+
   return (
     <Pressable
       accessibilityLabel={label}
@@ -34,10 +79,7 @@ function ConsentRow({ checked, label, onPress, testID }: ConsentRowProps) {
       style={({ pressed }) => [styles.consentRow, pressed && styles.consentRowPressed]}
       testID={testID}
     >
-      <View style={[styles.checkbox, checked && styles.checkedBox]}>
-        {checked ? <Text style={styles.checkmark}>✓</Text> : null}
-      </View>
-      <Text style={styles.consentLabel}>{label}</Text>
+      {contents}
     </Pressable>
   );
 }

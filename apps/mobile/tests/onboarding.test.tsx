@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
 
-import Onboarding from "./onboarding";
+import Onboarding from "../app/onboarding";
 import { useAppState } from "@/state/app-provider";
 import { initialAppState } from "@/state/app-state";
 

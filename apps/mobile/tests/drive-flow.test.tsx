@@ -1,10 +1,10 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
 
-import Drive from "./(tabs)/drive";
-import DriveProcessing from "./drive-processing";
-import DriveResult from "./drive-result";
-import DriveSession from "./drive-session";
+import Drive from "../app/(tabs)/drive";
+import DriveProcessing from "../app/drive-processing";
+import DriveResult from "../app/drive-result";
+import DriveSession from "../app/drive-session";
 import { useAppState } from "@/state/app-provider";
 import type { AppState } from "@/state/app-state";
 
