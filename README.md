@@ -119,7 +119,7 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 `apps/mobile` is a deterministic subscriber-facing Expo Router demo. It covers onboarding consent, selecting one of three local example policies, and a three-tab flow: **Home**, **Driving**, and **Discount application**. Two simulated trips deterministically progress from 0 km / 100 points through 300 km / 92 points to 550 km / 87 points and a 10% expected discount. The application review expressly excludes precise location, route, segment speed, and exact driving time.
 
-The app persists only this demo state locally with AsyncStorage. It does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number/time, and “demo approval” are presentation states only. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
+The app persists only this demo state locally with AsyncStorage. Hydration and route guards stop resumed or deep-linked sessions from bypassing required consent and policy selection. An authorized active simulated trip resumes through its persisted lifecycle, and its deterministic completion is applied exactly once; this is local UI-state handling, not GPS collection, proof processing, or a chain operation. The app does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number/time, and “demo approval” are presentation states only. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
 
 Requirements: Node.js 24 LTS and npm.
 
@@ -134,7 +134,7 @@ npm run mobile:export          # Expo bundles web, iOS, and Android
 cd apps/mobile && npx expo-doctor
 ```
 
-Verification on 2026-09-22: 34 mobile Jest tests, mobile typecheck/lint, Expo Doctor (21/21), and Expo web/iOS/Android export passed. The web flow was manually checked at 402×874 and 360×740 with consent, insurance, two drives, review, pending demo approval, and result. This is browser QA only; physical iOS/Android devices and Expo Go have not been exercised.
+Verification on 2026-09-22: 45 mobile Jest tests, including hydrated consent/policy deep-route protection and exactly-once authorized simulated-trip processing; mobile typecheck/lint, Expo Doctor (21/21), and Expo web/iOS/Android export passed. The web flow was manually checked at 402×874 and 360×740 with consent, insurance, two drives, review, pending demo approval, and result. This is browser QA only; physical iOS/Android devices and Expo Go have not been exercised.
 
 ## Backend foundation
 
