@@ -57,6 +57,11 @@ export class DiscountApplicationService {
       && result.rule.ruleHash === row.ruleHash && result.rule.id === row.ruleId
       && result.rule.version === Number(row.ruleVersion) && result.scope.applicantId === row.ownerUserId
       && result.scope.contractId === row.insuranceContractId && result.scope.endorsementId === row.specialContractId
+      // 같은 State와 Rule이더라도 다른 보험사ㆍ평가기간의 verified 결과가 결합되면
+      // 신청 범위가 바뀔 수 있으므로 클라이언트 입력이 아닌 DB에 고정된 범위까지 대조한다.
+      && result.scope.insurerId === row.insurerId && result.scope.evaluationPeriod.id === row.evaluationPeriodId
+      && result.scope.evaluationPeriod.startDate === row.evaluationStartsOn
+      && result.scope.evaluationPeriod.endDate === row.evaluationEndsOn
       && result.network === row.network && result.adapterProfile === row.adapterProfile
       && result.chainContractAddress === row.chainContractAddress && result.score === row.score
       && result.distanceM === Number(row.distanceM) && result.conditionsMet === row.conditionsMet

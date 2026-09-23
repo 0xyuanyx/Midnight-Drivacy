@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 
 export interface DiscountApplicationRow {
   id: string; ownerUserId: string; insuranceContractId: string; specialContractId: string;
-  evaluationScopeId: string; ruleVersionId: string; stateCommitment: string; stateVersion: string;
+  insurerId?: string; evaluationScopeId: string; evaluationPeriodId?: string; ruleVersionId: string; stateCommitment: string; stateVersion: string;
   ruleHash: string; evaluationOperationId: string; resultCommitment: string | null; nullifier: string | null;
   verificationStatus: "PENDING" | "VERIFIED" | "FAILED";
   reviewStatus: "PENDING_REVIEW" | "APPLIED" | "REJECTED";
@@ -36,7 +36,8 @@ export interface DiscountApplicationRepository {
 }
 
 const projection = `a.id,a.owner_user_id AS "ownerUserId",a.insurance_contract_id AS "insuranceContractId",
-  a.special_contract_id AS "specialContractId",a.evaluation_scope_id AS "evaluationScopeId",
+  a.special_contract_id AS "specialContractId",c.insurer_id AS "insurerId",
+  a.evaluation_scope_id AS "evaluationScopeId",es.evaluation_period_id AS "evaluationPeriodId",
   a.rule_version_id AS "ruleVersionId",a.state_commitment AS "stateCommitment",a.state_version AS "stateVersion",
   a.rule_hash AS "ruleHash",a.evaluation_operation_id AS "evaluationOperationId",
   a.result_commitment AS "resultCommitment",a.nullifier,a.verification_status AS "verificationStatus",
@@ -51,7 +52,9 @@ const normalize = (raw: Record<string, unknown>): DiscountApplicationRow => ({
   id: raw.id as string, ownerUserId: (raw.ownerUserId ?? raw.owner_user_id) as string,
   insuranceContractId: (raw.insuranceContractId ?? raw.insurance_contract_id) as string,
   specialContractId: (raw.specialContractId ?? raw.special_contract_id) as string,
+  insurerId: (raw.insurerId ?? raw.insurer_id) as string | undefined,
   evaluationScopeId: (raw.evaluationScopeId ?? raw.evaluation_scope_id) as string,
+  evaluationPeriodId: (raw.evaluationPeriodId ?? raw.evaluation_period_id) as string | undefined,
   ruleVersionId: (raw.ruleVersionId ?? raw.rule_version_id) as string,
   stateCommitment: (raw.stateCommitment ?? raw.state_commitment) as string,
   stateVersion: String(raw.stateVersion ?? raw.state_version), ruleHash: (raw.ruleHash ?? raw.rule_hash) as string,
@@ -84,6 +87,8 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
     network: string, adapterProfile: string): Promise<{ row: DiscountApplicationRow; created: boolean } | undefined> {
     const result = await this.pool.query<DiscountApplicationRow & { created: boolean }>(`WITH target AS (
       SELECT es.id AS evaluation_scope_id,es.owner_user_id,es.insurance_contract_id,es.special_contract_id,
+        c.insurer_id,es.evaluation_period_id,es.evaluation_starts_on::text AS evaluation_starts_on,
+        es.evaluation_ends_on::text AS evaluation_ends_on,
         d.current_rule_version_id AS rule_version_id,cs.state_commitment,cs.version AS state_version,
         rr.rule_hash,r.id AS rule_id,rv.version AS rule_version,cs.confirmed_state,cs.registered_rule,
         (cs.confirmed_state #>> '{state,score}')::integer AS score,
@@ -114,6 +119,8 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
       ON CONFLICT(evaluation_scope_id,state_commitment) DO UPDATE SET state_commitment=EXCLUDED.state_commitment
       RETURNING *,evaluation_operation_id=$4 AS created
     ) SELECT i.*,t.confirmed_state AS "confirmedState",t.registered_rule AS "registeredRule",
+        t.insurer_id AS "insurerId",t.evaluation_period_id AS "evaluationPeriodId",
+        t.evaluation_starts_on AS "evaluationStartsOn",t.evaluation_ends_on AS "evaluationEndsOn",
         t.rule_id AS "ruleId",t.rule_version AS "ruleVersion",i.created
       FROM inserted i JOIN target t ON t.evaluation_scope_id=i.evaluation_scope_id`,
     [ownerUserId, contractId, specialContractId, operationId, network, adapterProfile]);
@@ -139,10 +146,12 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
     return (await this.pool.query<DiscountApplicationRow>(sql, values)).rows;
   }
   public listOwned(ownerUserId: string): Promise<DiscountApplicationRow[]> { return this.rows(
-    `SELECT ${projection} FROM public.discount_applications a JOIN public.special_contracts sc ON sc.id=a.special_contract_id
+    `SELECT ${projection} FROM public.discount_applications a JOIN public.insurance_contracts c ON c.id=a.insurance_contract_id
+     JOIN public.special_contracts sc ON sc.id=a.special_contract_id
      JOIN public.evaluation_scopes es ON es.id=a.evaluation_scope_id WHERE a.owner_user_id=$1 ORDER BY a.submitted_at DESC`, [ownerUserId]); }
   public async findOwned(id: string, ownerUserId: string): Promise<DiscountApplicationRow | undefined> { return (await this.rows(
-    `SELECT ${projection} FROM public.discount_applications a JOIN public.special_contracts sc ON sc.id=a.special_contract_id
+    `SELECT ${projection} FROM public.discount_applications a JOIN public.insurance_contracts c ON c.id=a.insurance_contract_id
+     JOIN public.special_contracts sc ON sc.id=a.special_contract_id
      JOIN public.evaluation_scopes es ON es.id=a.evaluation_scope_id WHERE a.id=$1 AND a.owner_user_id=$2`, [id, ownerUserId]))[0]; }
   public listForInsurer(userId: string): Promise<DiscountApplicationRow[]> { return this.rows(
     `SELECT ${projection} FROM public.discount_applications a JOIN public.insurance_contracts c ON c.id=a.insurance_contract_id
@@ -173,9 +182,12 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
       FOR UPDATE SKIP LOCKED LIMIT $2
     ) UPDATE public.discount_applications a SET recovery_claim_token=$3,
       recovery_claim_expires_at=clock_timestamp()+interval '5 minutes',last_status_check_at=clock_timestamp()
-      FROM due,public.rule_versions rv,public.rules r
+      FROM due,public.rule_versions rv,public.rules r,public.insurance_contracts c,public.evaluation_scopes es
       WHERE a.id=due.id AND rv.id=a.rule_version_id AND r.id=rv.rule_id
-      RETURNING a.*,r.id AS "ruleId",rv.version AS "ruleVersion"`, [now, limit, claimToken]);
+        AND c.id=a.insurance_contract_id AND es.id=a.evaluation_scope_id
+      RETURNING a.*,c.insurer_id AS "insurerId",es.evaluation_period_id AS "evaluationPeriodId",
+        es.evaluation_starts_on::text AS "evaluationStartsOn",es.evaluation_ends_on::text AS "evaluationEndsOn",
+        r.id AS "ruleId",rv.version AS "ruleVersion"`, [now, limit, claimToken]);
     // DB row lock과 조건부 claim을 한 문장에 묶어 여러 인스턴스가 같은 신청을 동시에 복구하지 못하게 한다.
     return result.rows.map((raw: Record<string, unknown>) => ({ row: normalize(raw), claimToken }));
   }

@@ -12,6 +12,8 @@ describe("PgDiscountApplicationRepository security predicates", () => {
     expect(sql).toContain("special_contract_selections");
     expect(sql).toContain("d.current_rule_version_id");
     expect(sql).toContain("cs.version>0");
+    expect(sql).toContain("c.insurer_id");
+    expect(sql).toContain("es.evaluation_period_id");
     expect(sql).toContain("ON CONFLICT(evaluation_scope_id,state_commitment) DO UPDATE");
   });
   it("scopes insurer reads and decisions through membership and the contract insurer", async () => {
@@ -42,6 +44,8 @@ describe("PgDiscountApplicationRepository security predicates", () => {
     expect(sql).toContain("review_status='PENDING_REVIEW'");
     expect(sql).toContain("FOR UPDATE SKIP LOCKED");
     expect(sql).toContain("recovery_claim_expires_at<=clock_timestamp()");
+    expect(sql).toContain("c.insurer_id AS \"insurerId\"");
+    expect(sql).toContain("es.evaluation_period_id AS \"evaluationPeriodId\"");
     expect(sql).not.toContain("confirmed_state");
   });
   it("releases only the live claim while the application is still pending", async () => {

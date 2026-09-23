@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FinalEvaluationResult } from "@drivacy/shared";
+import { DiscountApplicationService } from "../src/final-evaluation/discount-application-service.js";
 import { FINAL_EVALUATION_STATUS_CHECK_MS, FinalEvaluationRecoveryService } from "../src/final-evaluation/final-evaluation-recovery.js";
 import type { DiscountApplicationRow } from "../src/final-evaluation/discount-application-repository.js";
 
 const now = new Date("2026-09-23T01:00:00Z");
 const application: DiscountApplicationRow = { id: "application", ownerUserId: "driver", insuranceContractId: "contract",
-  specialContractId: "special", evaluationScopeId: "scope", ruleVersionId: "rule-version", stateCommitment: "state",
+  specialContractId: "special", insurerId: "insurer", evaluationScopeId: "scope", evaluationPeriodId: "period",
+  ruleVersionId: "rule-version", stateCommitment: "state",
   stateVersion: "2", ruleHash: "rule-hash", evaluationOperationId: "operation", resultCommitment: null, nullifier: null,
   verificationStatus: "PENDING", reviewStatus: "PENDING_REVIEW", score: 87, distanceM: "550000", conditionsMet: true,
   expectedDiscountBps: 1000, appliedDiscountBps: null, network: "local", adapterProfile: "profile",
@@ -68,6 +70,24 @@ describe("FinalEvaluationRecoveryService", () => {
       expect(x.repository.scheduleStatusCheck).toHaveBeenCalledWith("application", "claim",
         new Date(now.getTime() + FINAL_EVALUATION_STATUS_CHECK_MS), expect.any(String));
     });
+
+  it("keeps a verified response with another insurer scope pending in worker recovery", async () => {
+    const result = { contractVersion: "bc-v1", execution: "live", operationId: "operation", status: "verified",
+      scope: { applicantId: "driver", contractId: "contract", insurerId: "other-insurer", endorsementId: "special",
+        evaluationPeriod: { id: "period", startDate: "2026-09-01", endDate: "2026-09-30" } },
+      stateCommitment: "state", stateVersion: 2, rule: { id: "rule", version: 1, ruleHash: "rule-hash" },
+      resultCommitment: "result", nullifier: "nullifier", score: 87, distanceM: 550000, conditionsMet: true,
+      expectedDiscountBps: 1000, network: "local", adapterProfile: "profile", chainContractAddress: "contract-address",
+      transactionId: "transaction", blockId: "block", observedAt: now.toISOString() } as const;
+    const repository = { claimDue: vi.fn(async () => [{ row: application, claimToken: "claim" }]),
+      scheduleStatusCheck: vi.fn(async () => true), markVerified: vi.fn(), markFailed: vi.fn() };
+    const adapter = { startEvaluation: vi.fn(), getEvaluationStatus: vi.fn(async () => result) };
+    const applications = new DiscountApplicationService(repository as never, adapter, { network: "local", adapterProfile: "profile" });
+    await new FinalEvaluationRecoveryService(repository as never, applications, adapter, () => now).recoverDue(25);
+    expect(repository.markVerified).not.toHaveBeenCalled();
+    expect(repository.scheduleStatusCheck).toHaveBeenCalledWith("application", "claim",
+      new Date(now.getTime() + FINAL_EVALUATION_STATUS_CHECK_MS), "FINAL_EVALUATION_MISMATCH");
+  });
 
   it("allows only one claim result and never starts a new Final Evaluation", async () => {
     const x = setup(status("pending"));

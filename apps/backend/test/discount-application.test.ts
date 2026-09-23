@@ -20,13 +20,14 @@ const confirmed: ConfirmedState = { kind: "confirmed", state: { scope, rule: { i
     newStateCommitment: "state", ruleHash: "rule-hash", datasetRoot: "dataset", observedAt: "2026-09-22T00:00:00Z" } };
 
 const row = (operationId = "evaluation-op"): DiscountApplicationRow => ({ id: "application", ownerUserId: driver.id,
-  insuranceContractId: "contract", specialContractId: "special", evaluationScopeId: "scope", ruleVersionId: "rule-version",
+  insuranceContractId: "contract", specialContractId: "special", insurerId: "insurer",
+  evaluationScopeId: "scope", evaluationPeriodId: "period", ruleVersionId: "rule-version",
   stateCommitment: "state", stateVersion: "2", ruleHash: "rule-hash", evaluationOperationId: operationId,
   resultCommitment: null, nullifier: null, verificationStatus: "PENDING", reviewStatus: "PENDING_REVIEW",
   score: 87, distanceM: "550000", conditionsMet: true, expectedDiscountBps: 1000, appliedDiscountBps: null,
   network: "local", adapterProfile: "profile", chainContractAddress: "chain-contract", transactionId: null,
   submittedAt: "2026-09-23T00:00:00Z", verifiedAt: null, decidedAt: null, confirmedState: confirmed, registeredRule: rule,
-  ruleId: "rule", ruleVersion: "1" });
+  ruleId: "rule", ruleVersion: "1", evaluationStartsOn: "2026-09-01", evaluationEndsOn: "2026-09-30" });
 type VerifiedResult = Extract<FinalEvaluationResult, { status: "verified" }>;
 const verified = (operationId: string): VerifiedResult => ({ contractVersion: "bc-v1", execution: "live", operationId,
   status: "verified", scope, stateCommitment: "state", stateVersion: 2, rule: { id: "rule", version: 1, ruleHash: "rule-hash" },
@@ -51,6 +52,8 @@ class MemoryRepository implements DiscountApplicationRepository {
   async findForInsurer(id: string) { return this.current?.id === id ? this.current : undefined; }
   async decide(_id: string, _user: string, decision: "APPLIED" | "REJECTED") { if (this.current?.reviewStatus !== "PENDING_REVIEW") return undefined;
     this.current = { ...this.current, reviewStatus: decision, appliedDiscountBps: decision === "APPLIED" ? 1000 : null, decidedAt: new Date() }; return this.current; }
+  async claimDue() { return this.current ? [{ row: this.current, claimToken: "claim" }] : []; }
+  async scheduleStatusCheck() { return true; }
 }
 const setup = (repository = new MemoryRepository()) => {
   const adapter = { startEvaluation: vi.fn(), getEvaluationStatus: vi.fn() };
@@ -102,6 +105,13 @@ describe("DiscountApplicationService", () => {
     ["state", (r: VerifiedResult) => ({ ...r, stateCommitment: "other" })],
     ["rule", (r: VerifiedResult) => ({ ...r, rule: { ...r.rule, ruleHash: "other" } })],
     ["scope", (r: VerifiedResult) => ({ ...r, scope: { ...r.scope, contractId: "other" } })],
+    ["insurer", (r: VerifiedResult) => ({ ...r, scope: { ...r.scope, insurerId: "other" } })],
+    ["evaluation period id", (r: VerifiedResult) => ({ ...r, scope: { ...r.scope,
+      evaluationPeriod: { ...r.scope.evaluationPeriod, id: "other" } } })],
+    ["evaluation period start", (r: VerifiedResult) => ({ ...r, scope: { ...r.scope,
+      evaluationPeriod: { ...r.scope.evaluationPeriod, startDate: "2026-09-02" } } })],
+    ["evaluation period end", (r: VerifiedResult) => ({ ...r, scope: { ...r.scope,
+      evaluationPeriod: { ...r.scope.evaluationPeriod, endDate: "2026-10-01" } } })],
   ])("rejects a %s binding mismatch", async (_name, mutate) => {
     const x = setup(); x.adapter.startEvaluation.mockImplementation(async request => mutate(verified(request.operationId)));
     await expect(x.service.create(driver, "contract", "special")).rejects.toMatchObject({ code: "FINAL_EVALUATION_MISMATCH" });
