@@ -10,7 +10,7 @@ Backend는 DRIVER가 선택한 본인 계약·특약의 DB 최신 Confirmed Stat
 
 Final Evaluation의 `pending`·`proving`·wallet 승인 대기·`submitted`·`chain-unknown`은 보험사 심사 가능 상태가 아닙니다. operation·Scope·State·Rule·runtime·계약 주소와 결과 수치가 모두 신청 snapshot과 일치하는 `verified`만 검증 완료로 저장합니다. ZK 검증 상태와 보험사의 APPLIED/REJECTED 업무 결정은 분리되며, 결정은 해당 보험사 membership을 SQL에서 확인한 뒤 한 번만 기록됩니다. 보험사 응답에는 raw records, segment, 위치·경로, salt, owner secret, wallet key, witness를 포함하지 않습니다.
 
-`20260923090000_add_discount_applications.sql`은 저장소에만 추가했으며 Supabase 원격에는 아직 적용하지 않았습니다. Backend API와 fail-closed 외부 client 경계는 구현됐지만, 이 저장소에는 실제 external C/Wallet Final Evaluation 서비스와 가입자 Wallet 연결이 없어 live Midnight evaluation·실제 chain 검증은 완료로 주장하지 않습니다.
+`20260923090000_add_discount_applications.sql`은 Supabase 원격에 적용 완료됐습니다. Backend는 30초마다 최대 25개의 due PENDING 신청을 DB claim/lease로 선점하고 저장된 operationId 상태만 조회합니다. 진행 상태·통신 장애·binding 오류는 PENDING으로 유지해 다음 조회를 예약하고, verified 또는 명시적 terminal failed만 기존 공통 검증 로직으로 확정합니다. 이 자동 복구용 `20260923110000_add_final_evaluation_recovery_claim.sql`은 저장소에만 있으며 원격에는 아직 적용하지 않았습니다. 실제 external C/Wallet Final Evaluation 서비스와 가입자 Wallet 연결이 없어 live Midnight evaluation·실제 chain 검증은 완료로 주장하지 않습니다.
 
 ## Backend 운행 Processing 연결 상태 (2026-09-22)
 

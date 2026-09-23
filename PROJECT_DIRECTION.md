@@ -8,7 +8,8 @@
 - verification(PENDING/VERIFIED/FAILED)과 보험 업무 결정(PENDING_REVIEW/APPLIED/REJECTED)을 분리한다. proof 유효성은 할인 적용 승인이 아니며, 해당 insurer membership과 실제 계약 insurer가 일치하는 담당자만 검증 완료 신청을 한 번 결정할 수 있다.
 - 같은 Confirmed State와 같은 nullifier는 각각 DB UNIQUE로 중복을 차단한다. REJECTED 뒤에도 같은 State는 재신청할 수 없고, 새 운행이 DB에 확정되어 commitment가 바뀐 경우에만 새 신청이 가능하다.
 - 신청 테이블과 보험사 응답에는 raw 운행기록, segment, GPS·경로, exact 운행시각, dataset/state salt, owner secret, wallet key, witness를 저장·노출하지 않는다.
-- migration은 로컬 저장소에만 작성하며 원격 Supabase에는 이번 작업에서 적용하지 않는다. 실제 C/Wallet runtime, 가입자 Wallet Approval, live Midnight Final Evaluation은 후속 통합 범위다.
+- `20260923090000_add_discount_applications`는 Supabase 원격 적용 완료 상태다. Final Evaluation 자동 복구 claim/lease를 추가하는 후속 migration은 저장소에만 작성하며 이번 작업에서 원격 적용하지 않는다. 실제 C/Wallet runtime, 가입자 Wallet Approval, live Midnight Final Evaluation은 후속 통합 범위다.
+- Backend worker는 30초마다 최대 25개 due PENDING 신청을 원자적으로 claim하고 기존 operationId 상태만 조회한다. 진행 상태와 통신·payload·binding 오류는 FAILED로 바꾸지 않고 다음 조회를 예약하며, verified/terminal failed만 공통 reconcile 로직으로 조건부 확정한다. worker는 보험사 review 상태를 변경하지 않는다.
 
 ## B 운행 Processing production 경계 — 2026-09-22 확정
 

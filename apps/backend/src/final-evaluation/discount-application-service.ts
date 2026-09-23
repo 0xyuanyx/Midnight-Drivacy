@@ -45,10 +45,10 @@ export class DiscountApplicationService {
     const result = reserved.created
       ? await this.adapter.startEvaluation(request)
       : await this.adapter.getEvaluationStatus(row.evaluationOperationId);
-    return view(await this.apply(row, result));
+    return view(await this.reconcileEvaluationStatus(row, result));
   }
 
-  private async apply(row: DiscountApplicationRow, input: FinalEvaluationResult): Promise<DiscountApplicationRow> {
+  public async reconcileEvaluationStatus(row: DiscountApplicationRow, input: FinalEvaluationResult): Promise<DiscountApplicationRow> {
     const result = FinalEvaluationResultSchema.parse(input);
     if (result.operationId !== row.evaluationOperationId) throw new AppError("FINAL_EVALUATION_MISMATCH", "Evaluation operation does not match", 502);
     if (result.status === "failed") return await this.repository.markFailed(row.id) ?? row;
@@ -63,6 +63,7 @@ export class DiscountApplicationService {
       && result.expectedDiscountBps === row.expectedDiscountBps;
     if (!matches) throw new AppError("FINAL_EVALUATION_MISMATCH", "Evaluation result does not match the confirmed application state", 502);
     try {
+      // API 재조회와 worker가 동시에 도착해도 PENDING 조건부 UPDATE 하나만 terminal 전이를 수행한다.
       const updated = await this.repository.markVerified(row.id, { resultCommitment: result.resultCommitment,
         nullifier: result.nullifier, transactionId: result.transactionId });
       return updated ?? row;

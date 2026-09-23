@@ -1,8 +1,10 @@
 # 첫 수직 기능 DB 기록
 
-## 최종 할인 신청 — 2026-09-23, 원격 미적용
+## 최종 할인 신청 — 2026-09-23, 원격 적용 완료
 
-`20260923090000_add_discount_applications.sql`은 최신 Confirmed State 기반 신청, 외부 Final Evaluation operation, result commitment/nullifier, 검증 상태와 보험사 결정을 분리 저장한다. Scope·State와 nullifier UNIQUE, 복합 Scope/계약/특약 FK, 결정 상태 CHECK, RLS와 `PUBLIC`·`anon`·`authenticated` 권한 회수를 포함한다. raw 운행정보와 salt/witness는 저장하지 않는다. 이 migration은 Supabase 원격에 아직 적용하지 않았으며 별도 적용이 필요하다.
+`20260923090000_add_discount_applications.sql`은 최신 Confirmed State 기반 신청, 외부 Final Evaluation operation, result commitment/nullifier, 검증 상태와 보험사 결정을 분리 저장한다. Scope·State와 nullifier UNIQUE, 복합 Scope/계약/특약 FK, 결정 상태 CHECK, RLS와 `PUBLIC`·`anon`·`authenticated` 권한 회수를 포함한다. raw 운행정보와 salt/witness는 저장하지 않는다. 이 migration은 Supabase 원격에 적용 완료됐다.
+
+`20260923110000_add_final_evaluation_recovery_claim.sql`은 PENDING Final Evaluation의 due 시각, 마지막 조회·오류, 5분 claim/lease를 추가한다. 기존 PENDING 행은 제출 시각을 첫 due 시각으로 사용하고, VERIFIED/FAILED 및 APPLIED/REJECTED는 부분 인덱스와 claim SQL에서 제외한다. 기존 RLS와 직접 권한 차단을 다시 확인한다. 이 recovery migration만 Supabase 원격 미적용이며 별도 적용이 필요하다.
 
 ## 운행 Processing runtime 연결 — 2026-09-22
 

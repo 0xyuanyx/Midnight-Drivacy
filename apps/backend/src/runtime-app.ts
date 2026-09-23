@@ -24,6 +24,7 @@ import { ChainJobRecoveryService, PgChainJobRecoveryRepository, type ChainRecove
 import { PgDiscountApplicationRepository } from "./final-evaluation/discount-application-repository.js";
 import { DiscountApplicationService } from "./final-evaluation/discount-application-service.js";
 import type { FinalEvaluationAdapter } from "./final-evaluation/final-evaluation-adapter.js";
+import { FinalEvaluationRecoveryService } from "./final-evaluation/final-evaluation-recovery.js";
 
 export type TripProcessingAdapter = TripRequestSource & ChainProcessingGateway & ChainRecoveryGateway;
 
@@ -46,6 +47,11 @@ export const createRuntime = (
   const finalizer = new ChainFinalizer(pool, tripProcessingAdapter, tripProcessingAdapter);
   const recovery = new ChainJobRecoveryService(new PgChainJobRecoveryRepository(pool), finalizer,
     tripProcessingAdapter, tripProcessingAdapter);
+  const discountApplications = new PgDiscountApplicationRepository(pool);
+  const discountApplicationService = new DiscountApplicationService(
+    discountApplications, finalEvaluationAdapter, runtime);
+  const finalEvaluationRecovery = new FinalEvaluationRecoveryService(
+    discountApplications, discountApplicationService, finalEvaluationAdapter);
   const app = createApp({
     authRepository,
     supabaseAuthVerifier: createSupabaseAuthVerifier(environment.supabaseUrl, environment.supabasePublishableKey),
@@ -66,10 +72,9 @@ export const createRuntime = (
     // source 저장과 Job 생성 뒤에만 외부 C 처리를 시작해 응답 유실 시 기존 operationId로 복구할 수 있게 한다.
     chainProcessingService: new ChainProcessingService(new PgChainProcessingRepository(pool), finalizer,
       tripProcessingAdapter, tripProcessingAdapter, recovery, runtime),
-    discountApplicationService: new DiscountApplicationService(
-      new PgDiscountApplicationRepository(pool), finalEvaluationAdapter, runtime),
+    discountApplicationService,
   });
-  return { app, recovery };
+  return { app, recovery, finalEvaluationRecovery };
 };
 
 export const createRuntimeApp = (environment: Environment, pool: Pool,

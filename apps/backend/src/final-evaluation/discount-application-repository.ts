@@ -19,6 +19,8 @@ export interface VerifiedEvaluation {
   resultCommitment: string; nullifier: string; transactionId: string;
 }
 
+export interface ClaimedEvaluationApplication { row: DiscountApplicationRow; claimToken: string }
+
 export interface DiscountApplicationRepository {
   reserve(ownerUserId: string, contractId: string, specialContractId: string, operationId: string,
     network: string, adapterProfile: string): Promise<{ row: DiscountApplicationRow; created: boolean } | undefined>;
@@ -29,6 +31,8 @@ export interface DiscountApplicationRepository {
   listForInsurer(userId: string): Promise<DiscountApplicationRow[]>;
   findForInsurer(id: string, userId: string): Promise<DiscountApplicationRow | undefined>;
   decide(id: string, userId: string, decision: "APPLIED" | "REJECTED"): Promise<DiscountApplicationRow | undefined>;
+  claimDue(now: Date, limit: number, claimToken: string): Promise<ClaimedEvaluationApplication[]>;
+  scheduleStatusCheck(id: string, claimToken: string, at: Date, errorCode?: string): Promise<boolean>;
 }
 
 const projection = `a.id,a.owner_user_id AS "ownerUserId",a.insurance_contract_id AS "insuranceContractId",
@@ -119,13 +123,16 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
 
   public async markVerified(id: string, value: VerifiedEvaluation): Promise<DiscountApplicationRow | undefined> {
     const result = await this.pool.query<DiscountApplicationRow>(`UPDATE public.discount_applications SET
-      verification_status='VERIFIED',result_commitment=$2,nullifier=$3,transaction_id=$4,verified_at=clock_timestamp()
+      verification_status='VERIFIED',result_commitment=$2,nullifier=$3,transaction_id=$4,verified_at=clock_timestamp(),
+      recovery_claim_token=NULL,recovery_claim_expires_at=NULL,next_status_check_at=NULL,last_recovery_error_code=NULL
       WHERE id=$1 AND verification_status='PENDING' RETURNING *`, [id, value.resultCommitment, value.nullifier, value.transactionId]);
     return result.rows[0] ? normalize(result.rows[0] as unknown as Record<string, unknown>) : undefined;
   }
   public async markFailed(id: string): Promise<DiscountApplicationRow | undefined> {
     const result = await this.pool.query<DiscountApplicationRow>(`UPDATE public.discount_applications SET
-      verification_status='FAILED',verified_at=clock_timestamp() WHERE id=$1 AND verification_status='PENDING' RETURNING *`, [id]);
+      verification_status='FAILED',verified_at=clock_timestamp(),recovery_claim_token=NULL,recovery_claim_expires_at=NULL,
+      next_status_check_at=NULL,last_recovery_error_code=NULL
+      WHERE id=$1 AND verification_status='PENDING' RETURNING *`, [id]);
     return result.rows[0] ? normalize(result.rows[0] as unknown as Record<string, unknown>) : undefined;
   }
   private async rows(sql: string, values: unknown[]): Promise<DiscountApplicationRow[]> {
@@ -154,5 +161,31 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
       WHERE a.id=$1 AND c.id=a.insurance_contract_id AND m.insurer_id=c.insurer_id AND m.user_id=$2
         AND a.verification_status='VERIFIED' AND a.review_status='PENDING_REVIEW' RETURNING a.*`, [id, userId, decision]);
     return result.rows[0] ? normalize(result.rows[0] as unknown as Record<string, unknown>) : undefined;
+  }
+
+  public async claimDue(now: Date, limit: number, claimToken: string): Promise<ClaimedEvaluationApplication[]> {
+    const result = await this.pool.query(`WITH due AS (
+      SELECT id FROM public.discount_applications
+      WHERE verification_status='PENDING' AND review_status='PENDING_REVIEW'
+        AND evaluation_operation_id IS NOT NULL AND COALESCE(next_status_check_at,submitted_at)<=$1
+        AND (recovery_claim_expires_at IS NULL OR recovery_claim_expires_at<=clock_timestamp())
+      ORDER BY COALESCE(next_status_check_at,submitted_at) ASC
+      FOR UPDATE SKIP LOCKED LIMIT $2
+    ) UPDATE public.discount_applications a SET recovery_claim_token=$3,
+      recovery_claim_expires_at=clock_timestamp()+interval '5 minutes',last_status_check_at=clock_timestamp()
+      FROM due,public.rule_versions rv,public.rules r
+      WHERE a.id=due.id AND rv.id=a.rule_version_id AND r.id=rv.rule_id
+      RETURNING a.*,r.id AS "ruleId",rv.version AS "ruleVersion"`, [now, limit, claimToken]);
+    // DB row lock과 조건부 claim을 한 문장에 묶어 여러 인스턴스가 같은 신청을 동시에 복구하지 못하게 한다.
+    return result.rows.map((raw: Record<string, unknown>) => ({ row: normalize(raw), claimToken }));
+  }
+
+  public async scheduleStatusCheck(id: string, claimToken: string, at: Date, errorCode?: string): Promise<boolean> {
+    const result = await this.pool.query(`UPDATE public.discount_applications SET next_status_check_at=$3,
+      last_recovery_error_code=$4,recovery_claim_token=NULL,recovery_claim_expires_at=NULL
+      WHERE id=$1 AND verification_status='PENDING' AND review_status='PENDING_REVIEW'
+        AND recovery_claim_token=$2 AND recovery_claim_expires_at>clock_timestamp()`,
+    [id, claimToken, at, errorCode ?? null]);
+    return result.rowCount === 1;
   }
 }

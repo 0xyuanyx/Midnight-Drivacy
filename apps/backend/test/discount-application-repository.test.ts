@@ -33,4 +33,36 @@ describe("PgDiscountApplicationRepository security predicates", () => {
       expect(String(sql)).not.toContain("driving_segments");
     }
   });
+  it("claims only due pending review rows with SKIP LOCKED and an expiring lease", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const repository = new PgDiscountApplicationRepository({ query } as unknown as Pool);
+    await repository.claimDue(new Date(), 25, "11111111-1111-4111-8111-111111111111");
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("verification_status='PENDING'");
+    expect(sql).toContain("review_status='PENDING_REVIEW'");
+    expect(sql).toContain("FOR UPDATE SKIP LOCKED");
+    expect(sql).toContain("recovery_claim_expires_at<=clock_timestamp()");
+    expect(sql).not.toContain("confirmed_state");
+  });
+  it("releases only the live claim while the application is still pending", async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
+    const repository = new PgDiscountApplicationRepository({ query } as unknown as Pool);
+    await repository.scheduleStatusCheck("application", "claim", new Date(), "STATUS_UNKNOWN");
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("verification_status='PENDING'");
+    expect(sql).toContain("recovery_claim_token=$2");
+    expect(sql).toContain("recovery_claim_expires_at>clock_timestamp()");
+  });
+  it("makes terminal verification transitions conditional and clears recovery scheduling", async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const repository = new PgDiscountApplicationRepository({ query } as unknown as Pool);
+    await repository.markVerified("application", { resultCommitment: "result", nullifier: "nullifier", transactionId: "transaction" });
+    await repository.markFailed("application");
+    for (const [sql] of query.mock.calls) {
+      expect(String(sql)).toContain("verification_status='PENDING'");
+      expect(String(sql)).toContain("recovery_claim_token=NULL");
+      expect(String(sql)).toContain("next_status_check_at=NULL");
+      expect(String(sql)).not.toContain("review_status=");
+    }
+  });
 });
