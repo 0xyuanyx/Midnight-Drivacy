@@ -50,23 +50,23 @@ describe("Driving flow", () => {
   it("authorizes a simulated drive before entering the focused session", async () => {
     const { getByRole, rerender, getByText, queryByRole } = await render(<Drive />);
 
-    expect(getByRole("button", { name: "모의 주행 시작" })).toBeTruthy();
-    await fireEvent.press(getByRole("button", { name: "모의 주행 시작" }));
+    expect(getByRole("button", { name: "주행 체험 시작" })).toBeTruthy();
+    await fireEvent.press(getByRole("button", { name: "주행 체험 시작" }));
     expect(dispatch).toHaveBeenCalledWith({ type: "START_TRIP" });
     expect(push).toHaveBeenCalledWith("/drive-session");
 
     mockUseAppState.mockReturnValue({ state: stateForTrips(2), dispatch, isHydrated: true });
     await rerender(<Drive />);
-    expect(queryByRole("button", { name: "모의 주행 시작" })).toBeNull();
-    expect(getByText("두 번의 데모 주행이 완료되었습니다.")).toBeTruthy();
+    expect(queryByRole("button", { name: "주행 체험 시작" })).toBeNull();
+    expect(getByText("두 번의 주행 체험을 마쳤습니다.")).toBeTruthy();
   });
 
   it("offers an active trip resume action instead of claiming all trips are complete", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
     const { getByRole, queryByText } = await render(<Drive />);
 
-    expect(queryByText("두 번의 데모 주행이 완료되었습니다.")).toBeNull();
-    await fireEvent.press(getByRole("button", { name: "모의 주행으로 돌아가기" }));
+    expect(queryByText("두 번의 주행 체험을 마쳤습니다.")).toBeNull();
+    await fireEvent.press(getByRole("button", { name: "주행 체험으로 돌아가기" }));
 
     expect(dispatch).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/drive-session");
@@ -76,7 +76,7 @@ describe("Driving flow", () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
     const { getByRole, getByText } = await render(<DriveSession />);
 
-    expect(getByText("모의 주행 중")).toBeTruthy();
+    expect(getByText("주행 체험 중")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "주행 종료" }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: "FINISH_TRIP" });
@@ -88,7 +88,7 @@ describe("Driving flow", () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0, "processing"), dispatch, isHydrated: true });
     const { getByText, rerender } = await render(<DriveProcessing />);
 
-    expect(getByText("데모 계산을 준비하고 있어요")).toBeTruthy();
+    expect(getByText("주행 결과를 계산하고 있어요")).toBeTruthy();
     expect(getByText(/실제 Midnight 증명/)).toBeTruthy();
     expect(dispatch).not.toHaveBeenCalled();
 

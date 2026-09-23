@@ -15,12 +15,12 @@ export default function Drive() {
   const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
   const progress = Math.min(state.totals.distanceKm / 550, 1);
   const footer = state.driveStage === "active" ? (
-    <PrimaryButton title="모의 주행으로 돌아가기" onPress={() => router.push("/drive-session")} />
+    <PrimaryButton title="주행 체험으로 돌아가기" onPress={() => router.push("/drive-session")} />
   ) : state.driveStage === "result" ? (
     <PrimaryButton title="주행 결과 보기" onPress={() => router.push("/drive-result")} />
   ) : canStart ? (
     <PrimaryButton
-      title="모의 주행 시작"
+      title="주행 체험 시작"
       onPress={() => {
         dispatch({ type: "START_TRIP" });
         router.push("/drive-session");
@@ -32,7 +32,7 @@ export default function Drive() {
     </View>
   ) : (
     <View style={styles.completeCard}>
-      <Text style={styles.completeTitle}>두 번의 데모 주행이 완료되었습니다.</Text>
+      <Text style={styles.completeTitle}>두 번의 주행 체험을 마쳤습니다.</Text>
       <Text style={styles.completeText}>서류 탭에서 할인 신청 결과를 확인해 주세요.</Text>
     </View>
   );

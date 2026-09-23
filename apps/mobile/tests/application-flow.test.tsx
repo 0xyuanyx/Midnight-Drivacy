@@ -74,10 +74,10 @@ describe("Discount application flow", () => {
 
     const { getByRole } = await render(<Application />);
 
-    await fireEvent.press(getByRole("button", { name: "증명 제출 승인" }));
+    await fireEvent.press(getByRole("button", { name: "신청 내용 검토" }));
 
-    expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
-    expect(push).toHaveBeenCalledWith("/application-submitted");
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/application-review");
   });
 
   it("shows the insurer, rider, evaluation result, and excluded raw driving details in review", async () => {
@@ -116,7 +116,7 @@ describe("Discount application flow", () => {
     await fireEvent.press(getByRole("button", { name: "뒤로" }));
     expect(back).toHaveBeenCalledTimes(1);
 
-    await fireEvent.press(getByRole("button", { name: "증명 제출 승인" }));
+    await fireEvent.press(getByRole("button", { name: "할인 신청 제출" }));
     expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
     expect(replace).toHaveBeenCalledWith("/application-submitted");
   });
@@ -133,9 +133,9 @@ describe("Discount application flow", () => {
     expect(getByText("보험사가 결과를 검토하고 있어요.")).toBeTruthy();
     expect(getByText("신청 번호")).toBeTruthy();
     expect(getByText("DR-DEMO-001")).toBeTruthy();
-    expect(getByText(/실제 보험사 제출·심사가 아니라/)).toBeTruthy();
+    expect(getByText(/증명·체인 검증 정보는 아직 연결되지 않았습니다./)).toBeTruthy();
 
-    await fireEvent.press(getByRole("button", { name: "데모 결과 반영" }));
+    await fireEvent.press(getByRole("button", { name: "결과 확인" }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: "APPROVE_APPLICATION" });
     expect(replace).toHaveBeenCalledWith("/application-result");
@@ -172,11 +172,11 @@ describe("Discount application flow", () => {
 
     const { getByText, getByRole } = await render(<ApplicationResult />);
 
-    expect(getByText("보험료 할인이 적용되었어요")).toBeTruthy();
+    expect(getByText("할인 적용 결정이 완료되었어요")).toBeTruthy();
     expect(getByText("10%")).toBeTruthy();
     expect(getByText("개인용 자동차보험")).toBeTruthy();
     expect(getByText("안전운전 할인 특약")).toBeTruthy();
-    expect(getByText(/실제 보험사 결정·제출/)).toBeTruthy();
+    expect(getByText(/보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다./)).toBeTruthy();
 
     await fireEvent.press(getByRole("button", { name: "홈으로 돌아가기" }));
 

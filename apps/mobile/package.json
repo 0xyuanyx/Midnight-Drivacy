@@ -45,7 +45,8 @@
     "lint": "expo lint",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "export": "expo export --platform all"
+    "export": "expo export --platform all",
+    "export:web": "expo export --platform web"
   },
   "private": true,
   "jest": {

@@ -41,7 +41,7 @@ export default function DriveResult() {
       )}
       testID="drive-result-screen"
     >
-      <ScreenHeader title="모의 주행" onBack={returnHome} />
+      <ScreenHeader title="주행 체험" onBack={returnHome} />
       <PageEyebrow position="withBack">주행 처리 완료</PageEyebrow>
       <Text style={styles.title}>이번 주행 결과</Text>
       <View style={styles.resultHero}>
@@ -58,11 +58,11 @@ export default function DriveResult() {
         <View style={styles.row}><Text style={styles.label}>처리 상태</Text><Text style={styles.successValue}>로컬 계산 완료</Text></View>
       </View>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>모의 주행을 반영했어요</Text>
-        <Text style={styles.cardText}>결정된 데모 기록으로 거리와 점수를 업데이트했어요.</Text>
+        <Text style={styles.cardTitle}>주행 체험을 반영했어요</Text>
+        <Text style={styles.cardText}>주행 결과를 반영해 거리와 점수를 업데이트했어요.</Text>
       </View>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>데모 처리 범위</Text>
+        <Text style={styles.cardTitle}>처리 정보</Text>
         <Text style={styles.cardText}>실제 위치 수집, Midnight 증명, 체인 확인이나 보험사 제출은 수행하지 않았어요.</Text>
       </View>
 

@@ -1,4 +1,5 @@
-export type Workflow = "dashboard" | "evaluations";
+export type Workflow = "dashboard" | "evaluations" | "riders" | "history" | "connections";
+export type RequestWorkflow = Extract<Workflow, "dashboard" | "evaluations">;
 export type DetailTab = "info" | "proof" | "history";
 
 export interface LocationState {
@@ -11,7 +12,8 @@ export interface LocationState {
 
 export function readLocation(): LocationState {
   const params = new URLSearchParams(window.location.search);
-  const workflow: Workflow = window.location.pathname.startsWith("/evaluations") ? "evaluations" : "dashboard";
+  const path = window.location.pathname.slice(1);
+  const workflow: Workflow = path === "evaluations" || path === "riders" || path === "history" || path === "connections" ? path : "dashboard";
   const rawTab = params.get("tab");
   const rawFilter = params.get("status");
   const filter = rawFilter === "pending" || rawFilter === "review" || rawFilter === "completed" ? rawFilter : "all";

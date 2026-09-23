@@ -1,4 +1,5 @@
 import { typography } from "@/theme/typography";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -7,12 +8,20 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
+import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationResult() {
   const router = useRouter();
   const { state, dispatch } = useAppState();
+  const [decidedAt, setDecidedAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!linkedDemoEnabled || state.applicationStage !== "approved") return;
+    let active = true;
+    void getLinkedDemoApplication().then((application) => { if (active) setDecidedAt(application?.decidedAt ?? null); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [state.applicationStage]);
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (state.applicationStage !== "approved") {
@@ -34,6 +43,7 @@ export default function ApplicationResult() {
         fixedFooter={(
           <View style={{ gap: 0 }}>
             <PrimaryButton title="초기화하기" variant="ghost" onPress={() => {
+              if (linkedDemoEnabled) void clearLinkedDemoApplication();
               dispatch({ type: "RESET_DEMO" });
               router.replace("/onboarding");
             }} />
@@ -42,22 +52,22 @@ export default function ApplicationResult() {
         )}
         testID="application-result-screen"
       >
-        <PageEyebrow>보험사 결정 완료</PageEyebrow>
-        <Text style={styles.title}>보험료 할인이 적용되었어요</Text>
-        <Text style={styles.description}>로컬 데모의 최종 결과를 확인하세요.</Text>
+        <PageEyebrow>할인 처리 결과</PageEyebrow>
+        <Text style={styles.title}>할인 적용 결정이 완료되었어요</Text>
+        <Text style={styles.description}>{linkedDemoEnabled ? "신청 처리 결과를 확인하세요." : "최종 결과를 확인하세요."}</Text>
         <View style={styles.resultHero}>
           <Text style={styles.resultValue}>{state.totals.expectedDiscountPercent}%</Text>
-          <Text style={styles.resultLabel}>안전 운전 할인 적용</Text>
+          <Text style={styles.resultLabel}>안전운전 할인 적용 결정</Text>
         </View>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>적용 완료</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>적용 결정</Text></View>
           <View style={styles.row}><Text style={styles.label}>대상</Text><Text style={styles.value}>{policy.productName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>결정일</Text><Text style={styles.value}>2026.09.22</Text></View>
+          <View style={styles.row}><Text style={styles.label}>결정일</Text><Text style={styles.value}>{decidedAt ? new Date(decidedAt).toLocaleDateString("ko-KR") : "확인 중"}</Text></View>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>보험사에는 필요한 정보만 보냈어요</Text>
-          <Text style={styles.cardText}>이 화면은 위치나 이동 경로를 포함하지 않는 로컬 데모 결과예요. 실제 보험사 결정·제출, Midnight 증명이나 체인 확인을 수행하지 않았습니다.</Text>
+          <Text style={styles.cardText}>{linkedDemoEnabled ? "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다." : "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다."}</Text>
         </View>
       </AppScreen>
       <BottomTabBar />

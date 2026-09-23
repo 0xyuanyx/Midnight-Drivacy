@@ -36,8 +36,8 @@ export default function DriveSession() {
       scrollTestID="drive-session-scroll"
       testID="drive-session-screen"
     >
-      <ScreenHeader title="모의 주행" />
-      <PageEyebrow position="withBack">모의 주행 중</PageEyebrow>
+      <ScreenHeader title="주행 체험" />
+      <PageEyebrow position="withBack">주행 체험 중</PageEyebrow>
       <Text style={styles.title}>기록을 수집하고 있어요</Text>
 
       <DrivingRing startedAt={state.tripStartedAt} />
@@ -46,7 +46,7 @@ export default function DriveSession() {
         <View style={styles.noticeLine} />
         <View style={styles.noticeCopy}>
           <Text style={styles.noticeTitle}>이 운행의 기록은 점수 계산에만 사용돼요.</Text>
-          <Text style={styles.noticeText}>실제 위치를 수집하지 않는 로컬 모의 주행이며, 보험사 제출도 수행하지 않아요.</Text>
+          <Text style={styles.noticeText}>주행 체험에서는 위치 정보를 수집하지 않습니다.</Text>
         </View>
       </View>
 
@@ -58,7 +58,7 @@ export default function DriveSession() {
         <View style={styles.uploadIcon}><Text style={styles.uploadIconText}>↑</Text></View>
         <View style={styles.uploadCopy}>
           <Text style={styles.cardTitle}>추가로 제출할 서류가 있나요?</Text>
-          <Text style={styles.cardHelper}>현재 데모에서는 파일을 전송하지 않아요.</Text>
+          <Text style={styles.cardHelper}>현재 파일 전송은 지원하지 않아요.</Text>
         </View>
       </View>
 

@@ -78,6 +78,14 @@ describe("appReducer", () => {
     expect(appReducer(afterFirstTrip, { type: "SUBMIT_APPLICATION" })).toBe(afterFirstTrip);
   });
 
+  it("does not reuse a local-only approval as a linked insurer decision", () => {
+    const ready = completeTrip(completeTrip());
+    const local = appReducer(appReducer(ready, { type: "SUBMIT_APPLICATION" }), { type: "APPROVE_APPLICATION" });
+    expect(normalizePersistedAppState(local, "linked").applicationStage).toBe("idle");
+    const linked = appReducer(ready, { type: "SUBMIT_APPLICATION", mode: "linked" });
+    expect(normalizePersistedAppState(linked, "linked").applicationStage).toBe("pending");
+  });
+
   it("moves an eligible application into the pending stage", () => {
     const eligibleState = completeTrip(completeTrip());
 
@@ -124,6 +132,9 @@ describe("appReducer", () => {
         expectedDiscountPercent: 10,
       },
       applicationStage: "pending",
+      applicationMode: "local",
+      tripStartedAt: undefined,
+      tripEndedAt: undefined,
     });
   });
 

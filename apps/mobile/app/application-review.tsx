@@ -1,4 +1,5 @@
 import { typography } from "@/theme/typography";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -8,12 +9,15 @@ import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { demoPolicies } from "@/fixtures/demo";
+import { linkedDemoEnabled, submitLinkedDemoApplication } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationReview() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (!state.totals.isEligible || state.applicationStage !== "idle") {
@@ -39,7 +43,18 @@ export default function ApplicationReview() {
       <AppScreen
         contentContainerStyle={styles.screen}
         fixedFooter={(
-          <PrimaryButton title="증명 제출 승인" onPress={() => { dispatch({ type: "SUBMIT_APPLICATION" }); router.replace("/application-submitted"); }} />
+          <PrimaryButton title="할인 신청 제출" onPress={async () => {
+            if (submitting) return;
+            if (linkedDemoEnabled) {
+              setSubmitting(true);
+              setSubmitError(null);
+              try { await submitLinkedDemoApplication(policy.id); }
+              catch { setSubmitError("신청 정보를 제출하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요."); setSubmitting(false); return; }
+              setSubmitting(false);
+            }
+            dispatch({ type: "SUBMIT_APPLICATION", ...(linkedDemoEnabled ? { mode: "linked" as const } : {}) });
+            router.replace("/application-submitted");
+          }} />
         )}
         testID="application-review-screen"
       >
@@ -56,6 +71,8 @@ export default function ApplicationReview() {
           <Text style={styles.line}>✓ 평가기간 및 누적 거리</Text>
         </View>
         <View style={styles.card}><Text style={styles.cardTitle}>제공하지 않는 원본</Text><Text style={styles.cardText}>정확한 위치·경로·구간별 속도·정확한 운행시각은 공유하지 않습니다.</Text></View>
+        {linkedDemoEnabled ? <Text style={styles.cardText}>제출 결과에는 위치·이동 경로가 포함되지 않습니다. 증명 검증 상태는 별도로 확인할 수 있습니다.</Text> : null}
+        {submitError ? <Text accessibilityRole="alert" style={styles.error}>{submitError}</Text> : null}
       </AppScreen>
       <BottomTabBar />
     </View>
@@ -72,4 +89,5 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
   cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
   line: { ...typography.caption, color: colors.textPrimary, marginTop: 3 },
+  error: { ...typography.caption, color: "#D95362", marginTop: 8 },
 });

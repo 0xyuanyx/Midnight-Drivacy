@@ -18,6 +18,7 @@ export interface AppState {
   tripEndedAt?: number;
   totals: DemoTotals;
   applicationStage: ApplicationStage;
+  applicationMode?: "local" | "linked";
 }
 
 export type AppAction =
@@ -27,10 +28,11 @@ export type AppAction =
   | { type: "FINISH_TRIP" }
   | { type: "COMPLETE_TRIP" }
   | { type: "DISMISS_TRIP_RESULT" }
-  | { type: "SUBMIT_APPLICATION" }
+  | { type: "SUBMIT_APPLICATION"; mode?: "local" | "linked" }
   | { type: "APPROVE_APPLICATION" }
+  | { type: "RESET_APPLICATION" }
   | { type: "RESET_DEMO" }
-  | { type: "HYDRATE"; persistedState: unknown };
+  | { type: "HYDRATE"; persistedState: unknown; mode?: "local" | "linked" };
 
 export const initialAppState: AppState = {
   hasConsented: false,
@@ -83,7 +85,7 @@ export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "se
 }
 
 /** Keeps storage migrations conservative by accepting only public AppState fields. */
-export function normalizePersistedAppState(persistedState: unknown): AppState {
+export function normalizePersistedAppState(persistedState: unknown, currentMode: "local" | "linked" = "local"): AppState {
   if (!isRecord(persistedState)) {
     return initialAppState;
   }
@@ -104,9 +106,10 @@ export function normalizePersistedAppState(persistedState: unknown): AppState {
     ? persistedState.tripsCompleted
     : initialAppState.tripsCompleted;
   const totals = totalsForTrips(tripsCompleted);
+  const applicationMode = persistedState.applicationMode === "linked" ? "linked" : "local";
   const applicationStage =
     tripsCompleted === 2 && totals.isEligible && isApplicationStage(persistedState.applicationStage)
-      ? persistedState.applicationStage
+      && applicationMode === currentMode ? persistedState.applicationStage
       : "idle";
   const driveStage = normalizedDriveStage(persistedState.driveStage, tripsCompleted);
 
@@ -122,6 +125,7 @@ export function normalizePersistedAppState(persistedState: unknown): AppState {
       ? persistedState.tripEndedAt : undefined,
     totals,
     applicationStage,
+    applicationMode,
   };
 }
 
@@ -162,7 +166,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return state.driveStage === "result" ? { ...state, driveStage: "idle" } : state;
     case "SUBMIT_APPLICATION":
       return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
-        ? { ...state, applicationStage: "pending" }
+        ? { ...state, applicationStage: "pending", applicationMode: action.mode ?? "local" }
         : state;
     case "APPROVE_APPLICATION":
       return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "pending"
@@ -170,8 +174,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         : state;
     case "RESET_DEMO":
       return initialAppState;
+    case "RESET_APPLICATION":
+      return state.applicationStage !== "idle" ? { ...state, applicationStage: "idle", applicationMode: undefined } : state;
     case "HYDRATE":
-      return normalizePersistedAppState(action.persistedState);
+      return normalizePersistedAppState(action.persistedState, action.mode);
     default:
       return state;
   }

@@ -68,8 +68,8 @@ describe("Home and bottom tabs", () => {
   });
 
   it.each([
-    [0, "첫 모의 주행 시작"],
-    [1, "두 번째 모의 주행 시작"],
+    [0, "첫 주행 체험 시작"],
+    [1, "두 번째 주행 체험 시작"],
     [2, "할인 신청하기"],
   ] as const)("shows the contextual action after %i completed trips", async (tripsCompleted, actionLabel) => {
     mockUseAppState.mockReturnValue({
@@ -88,14 +88,14 @@ describe("Home and bottom tabs", () => {
   it("opens the Driving overview before a first simulated drive starts", async () => {
     const { getByRole } = await render(<Home />);
 
-    await fireEvent.press(getByRole("button", { name: "첫 모의 주행 시작" }));
+    await fireEvent.press(getByRole("button", { name: "첫 주행 체험 시작" }));
 
     expect(push).toHaveBeenCalledWith("/drive");
   });
 
   it.each([
     ["pending", "신청 내역 확인하기", "신청 검토 중"],
-    ["approved", "할인 결과 확인하기", "할인 적용 완료"],
+    ["approved", "할인 결과 확인하기", "적용 결정 완료"],
   ] as const)("connects Home to Documents after application is %s", async (applicationStage, action, status) => {
     mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2), applicationStage }, dispatch, isHydrated: true });
     const view = await render(<Home />);
@@ -108,7 +108,7 @@ describe("Home and bottom tabs", () => {
   it("resumes an active trip from Home instead of starting another", async () => {
     mockUseAppState.mockReturnValue({ state: { ...stateForTrips(0), driveStage: "active" }, dispatch, isHydrated: true });
     const view = await render(<Home />);
-    await fireEvent.press(view.getByRole("button", { name: "모의 주행으로 돌아가기" }));
+    await fireEvent.press(view.getByRole("button", { name: "주행 체험으로 돌아가기" }));
     expect(push).toHaveBeenCalledWith("/drive-session");
     expect(dispatch).not.toHaveBeenCalled();
   });

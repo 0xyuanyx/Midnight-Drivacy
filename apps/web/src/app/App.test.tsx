@@ -5,6 +5,42 @@ import { applyDecision, createFixtureWorkspace } from "../domain/workspace";
 import { App } from "./App";
 
 describe("insurer workspace navigation", () => {
+  it("uploads a rider document, edits its text, then opens rule draft review", async () => {
+    window.history.replaceState(null, "", "/dashboard");
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("link", { name: "특약 관리" }));
+    expect(window.location.pathname).toBe("/riders");
+    await user.click(screen.getByRole("button", { name: "규칙 변경" }));
+    expect(screen.getByRole("tab", { name: "규칙 변경" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("특약 문서 업로드")).toBeInTheDocument();
+    const document = new File(["500km 이상"], "안전운전특약.txt", { type: "text/plain" });
+    Object.defineProperty(document, "text", { value: async () => "500km 이상" });
+    await user.upload(screen.getByLabelText("특약 문서 업로드"), document);
+    const content = await screen.findByLabelText("추출된 약관 내용");
+    expect(content).toHaveValue("500km 이상");
+    await user.clear(content);
+    await user.type(content, "550km 이상");
+    await user.click(screen.getByRole("button", { name: "규칙 초안으로 이동" }));
+    expect(screen.getByText(/자동 변환 서비스가 연결되면/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "문서 내용 다시 수정" }));
+    expect(screen.getByLabelText("추출된 약관 내용")).toHaveValue("550km 이상");
+  });
+
+  it("labels fixture proof history and opens the existing evaluation detail", async () => {
+    window.history.replaceState(null, "", "/history");
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "검증 이력", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("실제 ZK 검증", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("확인할 수 없음")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "평가 요청 상세로 이동" }));
+    expect(window.location.pathname).toBe("/evaluations");
+    expect(window.location.search).toContain("tab=proof");
+  });
+
   it("keeps the selected request and detail tab in the URL", async () => {
     window.history.replaceState(null, "", "/dashboard?request=REQ-240921-018&tab=proof");
     const user = userEvent.setup();
@@ -104,8 +140,8 @@ describe("insurer workspace navigation", () => {
   it("shows invalid proof details and disables approval for a review request", async () => {
     window.history.replaceState(null, "", "/dashboard?request=REQ-240920-097&tab=proof");
     render(<App />);
-    expect(await screen.findByText("Midnight 증명 검증 실패")).toBeInTheDocument();
-    expect(screen.queryByText("Midnight 증명 검증 완료")).not.toBeInTheDocument();
+    expect(await screen.findByText("검증 정보 없음")).toBeInTheDocument();
+    expect(screen.queryByText("증명 유효")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "특약 승인" })).toBeDisabled();
     expect(screen.getByText("검증 결과를 확인해 주세요")).toBeInTheDocument();
     expect(screen.queryByText("특약 요청을 승인할까요?")).not.toBeInTheDocument();

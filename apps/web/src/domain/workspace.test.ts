@@ -54,7 +54,7 @@ describe("insurer decision state", () => {
 
     expect(request?.history.map((entry) => entry.summary)).toEqual([
       "가입자가 평가 결과 제출",
-      "Midnight 증명 검증 완료",
+      "검증 정보 확인 전",
       "할인 판단 대기 상태로 전환",
       "특약 요청을 승인했습니다.",
     ]);

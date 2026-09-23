@@ -20,7 +20,7 @@ function Card({ children, selected = false, title }: { children: React.ReactNode
 
 export default function Application() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
+  const { state } = useAppState();
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (!state.totals.isEligible) {
@@ -32,7 +32,7 @@ export default function Application() {
       >
         <PageEyebrow>안전운전 결과 제출</PageEyebrow>
         <Text style={styles.title}>아직 할인 신청 조건을{`\n`}충족하지 않았어요.</Text>
-        <Text style={styles.description}>두 번의 모의 주행을 완료하면 결과를 확인할 수 있어요.</Text>
+        <Text style={styles.description}>두 번의 주행 체험을 완료하면 결과를 확인할 수 있어요.</Text>
         <Card title="현재 진행도">
           <Text style={styles.largeValue}>{state.totals.distanceKm} / 550 km</Text>
           <Text style={styles.cardText}>누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.</Text>
@@ -50,7 +50,7 @@ export default function Application() {
       >
         <PageEyebrow>신청 완료</PageEyebrow>
         <Text style={styles.title}>보험사가 결과를 검토하고 있어요.</Text>
-        <Text style={styles.description}>표시된 신청 정보는 로컬 데모 상태예요.</Text>
+        <Text style={styles.description}>신청 정보와 처리 상태를 확인하세요.</Text>
         <Card title="신청 상태"><Text style={styles.statusBadge}>검토 중</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
         <Card title="제출한 결과"><Text style={styles.cardText}>최종 점수 {state.totals.score}점 · 조건 충족{`\n`}평가 기간 최근 90일</Text></Card>
         <Card title="신청 내역"><Text style={styles.cardText}>신청 번호 DR-DEMO-001{`\n`}제출 시각 2026.09.22 10:00</Text></Card>
@@ -65,12 +65,12 @@ export default function Application() {
         fixedFooter={<PrimaryButton title="결과 자세히 보기" onPress={() => router.push("/application-result")} />}
         testID="application-approved-screen"
       >
-        <PageEyebrow>보험사 결정 완료</PageEyebrow>
-        <Text style={styles.title}>보험료 할인이 적용되었어요</Text>
-        <Text style={styles.description}>로컬 데모의 최종 결과를 확인하세요.</Text>
-        <View style={styles.resultHero}><Text style={styles.resultValue}>{state.totals.expectedDiscountPercent}%</Text><Text style={styles.resultLabel}>안전 운전 할인 적용</Text></View>
-        <Card title="처리 상태"><Text style={styles.statusBadge}>적용 완료</Text><Text style={styles.cardText}>{policy.productName}{`\n`}{policy.riderName}</Text></Card>
-        <Card title="데모 안내"><Text style={styles.cardText}>실제 보험사 결정이나 Midnight 증명·체인 확인 결과가 아닙니다.</Text></Card>
+        <PageEyebrow>할인 처리 결과</PageEyebrow>
+        <Text style={styles.title}>할인 적용 결정이 완료되었어요</Text>
+        <Text style={styles.description}>최종 결과를 확인하세요.</Text>
+        <View style={styles.resultHero}><Text style={styles.resultValue}>{state.totals.expectedDiscountPercent}%</Text><Text style={styles.resultLabel}>안전운전 할인 적용 결정</Text></View>
+        <Card title="처리 상태"><Text style={styles.statusBadge}>적용 결정</Text><Text style={styles.cardText}>{policy.productName}{`\n`}{policy.riderName}</Text></Card>
+        <Card title="검증 안내"><Text style={styles.cardText}>증명·체인 검증 정보는 아직 연결되지 않았습니다.</Text></Card>
       </AppScreen>
     );
   }
@@ -80,10 +80,9 @@ export default function Application() {
       contentContainerStyle={styles.screen}
       fixedFooter={(
         <PrimaryButton
-          title="증명 제출 승인"
+          title="신청 내용 검토"
           onPress={() => {
-            dispatch({ type: "SUBMIT_APPLICATION" });
-            router.push("/application-submitted");
+            router.push("/application-review");
           }}
         />
       )}
@@ -101,7 +100,7 @@ export default function Application() {
         <Text style={styles.checkLine}>✓ 평가기간 및 누적 거리</Text>
       </Card>
       <Card title="제공하지 않는 원본"><Text style={styles.cardText}>정확한 위치 · 이동경로 · 운행시각 · 구간별 속도</Text></Card>
-      <Text style={styles.demoNote}>버튼은 로컬 상태만 변경하며 실제 제출·증명 처리는 수행하지 않습니다.</Text>
+      <Text style={styles.demoNote}>증명 검증 정보는 제출 후 별도로 확인할 수 있습니다.</Text>
     </AppScreen>
   );
 }

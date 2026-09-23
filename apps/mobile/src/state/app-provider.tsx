@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { linkedDemoEnabled } from "@/api/linked-demo";
 import { createContext, useContext, useEffect, useMemo, useReducer, useState, type PropsWithChildren } from "react";
 
 import {
@@ -29,7 +30,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       try {
         const storedState = await AsyncStorage.getItem(APP_STATE_STORAGE_KEY);
         if (storedState && isMounted) {
-          dispatch({ type: "HYDRATE", persistedState: JSON.parse(storedState) });
+          dispatch({ type: "HYDRATE", persistedState: JSON.parse(storedState), mode: linkedDemoEnabled ? "linked" : "local" });
         }
       } catch {
         // An unreadable demo cache falls back to the initial deterministic scenario.

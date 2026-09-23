@@ -1,4 +1,5 @@
 import { typography } from "@/theme/typography";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -7,12 +8,34 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
+import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled, type LinkedDemoApplication } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationSubmitted() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const [linked, setLinked] = useState<LinkedDemoApplication | null>(null);
+  const [refreshError, setRefreshError] = useState(false);
+  const [missing, setMissing] = useState(false);
+  const refresh = useCallback(async () => {
+    try {
+      const current = await getLinkedDemoApplication();
+      setLinked(current);
+      setMissing(current === null);
+      setRefreshError(false);
+      if (current?.reviewStatus === "APPLIED") {
+        dispatch({ type: "APPROVE_APPLICATION" });
+        router.replace("/application-result");
+      }
+    } catch { setRefreshError(true); }
+  }, [dispatch, router]);
+  useEffect(() => {
+    if (!linkedDemoEnabled || state.applicationStage !== "pending") return;
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 4000);
+    return () => clearInterval(timer);
+  }, [refresh, state.applicationStage]);
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (state.applicationStage !== "pending") {
@@ -33,8 +56,13 @@ export default function ApplicationSubmitted() {
         contentContainerStyle={styles.screen}
         fixedFooter={(
           <PrimaryButton
-            title="데모 결과 반영"
+            title={linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
             onPress={() => {
+              if (linkedDemoEnabled) {
+                if (missing) { void clearLinkedDemoApplication(); dispatch({ type: "RESET_APPLICATION" }); router.replace("/(tabs)/application"); }
+                else void refresh();
+                return;
+              }
               dispatch({ type: "APPROVE_APPLICATION" });
               router.replace("/application-result");
             }}
@@ -43,10 +71,10 @@ export default function ApplicationSubmitted() {
         testID="application-submitted-screen"
       >
         <PageEyebrow>신청 완료</PageEyebrow>
-        <Text style={styles.title}>보험사가 결과를 검토하고 있어요.</Text>
-        <Text style={styles.description}>아래 신청 정보는 로컬 데모 상태예요.</Text>
+        <Text style={styles.title}>{missing ? "신청 기록을 찾지 못했어요." : linked?.reviewStatus === "REJECTED" ? "할인이 적용되지 않았어요." : "보험사가 결과를 검토하고 있어요."}</Text>
+        <Text style={styles.description}>{missing ? "신청 기록을 확인할 수 없습니다. 다시 제출해 주세요." : linkedDemoEnabled ? "신청 정보와 처리 상태를 확인하세요." : "신청 정보와 처리 상태를 확인하세요."}</Text>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>검토 중</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>보험사</Text><Text style={styles.value}>{policy.insurerName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>예상 할인 구간</Text><Text style={styles.value}>{state.totals.expectedDiscountPercent}%</Text></View>
@@ -58,10 +86,11 @@ export default function ApplicationSubmitted() {
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>신청 내역</Text>
-          <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>DR-DEMO-001</Text></View>
-          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>2026.09.22 10:00</Text></View>
+          <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>{linked?.id ?? (linkedDemoEnabled ? "확인 중" : "DR-DEMO-001")}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{linked ? new Date(linked.submittedAt).toLocaleString("ko-KR") : linkedDemoEnabled ? "확인 중" : "2026.09.22 10:00"}</Text></View>
         </View>
-        <Text style={styles.demoNote}>실제 보험사 제출·심사가 아니라 로컬 데모 상태입니다.</Text>
+        {refreshError ? <Text style={styles.demoNote}>신청 정보를 불러오지 못했습니다. 다시 시도해 주세요.</Text> : null}
+        <Text style={styles.demoNote}>{linkedDemoEnabled ? "증명·체인 검증 정보는 아직 연결되지 않았습니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text>
       </AppScreen>
       <BottomTabBar />
     </View>
