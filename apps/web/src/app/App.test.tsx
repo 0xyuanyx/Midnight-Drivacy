@@ -5,6 +5,19 @@ import { applyDecision, createFixtureWorkspace } from "../domain/workspace";
 import { App } from "./App";
 
 describe("insurer workspace navigation", () => {
+  it("preserves five menus and supports keyboard navigation through rider tabs", async () => {
+    window.history.replaceState(null, "", "/riders");
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+    await user.click(await screen.findByRole("tab", { name: "현재 조건" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "규칙 변경" })).toHaveFocus();
+    expect(screen.getByRole("tabpanel", { name: "규칙 변경" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "현재 조건 보기" })).toBeInTheDocument();
+    await user.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "변경 이력" })).toHaveAttribute("aria-selected", "true");
+  });
   it("uploads a rider document, edits its text, then opens rule draft review", async () => {
     window.history.replaceState(null, "", "/dashboard");
     const user = userEvent.setup();

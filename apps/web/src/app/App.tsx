@@ -95,12 +95,12 @@ function HistoryList({ entries }: { entries: DashboardRequest["history"] }) {
 
 function DashboardDetail({ request, tab }: { request: DashboardRequest; tab: DetailTab }) {
   if (tab === "history") return <HistoryList entries={request.history} />;
-  return tab === "proof" ? <ProofDetail item={request} /> : <ResultDetail item={request} />;
+  return tab === "proof" ? <ProofDetail /> : <ResultDetail item={request} />;
 }
 
 function EvaluationDetail({ evaluation, tab }: { evaluation: EvaluationRequest; tab: DetailTab }) {
   if (tab === "history") return <HistoryList entries={evaluation.history} />;
-  return tab === "proof" ? <ProofDetail item={evaluation} /> : <ResultDetail item={evaluation} />;
+  return tab === "proof" ? <ProofDetail /> : <ResultDetail item={evaluation} />;
 }
 
 function ResultDetail({ item }: { item: DashboardRequest | EvaluationRequest }) {
@@ -108,7 +108,7 @@ function ResultDetail({ item }: { item: DashboardRequest | EvaluationRequest }) 
   return <div className="detail-stack"><div className="result-hero"><div className="score-result"><span>최종 안전운전 점수</span><strong>{item.result.score}</strong><small>/ 100점</small></div><div className="discount-result"><span>해당 할인 구간</span><strong>{outcome.eligible ? `${outcome.discountPercent}%` : "미충족"}</strong><small>{outcome.eligible ? "보험료 할인" : "조건 미달"}</small></div></div><dl className="result-grid"><div><dt>평가기간</dt><dd>{item.result.evaluationPeriod}</dd></div><div><dt>누적 주행거리</dt><dd>{item.result.accumulatedDistanceKm} km</dd></div><div><dt>적용 규칙</dt><dd>{item.rule.version}</dd></div><div><dt>최소 조건</dt><dd>{item.rule.minimumScore}점 · {item.rule.minimumDistanceKm} km</dd></div></dl><div className="privacy-note"><span className="privacy-icon"><CircleDot size={15} strokeWidth={1.8} /></span><div><strong>원본 주행기록은 제공되지 않았습니다</strong><p>정확한 위치, 이동경로, 운행시각과 구간별 속도 없이 승인된 계산 결과만 표시됩니다.</p></div></div></div>;
 }
 
-function ProofDetail({ item: _item }: { item: DashboardRequest | EvaluationRequest }) {
+function ProofDetail() {
   const rows = ["규칙 해시", "Dataset Root", "상태 커밋먼트", "Nullifier"];
   return <div className="detail-stack"><div className="verification-card unavailable"><span className="verification-icon"><CircleAlert size={18} strokeWidth={2.2} /></span><div><strong>검증 정보 없음</strong><p>증명 및 체인 검증 결과가 연결되지 않았습니다.</p></div></div><div className="proof-table">{rows.map((label) => <div className="proof-row" key={label}><span>{label}</span><code>—</code><strong>확인 전</strong></div>)}</div></div>;
 }
