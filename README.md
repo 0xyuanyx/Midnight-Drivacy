@@ -34,7 +34,7 @@ production adapter는 `C_WALLET_ADAPTER_URL`과 `C_WALLET_ADAPTER_TOKEN`으로 �
 
 ## Project status
 
-Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 업무 앱은 아직 구현되지 않았습니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 업무 앱·Preprod·가입자 브라우저 월렛 연동과는 구분합니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록하며 업무 데모 흐름은 구현 목표입니다.
+Midnight Korea Hackathon 2026을 위한 개발 저장소입니다. 가입자용 Expo 모바일 데모는 구현됐지만, 실제 업무 API·보험사·Midnight 연동과는 구분합니다. C의 작은 Compact 상태 전이 계약은 전체 컴파일·SDK 타입 검사와 실제 로컬 배포·증명·두 차례 체인 갱신·오래된 상태 거부·계약 재연결을 통과했습니다. C 4단계의 보험 계산·Dataset·누적 상태 회로도 실제 로컬 증명과 두 운행 확정을 통과했습니다. 실제 실행 증거와 한계는 아래 검증 문서에 기록합니다.
 
 ### 가입자 모바일 회원가입 UX
 
@@ -140,6 +140,72 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 목표는 제출된 기록과 승인 규칙 사이의 계산 관계를 검증하는 것입니다. 입력 기록의 실제 운행 여부, 미제출 운행, 전체 운행의 완전성, 원본 삭제 사실 또는 보험사의 결과 재사용 방지까지 ZK가 보장하는 것은 아닙니다.
 
 원본 기록은 설계상 Drivacy의 계산·증명 처리 영역에 일시적으로 존재합니다. 보험사와 공개 원장에 원본을 전달하지 않는 것이 목표이며, Drivacy 자체가 원본에 접근하지 않는 구조로 표현하지 않습니다.
+
+## Mobile demo (Expo Go scope)
+
+## Insurer web demo
+
+2026-09-23 추가 메뉴를 보험사 웹 프론트에 구현했습니다. 특약 관리의 규칙 변경은 PDF/DOCX/TXT/MD 문서를 브라우저에서 올려 글자를 추출하고 내용을 수정한 뒤 초안 검토 화면으로 이동합니다. 스캔 PDF의 OCR은 제공하지 않으며 글자를 읽지 못하면 직접 보완할 수 있습니다. 검증 이력은 신청을 찾아 기존 평가 요청 상세로 이동하고, 연동 상태는 읽기 전용 목업입니다. 자동 규칙 변환 호출·초안 저장/승인/등록, 실제 Backend/ZK/체인 조회는 아직 연결되지 않았으며 검증 이력은 데모 데이터와 실제 검증의 차이를 표시합니다.
+
+### 두 프론트의 로컬 연동 데모
+
+`npm run dev:linked`를 실행하면 보험사 웹 `http://127.0.0.1:5173`, 가입자 앱 브라우저 미리보기 `http://localhost:8081`, 공유 메모리 데모 서버 `http://127.0.0.1:3001`이 함께 실행됩니다. 앱에서 두 번의 모의 주행 뒤 서류에서 신청 내용을 검토하고 제출하면, 웹 **평가 요청**에 신청이 나타납니다. 웹에서 `데모 할인 적용` 또는 `데모 미적용`을 선택하면 앱의 신청 내역에서 처리 상태를 다시 조회합니다. 데모 서버를 재시작하면 신청 데이터가 사라집니다. `dev:insurer`와 `dev:driver-preview`는 각각 독립 fixture 실행으로 유지됩니다.
+
+연동 데모는 사전에 정해진 모의 점수·거리만 전송합니다. 인증된 Backend API, 실제 보험계약, ZK 증명, Midnight 거래는 실행하지 않습니다. 개발용 데모 서버는 이 컴퓨터의 loopback 주소에서만 실행됩니다. 별도 공개 주소에 배포할 때는 인증된 공통 Backend와 영속 저장소 연결이 필요합니다.
+
+화면에는 `데모`·`목업` 표기를 노출하지 않습니다. 증명 및 체인 결과가 없는 곳은 `검증 정보 없음` 또는 `연결 전`으로 표시하고 임의의 성공 상태나 해시를 보여주지 않습니다. 화면 문구 변경은 위 로컬 연동의 구현 범위를 넓히지 않습니다.
+
+### 프론트별 실행과 배포 산출물
+
+보험사 웹과 가입자 앱은 서로 다른 프로젝트입니다. 저장소 루트에서 각각 실행합니다.
+
+| 대상 | 로컬 실행 | 로컬 주소 | 배포용 빌드 | 산출물 |
+| --- | --- | --- | --- | --- |
+| 보험사 웹 (`apps/web`) | `npm run dev:insurer` | `http://localhost:5173` | `npm run build:insurer` | `apps/web/dist/` |
+| 가입자 앱 웹 미리보기 (`apps/mobile`) | `npm run dev:driver-preview` | `http://localhost:8081` | `npm run build:driver-preview` | `apps/mobile/dist/` |
+
+`npm run dev:driver`는 Expo Go·에뮬레이터용 앱 개발 서버입니다. iOS·Android 앱은 웹 주소가 아닌 앱 배포 대상입니다. 두 웹 산출물을 배포할 때는 서로 다른 사이트/서비스와 공개 주소에 각각 올립니다. 호스팅 서비스와 주소는 아직 선정하지 않았으며 실제 배포는 하지 않았습니다. 현재 두 화면은 각자의 로컬 fixture 상태를 사용하므로 주소를 분리해도 데이터가 연동되지는 않습니다.
+
+`apps/web` is a separate insurer-facing React + TypeScript + Vite demo based on the [UI rules](docs/WEB_APP_RULES.md) and [implementation plan](docs/WEB_IMPLEMENTATION_PLAN.md). Its Figma-aligned shell has five navigation entries, compact KPI cards, a Dashboard guidance banner, four-column request lists and shared score/discount, proof-table and history details. Search/filter controls open from the Filter button and remain in the URL. The menus are Dashboard, Evaluation Requests, Special Rider Management with a rule-conversion screen, Verification History, and a read-only Integration Status mock. The 500 km approved-rule threshold is separate from the Figma web sample's 524.8 km (the mobile demo still uses 550 km).
+
+The standard web run uses a browser-persisted fixture adapter backed by localStorage. The optional local linked demo shares synthetic application status with the subscriber app through the demo bridge. Neither mode connects to insurer systems, authenticated Backend request/evaluation APIs, or the Midnight proof network. The UI labels this boundary; no real contract or discount is changed. The manual insurer Rule entry/review decision remains unchanged. The rule-change screen extracts text from uploaded PDF documents in the browser, but does not call an LLM, perform OCR, or save a converted Rule draft.
+
+```bash
+npm install
+npm run dev --workspace=@drivacy/web
+npm run test --workspace=@drivacy/web
+npm run typecheck --workspace=@drivacy/web
+npm run build --workspace=@drivacy/web
+```
+
+Verification on 2026-09-23: 19 web tests, TypeScript checking, ESLint, and the Vite production build passed. All 20 Figma references were inspected; browser QA covered 24 request/tab combinations, four decision outcomes, reload persistence and widths 1512/1440/1280/1024/768/390. The follow-up pass fixed shared Korean typography, tab spacing, utility and privacy icons, result-table borders, proof/history alignment, completed-state labels and the full completed history sequence. Major desktop panel coordinates match the source to within 1px. See the [Figma audit](docs/WEB_FIGMA_AUDIT.md) and [follow-up list](docs/WEB_FIGMA_REMAINING.md) for measured geometry and intentional business-state differences. This does not verify API integration, production authentication/authorization, deployment, or pixel-identical font rendering on every platform.
+
+2026-09-23 추가 메뉴·로컬 연동 후 웹 21개 테스트, 가입자 앱 59개 테스트, 양쪽 타입 검사와 웹 빌드·Expo web export가 통과했습니다. 로컬 브리지의 생성→중복 제출→보험사 화면 조회→결정→앱 조회 HTTP 흐름을 확인했습니다. 이 검사는 실제 보험 API·증명·체인 실행을 검증하지 않습니다.
+
+Mobile UI rules are maintained in [MOBILE_APP_RULES.md](docs/MOBILE_APP_RULES.md). User-approved app refinements take precedence over Figma coordinates. Bundled Pretendard fonts and semantic text styles unify headings, descriptions and card text. The onboarding uses the supplied 3D V artwork. A wall-clock timer resumes from the stored trip start; its ring respects reduced motion, and the end time is retained in the result. Home reflects active trips and pending/approved applications and links to Documents. Result details offer a gray reset action immediately above the blue Home action; reset clears local demo progress and returns to onboarding.
+
+Latest verification (2026-09-23): 58 mobile tests, typecheck, lint and the Web/iOS/Android export passed. Browser QA exercised both trips, elapsed time in session and result, Home → Documents → submission → result, the gray reset placement above Home, and the framed web preview. Reset dispatch/navigation is automated-test verified; physical-device execution and a full small-screen/accessibility audit remain unverified.
+
+`apps/mobile` is a deterministic subscriber-facing Expo Router demo. It covers onboarding consent, selecting one of three local example policies, and a three-tab flow: **Home**, **Driving**, and **Documents**. The consent sheet uses two required check rows with chevrons that open full disclosures for policy/rider lookup and selected driving-record processing. The primary navigation uses a bottom-offset floating iOS-style pill, policy selection uses a card-border-only selected state, and blue primary actions share fixed bottom slots—with separate alignment for tabbed and non-tabbed screens. Blue eyebrow labels also share fixed positions for screens with and without a back header, and the shared `DriVacy` wordmark renders the capital `V` in blue. Two simulated trips deterministically progress from 0 km / 100 points through 300 km / 92 points to 550 km / 87 points and a 10% expected discount. The application review expressly excludes precise location, route, segment speed, and exact driving time.
+
+The subscriber app's Expo web target is a fast preview of the same React Native application, not the insurer web product above. It adds an iPhone-style frame only on web so review screenshots are easier to read; iOS and Android builds do not include that frame.
+
+The app persists only this demo state locally with AsyncStorage. Hydration and route guards stop resumed or deep-linked sessions from bypassing required consent and policy selection. An authorized active simulated trip resumes through its persisted lifecycle, and its deterministic completion is applied exactly once; this is local UI-state handling, not GPS collection, proof processing, or a chain operation. The app does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number/time, and “demo approval” are presentation states only. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
+
+Requirements: Node.js 24 LTS and npm.
+
+```bash
+npm install
+npm run mobile                 # Expo dev server; choose Expo Go, Android, iOS, or web
+npm run web --workspace=@drivacy/mobile
+npm run mobile:test -- --runInBand
+npm run mobile:typecheck
+npm run lint --workspace=@drivacy/mobile
+npm run mobile:export          # Expo bundles web, iOS, and Android
+cd apps/mobile && npx expo-doctor
+```
+
+Verification on 2026-09-22: 50 mobile Jest tests, including hydrated consent/policy deep-route protection, both consent-detail disclosures, active-trip resume, safe direct-review recovery, exactly-once authorized simulated-trip processing, the Documents tab route, and policy identifying metadata; mobile typecheck/lint, Expo Doctor (21/21), and web/iOS/Android export passed after the Figma-alignment update. The web preview was manually checked inside its iPhone frame for onboarding, the consent sheet/detail view, insurance selection, Home, fixed CTA placement, and the bottom-offset pill navigation. This is browser QA only; physical iOS/Android devices and Expo Go have not been exercised.
 
 ## Backend foundation
 
