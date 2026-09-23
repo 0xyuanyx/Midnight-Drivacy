@@ -1,5 +1,9 @@
 # 첫 수직 기능 DB 기록
 
+## 최종 할인 신청 — 2026-09-23, 원격 미적용
+
+`20260923090000_add_discount_applications.sql`은 최신 Confirmed State 기반 신청, 외부 Final Evaluation operation, result commitment/nullifier, 검증 상태와 보험사 결정을 분리 저장한다. Scope·State와 nullifier UNIQUE, 복합 Scope/계약/특약 FK, 결정 상태 CHECK, RLS와 `PUBLIC`·`anon`·`authenticated` 권한 회수를 포함한다. raw 운행정보와 salt/witness는 저장하지 않는다. 이 migration은 Supabase 원격에 아직 적용하지 않았으며 별도 적용이 필요하다.
+
 ## 운행 Processing runtime 연결 — 2026-09-22
 
 운행 Processing production wiring은 기존 `chain_states`·`chain_jobs`와 retry/claim/deletion 컬럼을 그대로 사용한다. 새 Job을 DB에 먼저 기록한 뒤 외부 C/Wallet 경계를 호출하고, `chain-confirmed`만 Confirmed State로 반영하며 raw source 삭제 실패는 `deletion_status='pending'` 대상을 worker가 재처리한다. 이를 위해 새 migration을 만들지 않았고 Supabase 원격에도 추가 작업을 실행하지 않았다.

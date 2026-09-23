@@ -19,6 +19,8 @@ import { createAuthRouter } from "./routes/auth.js";
 import { createConsentRouter } from "./routes/consent.js";
 import { healthRouter } from "./routes/health.js";
 import { createInsuranceRouter } from "./routes/insurance.js";
+import { createDiscountApplicationRouter } from "./routes/discount-applications.js";
+import type { DiscountApplicationService } from "./final-evaluation/discount-application-service.js";
 
 export interface BackendDependencies extends AuthDependencies {
   consentService?: ConsentService;
@@ -28,6 +30,7 @@ export interface BackendDependencies extends AuthDependencies {
   drivingService?: DrivingService;
   ruleDraftService?: RuleDraftService;
   chainProcessingService?: ChainProcessingService;
+  discountApplicationService?: DiscountApplicationService;
 }
 
 /**
@@ -53,6 +56,7 @@ export const createApp = (dependencies?: BackendDependencies): express.Express =
     if (dependencies.ruleRegistrationService) app.use(createRuleRegistrationRouter(dependencies, dependencies.ruleRegistrationService));
     if (dependencies.drivingService) app.use(createDrivingRouter(dependencies, dependencies.drivingService));
     if (dependencies.chainProcessingService) app.use(createChainProcessingRouter(dependencies, dependencies.chainProcessingService));
+    if (dependencies.discountApplicationService) app.use(createDiscountApplicationRouter(dependencies, dependencies.discountApplicationService));
   }
   app.use(notFoundHandler);
   app.use(errorHandler);

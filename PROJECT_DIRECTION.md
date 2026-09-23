@@ -1,5 +1,15 @@
 # Drivacy 프로젝트 방향성
 
+## 최종 할인 신청과 보험사 결정 — 2026-09-23 확정
+
+- B Backend는 현재 DB의 최신 Confirmed State(version > 0)만 사용해 최종 신청을 예약한다. client 입력은 계약·특약 식별자로 제한하며 점수·거리·할인율·State commitment·nullifier는 받지 않는다.
+- 신청 생성과 외부 C 호출 사이의 crash에도 같은 evaluation operationId를 재사용한다. 통신 실패를 미제출로 간주하지 않고 기존 operation 상태만 조회해 중복 proof/transaction을 막는다.
+- C가 계산한 result commitment와 nullifier를 사용하며 B에서 해당 알고리즘을 복제하지 않는다. 검증 결과는 operation·Scope·State·Rule·runtime·계약 주소와 snapshot 수치를 모두 대조한다.
+- verification(PENDING/VERIFIED/FAILED)과 보험 업무 결정(PENDING_REVIEW/APPLIED/REJECTED)을 분리한다. proof 유효성은 할인 적용 승인이 아니며, 해당 insurer membership과 실제 계약 insurer가 일치하는 담당자만 검증 완료 신청을 한 번 결정할 수 있다.
+- 같은 Confirmed State와 같은 nullifier는 각각 DB UNIQUE로 중복을 차단한다. REJECTED 뒤에도 같은 State는 재신청할 수 없고, 새 운행이 DB에 확정되어 commitment가 바뀐 경우에만 새 신청이 가능하다.
+- 신청 테이블과 보험사 응답에는 raw 운행기록, segment, GPS·경로, exact 운행시각, dataset/state salt, owner secret, wallet key, witness를 저장·노출하지 않는다.
+- migration은 로컬 저장소에만 작성하며 원격 Supabase에는 이번 작업에서 적용하지 않는다. 실제 C/Wallet runtime, 가입자 Wallet Approval, live Midnight Final Evaluation은 후속 통합 범위다.
+
 ## B 운행 Processing production 경계 — 2026-09-22 확정
 
 - Backend production 조립은 기존 `PgChainProcessingRepository`, `ChainProcessingService`, `ChainFinalizer`, `ChainJobRecoveryService`를 재사용하고, 운행 Processing route와 DB 기반 recovery worker를 실제 서버 수명주기에 연결한다.

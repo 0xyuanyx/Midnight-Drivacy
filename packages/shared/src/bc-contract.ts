@@ -220,6 +220,39 @@ export const TripProcessingResultSchema = z.discriminatedUnion("status", [
   }
 });
 
+export const FinalEvaluationRequestSchema = z.object({
+  contractVersion: z.literal(CONTRACT_VERSION), execution: z.literal("live"),
+  operationId: id, scope: ScopeSchema, registeredRule: RegisteredRuleSchema,
+  confirmed: ConfirmedStateSchema,
+}).strict().superRefine((r, ctx) => {
+  const state = r.confirmed.state;
+  if (state.version < 1) ctx.addIssue({ code: "custom", message: "Genesis cannot be evaluated" });
+  if (JSON.stringify(r.scope) !== JSON.stringify(state.scope)) ctx.addIssue({ code: "custom", message: "Scope mismatch" });
+  if (state.rule.id !== r.registeredRule.rule.id || state.rule.version !== r.registeredRule.rule.version
+    || state.rule.ruleHash !== r.registeredRule.ruleHash) ctx.addIssue({ code: "custom", message: "Rule mismatch" });
+});
+
+const evaluationIdentity = {
+  contractVersion: z.literal(CONTRACT_VERSION), execution: z.literal("live"), operationId: id,
+};
+export const FinalEvaluationResultSchema = z.discriminatedUnion("status", [
+  z.object({ ...evaluationIdentity, status: z.enum(["pending", "proving"]) }).strict(),
+  z.object({ ...evaluationIdentity, status: z.literal("awaiting-wallet-approval"), approvalRequestId: id }).strict(),
+  z.object({ ...evaluationIdentity, status: z.enum(["submitted", "chain-unknown"]), transactionId: chainValue }).strict(),
+  z.object({ ...evaluationIdentity, status: z.literal("verified"), scope: ScopeSchema,
+    stateCommitment: chainValue, stateVersion: uint32.min(1),
+    rule: ruleRef, resultCommitment: chainValue, nullifier: chainValue,
+    score, distanceM: uint32, conditionsMet: z.boolean(), expectedDiscountBps: bps,
+    network: z.enum(["local", "preprod"]), adapterProfile: id,
+    chainContractAddress: chainValue, transactionId: chainValue, blockId: chainValue,
+    observedAt: z.iso.datetime(),
+  }).strict(),
+  z.object({ ...evaluationIdentity, status: z.literal("failed"), error: z.object({
+    code: z.enum(["INVALID_INPUT", "STALE_STATE", "PROOF_INVALID", "APPROVAL_CANCELLED", "CHAIN_REJECTED"]),
+    retryable: z.literal(false),
+  }).strict() }).strict(),
+]);
+
 export type CalculateTripRequest = z.infer<typeof CalculateTripRequestSchema>;
 export type CandidateState = z.infer<typeof CandidateStateSchema>;
 export type TripProcessingResult = z.infer<typeof TripProcessingResultSchema>;
@@ -235,6 +268,8 @@ export type UpdateRuleRequest = z.infer<typeof UpdateRuleRequestSchema>;
 export type Trip = z.infer<typeof TripSchema>;
 export type State = z.infer<typeof StateSchema>;
 export type ChainConfirmation = z.infer<typeof ChainConfirmationSchema>;
+export type FinalEvaluationRequest = z.infer<typeof FinalEvaluationRequestSchema>;
+export type FinalEvaluationResult = z.infer<typeof FinalEvaluationResultSchema>;
 export type ConfirmedState = z.infer<typeof ConfirmedStateSchema>;
 
 // Genesis는 이전 운행을 가장한 누적값 없이 시작해야 한다. 실제 체인 반영 확인은 별도 경계다.

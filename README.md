@@ -4,6 +4,14 @@ Drivacy는 상세 주행기록을 보험사에 공개하지 않고, 보험사가
 
 Privacy-preserving driving-based insurance eligibility proofs on Midnight.
 
+## 최종 할인 신청·보험사 심사 Backend (2026-09-23)
+
+Backend는 DRIVER가 선택한 본인 계약·특약의 DB 최신 Confirmed State만으로 최종 할인 신청을 원자적으로 예약하고, 외부 C/Wallet Final Evaluation 경계에 같은 operationId를 전달합니다. Genesis와 미확정 후보는 신청할 수 없으며, client가 점수·할인율·commitment·nullifier를 지정할 수 없습니다. 같은 Scope·State의 동시 신청은 DB UNIQUE로 하나만 남고, C가 반환한 nullifier도 UNIQUE로 재사용을 차단합니다.
+
+Final Evaluation의 `pending`·`proving`·wallet 승인 대기·`submitted`·`chain-unknown`은 보험사 심사 가능 상태가 아닙니다. operation·Scope·State·Rule·runtime·계약 주소와 결과 수치가 모두 신청 snapshot과 일치하는 `verified`만 검증 완료로 저장합니다. ZK 검증 상태와 보험사의 APPLIED/REJECTED 업무 결정은 분리되며, 결정은 해당 보험사 membership을 SQL에서 확인한 뒤 한 번만 기록됩니다. 보험사 응답에는 raw records, segment, 위치·경로, salt, owner secret, wallet key, witness를 포함하지 않습니다.
+
+`20260923090000_add_discount_applications.sql`은 저장소에만 추가했으며 Supabase 원격에는 아직 적용하지 않았습니다. Backend API와 fail-closed 외부 client 경계는 구현됐지만, 이 저장소에는 실제 external C/Wallet Final Evaluation 서비스와 가입자 Wallet 연결이 없어 live Midnight evaluation·실제 chain 검증은 완료로 주장하지 않습니다.
+
 ## Backend 운행 Processing 연결 상태 (2026-09-22)
 
 Backend production runtime은 종료된 Driving Session을 `POST /driving-sessions/:sessionId/process`로 받아, Session에 고정된 Rule Version과 Confirmed State로 요청을 조립하고 DB에 `chain_jobs`를 먼저 기록한 뒤 외부 C/Wallet 실행 경계에 전달합니다. 새 Job만 처리를 시작하며, 재요청과 응답 유실 복구는 기존 operationId로 상태를 조회합니다. `calculated`, `proving`, `submitted`, `chain-unknown`은 DB Confirmed State로 반영하지 않고, Shared 계약이 검증한 `chain-confirmed`만 transaction에서 `chain_states`와 Job을 확정합니다.

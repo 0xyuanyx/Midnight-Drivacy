@@ -21,6 +21,9 @@ import { PgChainProcessingRepository } from "./chain-state/chain-processing-repo
 import { ChainProcessingService, type ChainProcessingGateway, type TripRequestSource } from "./chain-state/chain-processing-service.js";
 import { ChainFinalizer } from "./chain-state/chain-finalizer.js";
 import { ChainJobRecoveryService, PgChainJobRecoveryRepository, type ChainRecoveryGateway } from "./chain-state/chain-job-recovery.js";
+import { PgDiscountApplicationRepository } from "./final-evaluation/discount-application-repository.js";
+import { DiscountApplicationService } from "./final-evaluation/discount-application-service.js";
+import type { FinalEvaluationAdapter } from "./final-evaluation/final-evaluation-adapter.js";
 
 export type TripProcessingAdapter = TripRequestSource & ChainProcessingGateway & ChainRecoveryGateway;
 
@@ -29,6 +32,7 @@ export const createRuntime = (
   pool: Pool,
   ruleRegistrationAdapter: RuleRegistrationAdapter,
   tripProcessingAdapter: TripProcessingAdapter,
+  finalEvaluationAdapter: FinalEvaluationAdapter,
 ) => {
   const authRepository = new PgAuthRepository(pool);
   const ruleService = new RuleService(new PgRuleRepository(pool));
@@ -62,10 +66,13 @@ export const createRuntime = (
     // source 저장과 Job 생성 뒤에만 외부 C 처리를 시작해 응답 유실 시 기존 operationId로 복구할 수 있게 한다.
     chainProcessingService: new ChainProcessingService(new PgChainProcessingRepository(pool), finalizer,
       tripProcessingAdapter, tripProcessingAdapter, recovery, runtime),
+    discountApplicationService: new DiscountApplicationService(
+      new PgDiscountApplicationRepository(pool), finalEvaluationAdapter, runtime),
   });
   return { app, recovery };
 };
 
 export const createRuntimeApp = (environment: Environment, pool: Pool,
-  ruleRegistrationAdapter: RuleRegistrationAdapter, tripProcessingAdapter: TripProcessingAdapter) =>
-  createRuntime(environment, pool, ruleRegistrationAdapter, tripProcessingAdapter).app;
+  ruleRegistrationAdapter: RuleRegistrationAdapter, tripProcessingAdapter: TripProcessingAdapter,
+  finalEvaluationAdapter: FinalEvaluationAdapter) =>
+  createRuntime(environment, pool, ruleRegistrationAdapter, tripProcessingAdapter, finalEvaluationAdapter).app;

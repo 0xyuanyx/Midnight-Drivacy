@@ -19,7 +19,7 @@ describe("production runtime composition", () => {
     const pool = { query: async () => { throw new Error("authentication should reject before DB access"); } } as unknown as Pool;
     const adapter = {} as RuleRegistrationAdapter;
     const tripAdapter = {} as TripProcessingAdapter;
-    const app = createRuntimeApp(environment, pool, adapter, tripAdapter);
+    const app = createRuntimeApp(environment, pool, adapter, tripAdapter, {} as never);
 
     const result = await request(app)
       .post("/special-contracts/11111111-1111-4111-8111-111111111111/rules/1/register");
@@ -31,5 +31,8 @@ describe("production runtime composition", () => {
       .post("/driving-sessions/11111111-1111-4111-8111-111111111111/process")
       .set("Idempotency-Key", "processing-key");
     expect(processing.status).toBe(401);
+
+    const application = await request(app).post("/discount-applications");
+    expect(application.status).toBe(401);
   });
 });
