@@ -2,6 +2,20 @@
 
 마지막 업데이트: 2026-09-23 (KST)
 
+## DRIVER onboarding과 Privy migration 이력 — 2026-09-23 구현
+
+- 원격 Supabase에 이미 적용된 Privy schema migration의 version은 `20260923085900_add_privy_auth_identity`다. 로컬의 동일 SQL도 이 version으로 정리했으며, 이번 작업에서는 원격 DDL을 실행하지 않았다.
+- `POST /auth/driver/onboarding`은 일반 `requireAuth`와 분리된 검증 전용 경계다. Privy access token을 SDK로 검증하고, 서버가 Privy 사용자에서 읽은 이메일과 요청의 이름·생년월일·전화번호만 사용한다.
+- 신규 provider identity는 하나의 DB transaction에서 내부 UUID 사용자, 완료 프로필, `DRIVER` 역할을 만든다. `(auth_provider, auth_provider_user_id)` 충돌은 기존 UUID를 반환하므로 재호출·동시 요청이 역할 변경이나 중복 사용자를 만들지 않는다.
+- 기존 legacy 행은 provider 매핑이 NULL인 상태로 유지하며, 이메일이 같다는 이유만으로 Privy identity와 연결하지 않는다. FRONTEND Privy OTP, Lace Wallet, 보험 업무·Midnight 로직은 이 범위에 포함하지 않는다.
+
+## Privy 인증 전환 경계 — 2026-09-23 확정
+
+- Supabase PostgreSQL과 기존 `public.users.id` Drivacy UUID 및 이를 참조하는 업무 FK는 유지한다. 과거 구현의 Supabase Auth에 대한 직접 FK만 새 migration에서 제거하고, 기존 사용자를 Privy 사용자로 자동 변환하지 않는다.
+- Backend는 Privy 서버 SDK로 access token 서명 검증을 수행한 뒤 Privy DID를 `(auth_provider, auth_provider_user_id)`로 조회해 내부 UUID로 바꾼다. 이후 역할·계약·주행·신청 권한은 계속 내부 UUID만 사용한다.
+- `GET /auth/me`의 `id`, `email`, `role` 계약은 유지한다. 이메일은 Privy access token claim에 의존하지 않고 Drivacy DB의 매핑된 사용자 행에서 읽는다.
+- Lace Wallet과 frontend 구현은 이 변경 범위에 포함하지 않는다. DRIVER onboarding 구현 및 migration 이력 상태는 상단의 결정을 따른다.
+
 ## 최종 할인 신청과 보험사 결정 — 2026-09-23 확정
 
 - B Backend는 현재 DB의 최신 Confirmed State(version > 0)만 사용해 최종 신청을 예약한다. client 입력은 계약·특약 식별자로 제한하며 점수·거리·할인율·State commitment·nullifier는 받지 않는다.

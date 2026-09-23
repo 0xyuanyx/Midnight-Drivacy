@@ -9,7 +9,7 @@ import type { TripProcessingAdapter } from "../src/runtime-app.js";
 
 const environment: Environment = {
   nodeEnv: "test", port: 3000, databaseUrl: "postgresql://unused",
-  supabaseUrl: "https://example.supabase.co", supabasePublishableKey: "publishable-key",
+  privyAppId: "privy-app-id", privyAppSecret: "privy-app-secret",
   midnightNetwork: "preprod", midnightAdapterProfile: "production-adapter",
   cWalletAdapterUrl: "https://c-wallet.example.invalid", cWalletAdapterToken: "secret",
 };

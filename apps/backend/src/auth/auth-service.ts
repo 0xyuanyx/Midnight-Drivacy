@@ -2,30 +2,26 @@ import { RoleSchema, UserSchema, type User } from "@drivacy/shared";
 
 import { AppError } from "../errors/app-error.js";
 import type { AuthRepository } from "./auth-repository.js";
-import type { SupabaseAuthVerifier } from "./supabase-auth.js";
+import type { AuthVerifier } from "./auth-verifier.js";
 
 export interface AuthDependencies {
   authRepository: AuthRepository;
-  supabaseAuthVerifier: SupabaseAuthVerifier;
+  authVerifier: AuthVerifier;
 }
 
 export const authenticateAccessToken = async (
   accessToken: string,
-  { authRepository, supabaseAuthVerifier }: AuthDependencies,
+  { authRepository, authVerifier }: AuthDependencies,
 ): Promise<User> => {
-  const authUser = await supabaseAuthVerifier.verifyAccessToken(accessToken);
+  const authIdentity = await authVerifier.verifyAccessToken(accessToken);
 
-  if (!authUser) {
+  if (!authIdentity) {
     throw new AppError("UNAUTHORIZED", "The access token is invalid or expired", 401);
   }
 
-  if (!authUser.email) {
-    throw new AppError("UNAUTHORIZED", "The authenticated user has no email address", 401);
-  }
-
-  // An Auth account alone must not automatically become a Drivacy user.
-  const serviceUserId = await authRepository.findUserId(authUser.id);
-  if (!serviceUserId) {
+  // Privy DID는 외부 식별자일 뿐이다. 반드시 DB 매핑을 거쳐 내부 UUID로 전환한다.
+  const serviceUser = await authRepository.findUserByProviderIdentity("PRIVY", authIdentity.providerUserId);
+  if (!serviceUser) {
     throw new AppError(
       "USER_NOT_INITIALIZED",
       "The authenticated user is not initialized for Drivacy",
@@ -33,14 +29,15 @@ export const authenticateAccessToken = async (
     );
   }
 
-  const storedRole = await authRepository.findRoleByUserId(authUser.id);
+  const storedRole = await authRepository.findRoleByUserId(serviceUser.id);
   const role = RoleSchema.safeParse(storedRole);
   if (!role.success) {
     // There is intentionally no implicit DRIVER default: provisioning assigns roles explicitly.
     throw new AppError("ROLE_NOT_ASSIGNED", "The authenticated user has no assigned role", 403);
   }
 
-  const user = UserSchema.safeParse({ id: authUser.id, email: authUser.email, role: role.data });
+  // 응답과 후속 객체 권한 검사는 외부 DID가 아닌 Drivacy UUID를 사용한다.
+  const user = UserSchema.safeParse({ id: serviceUser.id, email: serviceUser.email, role: role.data });
   if (!user.success) {
     throw new AppError("AUTH_USER_INVALID", "The authenticated user data is invalid", 401);
   }

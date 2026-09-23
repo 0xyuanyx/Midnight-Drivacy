@@ -2,7 +2,8 @@ import type { Pool } from "pg";
 
 import { createApp } from "./app.js";
 import { PgAuthRepository } from "./auth/auth-repository.js";
-import { createSupabaseAuthVerifier } from "./auth/supabase-auth.js";
+import { createPrivyAuthVerifier } from "./auth/privy-auth.js";
+import { DriverOnboardingService } from "./auth/driver-onboarding-service.js";
 import type { Environment } from "./config/env.js";
 import { PgConsentRepository } from "./consent/consent-repository.js";
 import { ConsentService } from "./consent/consent-service.js";
@@ -36,6 +37,7 @@ export const createRuntime = (
   finalEvaluationAdapter: FinalEvaluationAdapter,
 ) => {
   const authRepository = new PgAuthRepository(pool);
+  const authVerifier = createPrivyAuthVerifier(environment.privyAppId, environment.privyAppSecret);
   const ruleService = new RuleService(new PgRuleRepository(pool));
   const runtime = {
     network: environment.midnightNetwork,
@@ -54,7 +56,8 @@ export const createRuntime = (
     discountApplications, discountApplicationService, finalEvaluationAdapter);
   const app = createApp({
     authRepository,
-    supabaseAuthVerifier: createSupabaseAuthVerifier(environment.supabaseUrl, environment.supabasePublishableKey),
+    authVerifier,
+    driverOnboardingService: new DriverOnboardingService(authRepository, authVerifier),
     consentService: new ConsentService(new PgConsentRepository(pool)),
     insuranceService: new InsuranceService(new PgInsuranceRepository(pool)),
     ruleService,

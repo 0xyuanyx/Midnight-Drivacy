@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthRepository } from "../src/auth/auth-repository.js";
 import type { AuthDependencies } from "../src/auth/auth-service.js";
-import type { SupabaseAuthVerifier, VerifiedAuthUser } from "../src/auth/supabase-auth.js";
+import type { AuthVerifier, VerifiedAuthIdentity } from "../src/auth/auth-verifier.js";
 import { createApp } from "../src/app.js";
 import type { ConsentRepository, ConsentRow } from "../src/consent/consent-repository.js";
 import { ConsentService } from "../src/consent/consent-service.js";
@@ -142,13 +142,14 @@ class MemoryInsuranceRepository implements InsuranceRepository {
 }
 
 const appFor = (role: "DRIVER" | "INSURER" = "DRIVER") => {
-  const user: VerifiedAuthUser = { id: driverId, email: "driver@drivacy.test" };
+  const user: VerifiedAuthIdentity = { providerUserId: "did:privy:driver" };
   const authRepository: AuthRepository = {
-    findUserId: async () => user.id,
+    findUserByProviderIdentity: async () => ({ id: driverId, email: "driver@drivacy.test" }),
     findRoleByUserId: async () => role,
+    completeDriverOnboarding: async () => ({ id: driverId, email: "driver@drivacy.test", role }),
   };
-  const authVerifier: SupabaseAuthVerifier = { verifyAccessToken: async () => user };
-  const authDependencies: AuthDependencies = { authRepository, supabaseAuthVerifier: authVerifier };
+  const authVerifier: AuthVerifier = { verifyAccessToken: async () => user };
+  const authDependencies: AuthDependencies = { authRepository, authVerifier };
   const consentRepository = new MemoryConsentRepository();
   const insuranceRepository = new MemoryInsuranceRepository();
   const app = createApp({

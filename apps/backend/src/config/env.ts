@@ -2,8 +2,8 @@ export interface Environment {
   nodeEnv: string;
   port: number;
   databaseUrl: string;
-  supabaseUrl: string;
-  supabasePublishableKey: string;
+  privyAppId: string;
+  privyAppSecret: string;
   midnightNetwork: "fixture" | "local" | "preprod";
   midnightAdapterProfile: string;
   cWalletAdapterUrl: string;
@@ -24,8 +24,8 @@ export const loadEnvironment = (): Environment => {
   }
 
   const databaseUrl = requiredEnvironment("DATABASE_URL");
-  const supabaseUrl = requiredEnvironment("SUPABASE_URL");
-  const supabasePublishableKey = requiredEnvironment("SUPABASE_PUBLISHABLE_KEY");
+  const privyAppId = requiredEnvironment("PRIVY_APP_ID");
+  const privyAppSecret = requiredEnvironment("PRIVY_APP_SECRET");
   const midnightNetwork = requiredEnvironment("MIDNIGHT_NETWORK");
   if (midnightNetwork !== "fixture" && midnightNetwork !== "local" && midnightNetwork !== "preprod") throw new Error("MIDNIGHT_NETWORK must be fixture, local, or preprod");
   const midnightAdapterProfile = requiredEnvironment("MIDNIGHT_ADAPTER_PROFILE");
@@ -33,7 +33,7 @@ export const loadEnvironment = (): Environment => {
   const cWalletAdapterUrl = requiredEnvironment("C_WALLET_ADAPTER_URL");
   const cWalletAdapterToken = requiredEnvironment("C_WALLET_ADAPTER_TOKEN");
 
-  return { nodeEnv, port, databaseUrl, supabaseUrl, supabasePublishableKey, midnightNetwork, midnightAdapterProfile,
+  return { nodeEnv, port, databaseUrl, privyAppId, privyAppSecret, midnightNetwork, midnightAdapterProfile,
     cWalletAdapterUrl, cWalletAdapterToken };
 };
 

@@ -21,6 +21,7 @@ import { healthRouter } from "./routes/health.js";
 import { createInsuranceRouter } from "./routes/insurance.js";
 import { createDiscountApplicationRouter } from "./routes/discount-applications.js";
 import type { DiscountApplicationService } from "./final-evaluation/discount-application-service.js";
+import type { DriverOnboardingService } from "./auth/driver-onboarding-service.js";
 
 export interface BackendDependencies extends AuthDependencies {
   consentService?: ConsentService;
@@ -31,6 +32,7 @@ export interface BackendDependencies extends AuthDependencies {
   ruleDraftService?: RuleDraftService;
   chainProcessingService?: ChainProcessingService;
   discountApplicationService?: DiscountApplicationService;
+  driverOnboardingService?: DriverOnboardingService;
 }
 
 /**
@@ -44,7 +46,7 @@ export const createApp = (dependencies?: BackendDependencies): express.Express =
   app.use(requestId);
   app.use(healthRouter);
   if (dependencies) {
-    app.use(createAuthRouter(dependencies));
+    app.use(createAuthRouter(dependencies, dependencies.driverOnboardingService));
     if (dependencies.consentService) {
       app.use(createConsentRouter(dependencies, dependencies.consentService));
     }

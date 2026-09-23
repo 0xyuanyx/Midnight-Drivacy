@@ -4,39 +4,77 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthRepository } from "../src/auth/auth-repository.js";
 import type { AuthDependencies } from "../src/auth/auth-service.js";
-import type { SupabaseAuthVerifier, VerifiedAuthUser } from "../src/auth/supabase-auth.js";
+import type { AuthVerifier, VerifiedAuthIdentity } from "../src/auth/auth-verifier.js";
 import { createApp } from "../src/app.js";
 import { errorHandler } from "../src/middleware/error-handler.js";
 import { createRequireAuth } from "../src/middleware/require-auth.js";
 import { requireRole } from "../src/middleware/require-role.js";
 
-const verifiedDriver: VerifiedAuthUser = {
-  id: "b7f9c342-7e04-4bd9-b0e3-8269661db2df",
-  email: "driver@drivacy.test",
+const verifiedDriver: VerifiedAuthIdentity = {
+  providerUserId: "did:privy:driver",
 };
+const drivacyDriverId = "b7f9c342-7e04-4bd9-b0e3-8269661db2df";
 
 interface DependencyOptions {
-  authUser?: VerifiedAuthUser | undefined;
+  authUser?: VerifiedAuthIdentity | undefined;
   serviceUserId?: string | undefined;
+  serviceUserEmail?: string | undefined;
   role?: string | undefined;
 }
+
+it("looks up the role with the mapped Drivacy UUID, never the Privy DID", async () => {
+  const roleLookups: string[] = [];
+  const providerLookups: Array<[string, string]> = [];
+  const response = await getMe({
+    authVerifier: { verifyAccessToken: async () => ({ providerUserId: "did:privy:driver" }) },
+    authRepository: {
+      findUserByProviderIdentity: async (provider, providerUserId) => {
+        providerLookups.push([provider, providerUserId]);
+        return { id: drivacyDriverId, email: "driver@drivacy.test" };
+      },
+      findRoleByUserId: async (userId) => {
+        roleLookups.push(userId);
+        return "DRIVER";
+      },
+      completeDriverOnboarding: async () => ({
+        id: drivacyDriverId,
+        email: "driver@drivacy.test",
+        role: "DRIVER",
+      }),
+    },
+  }, "Bearer valid-token");
+
+  expect(response.status).toBe(200);
+  expect(providerLookups).toEqual([["PRIVY", "did:privy:driver"]]);
+  expect(roleLookups).toEqual([drivacyDriverId]);
+});
 
 const createDependencies = (options: DependencyOptions = {}): AuthDependencies => {
   const authUser = Object.hasOwn(options, "authUser") ? options.authUser : verifiedDriver;
   const serviceUserId = Object.hasOwn(options, "serviceUserId")
     ? options.serviceUserId
-    : verifiedDriver.id;
+    : drivacyDriverId;
+  const serviceUserEmail = Object.hasOwn(options, "serviceUserEmail")
+    ? options.serviceUserEmail
+    : "driver@drivacy.test";
   const role = Object.hasOwn(options, "role") ? options.role : "DRIVER";
   const authRepository: AuthRepository = {
-    findUserId: async () => serviceUserId,
+    findUserByProviderIdentity: async () => serviceUserId
+      ? { id: serviceUserId, email: serviceUserEmail }
+      : undefined,
     findRoleByUserId: async () => role,
+    completeDriverOnboarding: async () => ({
+      id: serviceUserId ?? drivacyDriverId,
+      email: serviceUserEmail,
+      role,
+    }),
   };
-  const supabaseAuthVerifier: SupabaseAuthVerifier = {
-    // The verifier is mocked because these tests must not require a real token or Supabase project.
+  const authVerifier: AuthVerifier = {
+    // 외부 Privy 서비스 없이도 인증 경계를 검증할 수 있도록 fake를 주입한다.
     verifyAccessToken: async () => authUser,
   };
 
-  return { authRepository, supabaseAuthVerifier };
+  return { authRepository, authVerifier };
 };
 
 const getMe = (dependencies: AuthDependencies, authorization?: string) => {
@@ -58,7 +96,7 @@ describe("GET /auth/me", () => {
     },
   );
 
-  it("rejects an invalid Supabase token", async () => {
+  it("rejects an invalid Privy token", async () => {
     const response = await getMe(createDependencies({ authUser: undefined }), "Bearer invalid-token");
 
     expect(response.status).toBe(401);
@@ -88,7 +126,7 @@ describe("GET /auth/me", () => {
     expect(response.status).toBe(200);
     expect(response.headers["x-request-id"]).toBeDefined();
     expect(response.body).toEqual({
-      id: verifiedDriver.id,
+      id: drivacyDriverId,
       email: "driver@drivacy.test",
       role: "DRIVER",
     });
@@ -103,7 +141,10 @@ describe("GET /auth/me", () => {
 
   it("rejects an invalid shared user result", async () => {
     const response = await getMe(
-      createDependencies({ authUser: { ...verifiedDriver, email: "not-an-email" } }),
+      createDependencies({
+        authUser: { providerUserId: "did:privy:driver" },
+        serviceUserEmail: "not-an-email",
+      }),
       "Bearer valid-token",
     );
 

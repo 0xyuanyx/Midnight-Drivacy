@@ -10,8 +10,8 @@ describe("loadEnvironment", () => {
       ...originalEnvironment,
       PORT: "3000",
       DATABASE_URL: "postgresql://user:password@localhost:5432/drivacy",
-      SUPABASE_URL: "https://example.supabase.co",
-      SUPABASE_PUBLISHABLE_KEY: "publishable-key",
+      PRIVY_APP_ID: "privy-app-id",
+      PRIVY_APP_SECRET: "privy-app-secret",
       MIDNIGHT_NETWORK: "fixture",
       MIDNIGHT_ADAPTER_PROFILE: "test-adapter",
       C_WALLET_ADAPTER_URL: "https://c-wallet.example.invalid/",
@@ -23,7 +23,7 @@ describe("loadEnvironment", () => {
     process.env = originalEnvironment;
   });
 
-  it.each(["DATABASE_URL", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "C_WALLET_ADAPTER_URL", "C_WALLET_ADAPTER_TOKEN"])(
+  it.each(["DATABASE_URL", "PRIVY_APP_ID", "PRIVY_APP_SECRET", "C_WALLET_ADAPTER_URL", "C_WALLET_ADAPTER_TOKEN"])(
     "fails clearly when %s is not configured",
     (name) => {
       delete process.env[name];
@@ -32,12 +32,12 @@ describe("loadEnvironment", () => {
     },
   );
 
-  it("loads the required database and Supabase configuration", () => {
+  it("loads the required database and Privy configuration", () => {
     expect(loadEnvironment()).toMatchObject({
       port: 3000,
       databaseUrl: process.env.DATABASE_URL,
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY,
+      privyAppId: process.env.PRIVY_APP_ID,
+      privyAppSecret: process.env.PRIVY_APP_SECRET,
       midnightNetwork: "fixture",
       midnightAdapterProfile: "test-adapter",
       cWalletAdapterUrl: "https://c-wallet.example.invalid/",

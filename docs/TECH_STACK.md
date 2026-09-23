@@ -11,7 +11,7 @@
 | 언어·런타임 | TypeScript, Node.js 24 LTS 계열, ESM | 프론트·서버·Core와 Midnight 연동의 타입을 공유한다. 타입 설정과 빌드가 필요하며 외부 입력 검증은 별도다. 실제 사용할 패치 버전은 설치 시 고정한다 | B: 공통 설정, C: SDK 연결 확인 |
 | 서비스 Backend | Express 5, 기능별 router/service 분리 | MVP API를 작은 구조로 구성한다. 권한·입력 검증·오류 처리 규약은 공통으로 직접 구성한다 | B |
 | 프론트 | React + TypeScript + Vite, React Hook Form | 기존 React 결정에 개발·빌드 도구와 폼을 더한다. 디자인 완료 후 구현하며 SSR은 MVP에 요구하지 않는다. Wallet SDK의 브라우저 빌드 지원은 실제 확인한다 | A |
-| DB·인증 | Supabase Postgres + Supabase Auth, 이메일·비밀번호 로그인 | 관계형 상태·규칙·신청 이력과 관리형 인증을 함께 사용한다. 서비스 의존성과 권한 설계가 필요하다. 보험사 역할은 서버가 부여하고 사용자가 입력한 메타데이터로 권한을 만들지 않는다 | B |
+| DB·인증 | Supabase Postgres + Privy Auth | 관계형 상태·규칙·신청 이력은 Supabase Postgres에 유지하고, 서버는 Privy access token을 검증한 뒤 내부 UUID와 서버 소유 역할로 권한을 판단한다 | B |
 | DB 접근·변경 | 서버의 `pg` 드라이버, SQL migration | 상태 확정·작업 claim·중복 방지에 필요한 트랜잭션과 제약을 명시적으로 관리한다. 프론트는 업무 DB를 직접 수정하지 않는다 | B |
 | 원본 임시 보관 | Supabase Storage의 비공개 bucket | 재처리 입력은 비공개 객체로 보관하고 검증·체인 반영 확인 후 삭제한다. 업무 DB에는 참조·처리 이력만 둔다. 객체 삭제와 물리적 소거 보장은 구분한다 | B |
 | 입력·공통 계약 | Zod + 공유 TypeScript 타입 | LLM 초안·수기 규칙·API 입력을 같은 스키마로 검증한다. 형식 검증은 약관 의미나 증명 검증을 대신하지 않는다 | B: 공통 계약 관리, A·C: 사용·검토 |
@@ -29,7 +29,7 @@
 ## 실행 구조
 
 ```text
-React 앱 → Express API → Supabase Auth / Postgres / 비공개 Storage
+React 앱 → Express API → Privy Auth / Supabase Postgres / 비공개 Storage
                        → Gemini API (규칙 초안)
                        → Cloud Tasks → 작업 endpoint
                                        → Core 계산 / Midnight SDK
@@ -60,8 +60,8 @@ infra/                B 조정, C 증명 설정: 배포·로컬 실행
 
 ## 운영 기준
 
-- 인증은 Supabase가 검증하고 Backend는 토큰 유효성과 가입자·보험사·계약·신청의 객체 접근권한을 검사한다. 인증 계정과 월렛은 별개로 연결한다.
-- 데모는 준비한 가입자/보험사 이메일·비밀번호 계정을 기본 경로로 사용한다. 공개 가입의 이메일 확인·비밀번호 복구를 제공하려면 custom SMTP를 구성한다. Supabase 기본 메일 발송을 일반 사용자용으로 가정하지 않는다. 계정 준비는 향후 구현 작업이며 이번에 계정이나 데이터를 생성하지 않는다.
+- 인증은 Privy가 발급한 access token을 Backend가 Privy 서버 SDK로 검증하고, Backend는 DB 매핑·역할과 가입자·보험사·계약·신청의 객체 접근권한을 검사한다. 인증 계정과 월렛은 별개로 연결한다.
+- Backend DRIVER onboarding은 구현됐지만, 데모의 프런트엔드 Privy OTP 로그인 연결은 후속 작업이다. 이번 변경은 원격 계정이나 데이터를 생성하지 않는다.
 - 서버 비밀값은 Secret/환경변수로 관리한다. 저장소에는 공개 주소와 `.env.example`의 변수 이름만 기록한다. 가입자 개인키는 Drivacy 서버에 저장하지 않는다.
 - LLM·서버·증명 자원에는 사용량 제한과 예산 알림을 둔다. 무료 사용 범위는 활용 가능성을 확인하며 총비용 0원을 보장하지 않는다. 금액·호출 제한 수치는 실제 요금과 테스트 결과로 설정한다.
 - 원본은 업무 DB·작업 메시지·일반 로그에 복제하지 않는다. 체인 확인 후 삭제 재시도에 필요한 최소 메타데이터만 유지한다. Storage·proof server 등 처리 영역을 포함해 삭제 동작을 확인하되 ZK가 삭제를 증명한다고 표현하지 않는다.

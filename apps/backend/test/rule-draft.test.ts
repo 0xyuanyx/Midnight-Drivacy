@@ -14,7 +14,7 @@ const special = "11111111-1111-4111-8111-111111111111";
 const policyText = "과속 1회당 2점 감점 급가속 1회당 1점 감점 급제동 1회당 3점 감점 최소 500km 안전운전 점수 80점 기본 할인 10% 우대 점수 90점 우대 할인 12%";
 const provider = createFakeProvider({ values: { speedingPenalty: 2, accelerationPenalty: 1, brakingPenalty: 3, minimumDistanceM: 500000, minimumScore: 80, premiumMinimumScore: 90, baseDiscountBps: 1000, premiumDiscountBps: 1200 }, evidence: { speedingPenalty: "과속 1회당 2점 감점", accelerationPenalty: "급가속 1회당 1점 감점", brakingPenalty: "급제동 1회당 3점 감점", minimumDistanceM: "최소 500km", minimumScore: "안전운전 점수 80점", premiumMinimumScore: "우대 점수 90점", baseDiscountBps: "기본 할인 10%", premiumDiscountBps: "우대 할인 12%" } });
 const app = (role: "INSURER" | "DRIVER", allowed = true) => {
-  const auth: AuthDependencies = { authRepository: { findUserId: async () => "user", findRoleByUserId: async () => role }, supabaseAuthVerifier: { verifyAccessToken: async () => ({ id: "user", email: "insurer@drivacy.test" }) } };
+  const auth: AuthDependencies = { authRepository: { findUserByProviderIdentity: async () => ({ id: "user", email: "insurer@drivacy.test" }), findRoleByUserId: async () => role, completeDriverOnboarding: async () => ({ id: "user", email: "insurer@drivacy.test", role }) }, authVerifier: { verifyAccessToken: async () => ({ providerUserId: "did:privy:insurer" }) } };
   const rules = { authorizeDraft: async () => { if (!allowed) throw new AppError("SPECIAL_CONTRACT_NOT_FOUND", "Special contract was not found", 404); } } as RuleService;
   return createApp({ ...auth, ruleDraftService: new RuleDraftService(rules, provider) });
 };
@@ -33,7 +33,7 @@ describe("rule draft route", () => {
     expect(saved.versions[0]).toMatchObject({ status: "DRAFT", ruleDefinition: { minimumDistanceM: 500000 } });
   });
   it("rejects null draft values at the existing Rule save API boundary", async () => {
-    const auth: AuthDependencies = { authRepository: { findUserId: async () => "user", findRoleByUserId: async () => "INSURER" }, supabaseAuthVerifier: { verifyAccessToken: async () => ({ id: "user", email: "insurer@drivacy.test" }) } };
+    const auth: AuthDependencies = { authRepository: { findUserByProviderIdentity: async () => ({ id: "user", email: "insurer@drivacy.test" }), findRoleByUserId: async () => "INSURER", completeDriverOnboarding: async () => ({ id: "user", email: "insurer@drivacy.test", role: "INSURER" }) }, authVerifier: { verifyAccessToken: async () => ({ providerUserId: "did:privy:insurer" }) } };
     const appWithStorage = createApp({ ...auth, ruleService: new StoredRuleService(new MemoryRules()) });
     const response = await request(appWithStorage).post(`/special-contracts/${special}/rules`).set("Authorization", "Bearer token").send({ formula: "cumulative-event-deduction-v1", initialScore: 100, speedingPenalty: null });
     expect(response.status).toBe(400); expect(response.body.code).toBe("INVALID_REQUEST");

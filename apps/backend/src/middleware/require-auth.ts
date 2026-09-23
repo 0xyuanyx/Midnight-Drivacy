@@ -11,7 +11,7 @@ declare module "express-serve-static-core" {
   }
 }
 
-const bearerToken = (authorization: string | undefined): string => {
+export const bearerToken = (authorization: string | undefined): string => {
   const match = /^Bearer ([^\s]+)$/.exec(authorization ?? "");
 
   if (!match) {
@@ -21,7 +21,7 @@ const bearerToken = (authorization: string | undefined): string => {
   return match[1];
 };
 
-/** Resolves a verified Supabase user and its service-owned DB role onto the request. */
+/** 검증된 외부 신원을 내부 UUID 및 서비스 소유 역할로 변환해 요청에 부착한다. */
 export const createRequireAuth = (dependencies: AuthDependencies): RequestHandler =>
   async (request, _response, next) => {
     const accessToken = bearerToken(request.header("authorization"));
