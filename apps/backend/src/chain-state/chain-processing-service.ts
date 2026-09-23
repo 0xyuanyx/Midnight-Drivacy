@@ -80,4 +80,9 @@ export class ChainProcessingService {
     }
     return { operationId: request.operationId };
   }
+
+  /** The API exposes only a projection of this result; private C payloads stay server-side. */
+  public getStatus(user: User, operationId: string): Promise<TripProcessingResult> {
+    return this.finalizer.readStatus(user, operationId);
+  }
 }

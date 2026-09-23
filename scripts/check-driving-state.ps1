@@ -12,7 +12,7 @@ $drivingHarness = Join-Path ([System.IO.Path]::GetTempPath()) ('drivacy-driving-
 New-Item -ItemType Directory -Path (Join-Path $drivingHarness 'packages/midnight/managed') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $drivingRoot 'packages/shared') -Destination (Join-Path $drivingHarness 'packages/shared') -Recurse
 Copy-Item -LiteralPath (Join-Path $drivingRoot 'packages/core') -Destination (Join-Path $drivingHarness 'packages/core') -Recurse
-foreach ($drivingPart in @('src','test','probe','browser')) {
+foreach ($drivingPart in @('src','test','probe','browser','runtime')) {
   Copy-Item -LiteralPath (Join-Path $drivingRoot "packages/midnight/$drivingPart") -Destination (Join-Path $drivingHarness "packages/midnight/$drivingPart") -Recurse
 }
 New-Item -ItemType Directory -Path (Join-Path $drivingHarness 'apps/backend/src'),(Join-Path $drivingHarness 'db') -Force | Out-Null
@@ -45,7 +45,7 @@ $drivingPackage = @'
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
     "@midnight-ntwrk/midnight-js-types": "4.1.1",
-    "@midnight-ntwrk/wallet-sdk": "1.2.0", "rxjs": "7.8.2", "ws": "8.21.1", "zod": "4.6.5",
+    "@midnight-ntwrk/wallet-sdk": "1.2.0", "@midnight-ntwrk/dapp-connector-api": "4.0.1", "rxjs": "7.8.2", "ws": "8.21.1", "zod": "4.6.5",
     "@drivacy/shared": "file:./packages/shared", "pg": "8.23.0", "@types/pg": "8.23.1",
     "esbuild": "0.28.2", "playwright": "1.63.0", "esbuild-plugin-polyfill-node": "0.3.0"
   },
@@ -62,7 +62,7 @@ $drivingTsconfig = @'
   "include": ["packages/shared/**/*.ts", "packages/core/**/*.ts", "packages/midnight/src/**/*.ts",
     "packages/midnight/test/**/*.ts", "packages/midnight/probe/driving-*.ts",
     "packages/midnight/probe/browser-wallet.ts", "packages/midnight/probe/backend-local.ts",
-    "packages/midnight/browser/**/*.ts", "apps/backend/src/chain-state/**/*.ts"]
+    "packages/midnight/browser/**/*.ts", "packages/midnight/runtime/**/*.ts", "apps/backend/src/chain-state/**/*.ts"]
 }
 '@
 [System.IO.File]::WriteAllText((Join-Path $drivingHarness 'package.json'), $drivingPackage)

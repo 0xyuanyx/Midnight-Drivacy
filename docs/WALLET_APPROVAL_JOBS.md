@@ -5,6 +5,24 @@
 영역이다. 현재 실행기는 로컬 개발 월렛을 사용하며 가입자 브라우저 E2E나
 B의 서버/DB가 연결됐다는 뜻은 아니다.
 
+## Wallet Provider 경계 — 2026-09-23 정리
+
+`WalletApproval`은 `TripJob`이 증명 뒤 `awaiting-wallet-approval` 상태에서 요청하는 가입자 승인 결정만 담당한다. 요청에는 `approvalRequestId`, `operationId`, `tripId`, network, chain contract address, step, 이전/신규 State commitment가 모두 포함된다. 취소는 기존 `APPROVAL_CANCELLED` terminal 결과이며 자동 재시도 대상이 아니다.
+
+`packages/midnight/src/wallet-provider.ts`는 두 연결 경로를 분리한다. `LocalBrowserWalletApproval`은 현재의 개발/검증용 local browser wallet UI를 같은 승인 경계에 연결한다. `UserWalletApproval`과 `UserWalletProvider`는 향후 실제 가입자 Wallet Provider가 구현할 connect, initialize, transaction approval, balance/sign, submit, cancel, disconnect 경계를 선언한다. 이 단계에서 Lace SDK나 실제 가입자 Provider는 연결하지 않았다.
+
+실제 Provider는 proven transaction의 digest와 승인 요청을 함께 표시·결합해야 하며, private key, seed, secretKey를 반환하거나 Backend/C 처리 서버로 전송해서는 안 된다. Local browser wallet은 production 가입자 wallet이 아니라 기존 local probe의 개발·검증 도구다. 기존 `wallet-runtime.ts`가 network/action 검사, approvalRequestId 일회성 사용, digest binding, 승인 전 balance/submit 차단, DUST 준비, stop cleanup을 계속 강제한다.
+
+### Lace DApp Connector v4 browser adapter — 2026-09-23 구현
+
+`packages/midnight/browser/lace-wallet-provider.ts`는 설치한 `@midnight-ntwrk/dapp-connector-api@4.0.1`의 실제 타입을 사용한다. provider는 특정 global key를 전제하지 않고 `window.midnight`의 모든 Initial API를 읽어 `name`·`rdns`·`apiVersion`으로 Lace v4 후보를 찾는다. `lace`와 `mnLace` key는 호환용 후보 판별 신호일 뿐 단일 의존점이 아니다. 다수 후보는 임의 선택하지 않고 오류로 닫는다.
+
+adapter는 `connect("preprod")` 뒤 `getConnectionStatus()`와 `getConfiguration()`의 network를 모두 확인한다. Wallet configuration의 indexer·indexer websocket·prover(있을 때)·node URI를 그대로 사용하며, 호출자가 기존 Drivacy endpoint를 지정한 경우 URI가 다르면 `WALLET_SERVICE_URI_MISMATCH`로 중단한다. local/undeployed는 계속 local browser wallet 경로만 사용한다.
+
+v4의 `balanceUnsealedTransaction()`은 wallet이 balance/sign 승인 UI를 여는 지점이다. adapter는 proven transaction의 action을 기존 `wallet-runtime.ts`로 먼저 확인하고, approvalRequestId·pre-balance digest를 한 번만 연결한 뒤 balance/sign을 요청한다. 승인 전 balance, 다른 transaction, 재사용 ID, balance 전 submit은 거부한다. `submitTransaction()`은 v4에서 void이므로 adapter가 반환하는 SHA-256은 chain transaction ID가 아닌 local submission reference다. 실제 chain 결과가 불명이면 기존 `chain-unknown` 조회 규칙을 따른다.
+
+`lace-wallet.html`/`lace-wallet-page.ts`는 browser 수동 검증용 페이지다. preprod Lace 발견·연결·공개 unshielded address·Wallet service URI·사용자가 붙여 넣은 proven unsealed transaction의 balance/sign 승인만 확인하며, transaction submit은 실행하지 않는다. 제품 가입자 UI나 Expo native 기능이 아니며, 실제 Lace browser E2E와 Preprod transaction 성공은 아직 검증 기록에 포함하지 않는다.
+
 ## 먼저 이해할 예시
 
 기록이 1개인 첫 운행은 `beginTrip → appendRecord:0 → finishTrip`의 세 거래다.

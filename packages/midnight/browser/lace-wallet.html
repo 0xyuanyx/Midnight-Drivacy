@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>Drivacy Lace verification</title>
+<body>
+  <h1>Drivacy Lace Wallet verification</h1>
+  <p>Development-only browser harness. It is not a product subscriber UI or Expo-native integration.</p>
+  <p>Expected network: <strong>preprod</strong></p>
+  <pre id="providers"></pre>
+  <button id="connect">Connect Lace</button>
+  <pre id="details"></pre>
+  <label>C runtime URL <input id="runtime-url" size="48" placeholder="http://127.0.0.1:3100"></label><br>
+  <label>Operation ID <input id="operation-id" size="42"></label><br>
+  <label>Browser approval capability <input id="approval-token" size="72" type="password"></label><br>
+  <button id="load" disabled>Load pending approval</button>
+  <button id="approve" disabled>Approve and submit</button>
+  <button id="cancel" disabled>Cancel</button>
+  <p id="status">Waiting for Lace.</p>
+  <script type="module" src="/lace-wallet.js"></script>
+</body></html>

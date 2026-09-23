@@ -127,6 +127,20 @@ export class ChainFinalizer {
     if (result.rowCount !== 1) throw new FinalizationBlocked("CLAIM_UNAVAILABLE");
     return token;
   }
+  /**
+   * Driver polling is authorized against B's persisted job ownership, then
+   * reads C's journal through the authenticated adapter. Browser input never
+   * supplies a claimed chain result to this path.
+   */
+  async readStatus(actor: User, operationId: string): Promise<TripProcessingResult> {
+    if (actor.role !== "DRIVER") throw new FinalizationBlocked("NOT_AUTHORIZED");
+    const lookup = await this.pool.query<JobRow>(`SELECT j.* FROM public.chain_jobs j JOIN public.chain_states s
+      ON s.scope_key=j.scope_key WHERE j.operation_id=$1 AND s.owner_user_id=$2`, [operationId, actor.id]);
+    const job = lookup.rows[0];
+    if (!job) throw new FinalizationBlocked("NOT_AUTHORIZED");
+    if (job.status === "db-confirmed") return TripProcessingResultSchema.parse(job.confirmed_result);
+    return this.readChainStatus(operationId);
+  }
   async finalize(actor: User, operationId: string, token: string): Promise<TripProcessingResult | undefined> {
     // C 조회는 DB 트랜잭션 밖에서 짧게 실행한다. 월렛 승인을 DB row lock으로 기다리지 않는다.
     const lookup = await this.pool.query<JobRow>(`SELECT j.* FROM public.chain_jobs j JOIN public.chain_states s

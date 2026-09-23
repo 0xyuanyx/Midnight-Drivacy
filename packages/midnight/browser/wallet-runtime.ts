@@ -29,6 +29,13 @@ const fromHex = (hex: string) => {
 const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
 const digest = async (hex: string) => toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", fromHex(hex))));
 
+/** Wallet Provider가 balance/sign 전에 proven transaction의 계약 action을 승인 표시와 대조한다. */
+export function verifyApprovalTransaction(display: ApprovalDisplay, transactionHex: string): void {
+  const tx = Ledger.Transaction.deserialize<Ledger.SignatureEnabled, Ledger.Proof, Ledger.PreBinding>("signature", "proof", "pre-binding", fromHex(transactionHex));
+  const actions = Array.from(tx.intents?.values() ?? []).flatMap(intent => intent.actions);
+  if (!matchesApprovalAction(actions, display)) throw new Error("WALLET_CALL_MISMATCH");
+}
+
 /** 브라우저에서만 생성한다. 반환 객체에 seed/개인키/secretKey getter를 넣지 않는다. */
 export async function unlockWallet(passphrase: string, endpoints: WalletEndpoints) {
   const seed = await loadSeed(passphrase);
@@ -72,11 +79,7 @@ export async function unlockWallet(passphrase: string, endpoints: WalletEndpoint
       confirm: (display: ApprovalDisplay & { transactionDigest: string }) => Promise<boolean>) {
       if (approved.has(display.approvalRequestId) || consumedApprovalIds.has(display.approvalRequestId)) throw new Error("APPROVAL_ALREADY_USED");
       if ((display.network === "local" ? "undeployed" : display.network) !== endpoints.network) throw new Error("WALLET_NETWORK_MISMATCH");
-      const tx = Ledger.Transaction.deserialize<Ledger.SignatureEnabled, Ledger.Proof, Ledger.PreBinding>("signature", "proof", "pre-binding", fromHex(transactionHex));
-      const actions = Array.from(tx.intents?.values() ?? []).flatMap(intent => intent.actions);
-      if (!matchesApprovalAction(actions, display)) {
-        throw new Error("WALLET_CALL_MISMATCH");
-      }
+      verifyApprovalTransaction(display, transactionHex);
       // 승인 대기 중 중복 요청과 취소한 승인 ID의 재사용도 차단한다.
       consumedApprovalIds.add(display.approvalRequestId);
       const hash = await digest(transactionHex);

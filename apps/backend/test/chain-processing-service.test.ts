@@ -144,4 +144,15 @@ describe("ChainProcessingService", () => {
     await expect(processing.stage(driver, "session", "session-key")).rejects.toBe(unavailable);
     expect(recorder.recordProcessingUnknown).toHaveBeenCalledWith(driver, trip.id);
   });
+
+  it("reads an existing operation status through the authorized B finalizer boundary", async () => {
+    const status = { contractVersion: "bc-v1", execution: "live", operationId: trip.id,
+      tripId: trip.id, status: "awaiting-wallet-approval", approvalRequestId: "approval" } as const;
+    const finalizer = { readStatus: vi.fn().mockResolvedValue(status) };
+    const processing = new ChainProcessingService(new MemoryRepository(), finalizer as never,
+      {} as never, {} as never, {} as never, runtime);
+
+    await expect(processing.getStatus(driver, trip.id)).resolves.toEqual(status);
+    expect(finalizer.readStatus).toHaveBeenCalledWith(driver, trip.id);
+  });
 });

@@ -2,6 +2,7 @@
 // 공개 local genesis fixture만 이 파일에서 사용한다. 실제 createSeed 경로와 구분한다.
 import { saveSeed, loadSeed, createSeed } from "./seed-vault.js";
 import { unlockWallet, type ApprovalDisplay } from "./wallet-runtime.js";
+import { LocalBrowserWalletApproval } from "../src/wallet-provider.js";
 
 declare global {
   interface Window {
@@ -29,6 +30,9 @@ function confirm(message: string): Promise<boolean> {
     approve.onclick = () => settle(true); cancel.onclick = () => settle(false);
   });
 }
+const localApproval = new LocalBrowserWalletApproval(async input => confirm(
+  `로컬 학습 거래 ${input.step}\n계약 ${input.chainContractAddress}\n승인 대상 Tx(잔액 처리 전) SHA256 ${input.transactionDigest ?? "표시 불가"}\n어댑터가 제공한 작업 ${input.operationId}\n어댑터가 제공한 이전 ${input.previousStateCommitment}\n어댑터가 제공한 목표 ${input.newStateCommitment}`,
+));
 window.drivacyLocalWallet = {
   async initialize() {
     if (location.hostname !== "127.0.0.1" && location.hostname !== "localhost") throw new Error("LOCAL_FIXTURE_ONLY");
@@ -41,8 +45,10 @@ window.drivacyLocalWallet = {
     status.textContent = "로컬 학습 월렛 준비 완료";
     return wallet.publicKeys;
   },
-  approve(display, tx) { return wallet.approve(display, tx, d => confirm(
-    `로컬 학습 거래 ${d.step}\n계약 ${d.chainContractAddress}\n승인 대상 Tx(잔액 처리 전) SHA256 ${d.transactionDigest}\n어댑터가 제공한 작업 ${d.operationId}\n어댑터가 제공한 이전 ${d.previousStateCommitment}\n어댑터가 제공한 목표 ${d.newStateCommitment}`)); },
+  approve(display, tx) { return wallet.approve(display, tx, d => {
+    // runtime이 action·network·digest를 확인한 뒤에만 local UI에 승인 요청을 보낸다.
+    return localApproval.requestTransaction(d);
+  }); },
   balance(tx, id) { return wallet.balance(tx, id); },
   submit(tx) { return wallet.submit(tx); },
   async testVault() {

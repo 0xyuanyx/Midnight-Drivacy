@@ -1,6 +1,36 @@
 # Drivacy 프로젝트 방향성
 
+## 2026-09-23 — C/B Wallet job-status boundary
+
+- Decision: B retains the authenticated C adapter and the original `operationId`; it never invokes a wallet SDK or receives wallet secrets.
+- Decision: Driver polling at `GET /trip-processing/:operationId` authorizes the B-owned job first. It returns only `operationId`, `status`, an `approvalRequestId` while awaiting approval, and a real chain `transactionId` when available.
+- Decision: `awaiting-wallet-approval` stays pending and receives status checks, not submission retries. `chain-unknown` is status-only recovery; `APPROVAL_CANCELLED` is non-retryable.
+- Decision: DApp Connector v4 `submitTransaction()` returns no chain ID. Its SHA-256 digest is C-internal `localSubmissionReference`, never Shared `transactionId`, `submitted`, or `chain-confirmed`.
+- Security: no browser-to-B confirmation callback exists. A future browser-to-C callback must validate the existing C journal's operation, approval request, and digest; B accepts confirmation only from authenticated C status and retains its CAS checks.
+- Status: polling projection and typed local acknowledgement exist. The HTTP host is implemented below; a concrete C journal/proving/indexer executor and Lace/Preprod E2E remain unimplemented and unverified.
+
+## 2026-09-23 — C/Wallet HTTP host and Browser approval capability
+
+- Decision: the C/Wallet host implements the existing B adapter paths (`trip-sources`, `trip-processing/start`, retry, status, and can-abandon) with the internal adapter bearer token. The host delegates private source, journal, witness, and trusted chain observation to a C execution runtime module; B never receives them.
+- Decision: Browser endpoints are separate from the B adapter token. A short-lived HMAC capability binds one `operationId`, `approvalRequestId`, transaction digest, network, and chain contract. The callback accepts only decision, the already-bound digest, and an optional C-local submission reference; it rejects transaction IDs, block IDs, candidates, commitments, and other extra fields.
+- Decision: Browser submit acknowledgement cannot make a job `submitted` or `chain-confirmed`. The C execution runtime must independently observe a real, queryable chain transaction ID and confirmation before returning those Shared states.
+- Status: the host, capability verifier, callback contract, browser harness UI, and unit tests are implemented. A concrete private C executor and a real Preprod chain/indexer observation adapter are still required before E2E can proceed.
+
 마지막 업데이트: 2026-09-23 (KST)
+
+## 가입자 Wallet Provider 경계 — 2026-09-23 구현
+
+- C의 기존 local browser wallet과 Wallet SDK 구현은 개발·검증용으로 유지한다. 이는 production 가입자 Wallet이나 Lace 연결 완료를 뜻하지 않는다.
+- `WalletApproval`은 `approvalRequestId`, 작업·운행 식별자, network, contract, step, 이전/신규 State commitment를 가진 사용자 승인 요청만 담당한다. `awaiting-wallet-approval`은 정상 비동기 대기 상태이며 취소는 기존 `APPROVAL_CANCELLED`로 끝나고 자동 재시도하지 않는다.
+- 향후 실제 가입자 Wallet Provider는 브라우저에서 connect/initialize, 승인, balance/sign, submit, cancel, disconnect를 구현한다. Provider·Backend·C 처리 영역 어느 곳도 가입자 private key, seed, secretKey를 주고받거나 저장하지 않는다.
+- 실제 Lace SDK 연결, 가입자 Provider E2E, 운영 작업 상태 연결은 후속 단계다. 기존 wallet runtime의 network/action/digest/일회성 승인·balance/submit 차단 검사는 유지한다.
+
+## Lace DApp Connector browser adapter — 2026-09-23 구현
+
+- Browser 전용 `LaceWalletProvider`는 DApp Connector API v4.0.1의 `window.midnight` discovery와 `connect("preprod")`를 사용한다. 실제 Lace Provider 선택은 name·rdns·apiVersion으로 하며 특정 global key만 신뢰하지 않는다.
+- 연결 뒤 Wallet의 connection status와 service configuration network를 검증하고, Wallet이 제공한 indexer/indexer websocket/prover/node URI만 사용한다. 명시된 Drivacy endpoint와 충돌하면 연결을 중단한다. local/undeployed에는 기존 local browser wallet을 유지한다.
+- proven transaction action, network, approvalRequestId 단회성 사용, digest binding, 승인 없는 balance/submit 차단은 기존 wallet runtime 의미를 유지한다. Connector v4 submit의 반환값은 없으므로 local digest를 chain transaction ID로 표현하지 않는다.
+- 이 adapter와 수동 browser 검증 페이지는 구현됐지만 실제 Lace 설치 브라우저·Preprod 연결·실제 transaction은 아직 검증하지 않았다. Expo iOS/Android native의 Wallet 연결은 WebView나 임의 bridge로 가정하지 않고 후속 결정으로 남긴다.
 
 ## DRIVER onboarding과 Privy migration 이력 — 2026-09-23 구현
 

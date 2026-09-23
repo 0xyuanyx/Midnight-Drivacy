@@ -1,5 +1,13 @@
 # Midnight-Drivacy
 
+### C/Wallet processing status boundary (2026-09-23)
+
+`POST /driving-sessions/:sessionId/process` returns a stable `operationId`. An authenticated DRIVER can poll `GET /trip-processing/:operationId`; B authorizes its owned job before querying the configured C/Wallet adapter and returns only safe status fields. `awaiting-wallet-approval` is pending, not failure. B does not accept browser-provided confirmation and holds no wallet secrets.
+
+Lace DApp Connector v4 integration is browser-side only. Its `submitTransaction()` acknowledgement has no chain ID, so C keeps any SHA-256 broadcast reference separate from Shared `transactionId`. Real Lace/Preprod end-to-end submission, trusted chain-ID observation, and a production C journal HTTP runtime are not implemented or verified.
+
+The repository now also has the C/Wallet HTTP host at `packages/midnight/runtime/server.ts`, started with `npm run dev:c-wallet`. It serves the existing Backend adapter paths only with `C_WALLET_ADAPTER_TOKEN`; browser approval uses a separate, short-lived capability and cannot submit a claimed chain confirmation. It requires a deployment-specific `C_WALLET_RUNTIME_MODULE` exporting the private journal/proving/indexer runtime, so it does not substitute synthetic receipts or claim Preprod verification.
+
 Drivacy는 상세 주행기록을 보험사에 공개하지 않고, 보험사가 승인한 안전운전 할인 조건의 충족 여부를 Midnight의 영지식증명으로 검증하는 프로젝트입니다.
 
 Privacy-preserving driving-based insurance eligibility proofs on Midnight.
@@ -76,6 +84,10 @@ C 5단계의 [월렛 승인·운행 작업 제어](docs/WALLET_APPROVAL_JOBS.md)
 전체 컴파일·타입 검사·88개 테스트와 실제 로컬 두 운행(revision 2)을 통과했습니다.
 개발자 승인 7회·proof/계약 제출 각 9회로 결과 반환 장애 복구와 확정 결과 재조회 시
 추가 제출이 없는 것을 확인했습니다. [별도 실행 증거](docs/evidence/wallet-jobs-2026-09-18.json)를 보관합니다.
+
+2026-09-23에는 개발·검증용 local browser wallet과 향후 실제 가입자 Wallet Provider를 분리하는 경계를 정리했습니다. `WalletApproval`은 작업별 사용자 승인 결정만 다루고, `UserWalletProvider`는 이후 브라우저의 connect/initialize, transaction approval, balance/sign, submit, cancel, disconnect 구현을 받을 인터페이스입니다. 실제 Lace SDK·가입자 Provider 연결은 아직 없으며, Backend가 가입자 private key·seed·secretKey를 소유하거나 받지 않습니다.
+
+같은 날짜에 browser 전용 `LaceWalletProvider`와 수동 검증 페이지를 추가했습니다. DApp Connector API v4.0.1의 `window.midnight` discovery 및 `connect("preprod")`를 사용하고 Wallet이 제공한 network/service URI와 proven transaction action·digest를 검증합니다. 이 코드와 fake connector 단위 테스트는 실제 Lace 확장 또는 Preprod transaction 성공 증거가 아니며, Expo native 연결도 아직 구현하지 않았습니다.
 
 C 6단계의 [최종 결과 proof·nullifier와 로컬 브라우저/B 연결](docs/FINAL_EVALUATION.md)을 추가했습니다.
 독립 Claude 검토에서 재현한 witness 바인딩·동시 balance·취소 작업 종료 문제를 수정했습니다.
