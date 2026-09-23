@@ -13,7 +13,6 @@
     "@drivacy/rule-draft": "file:../../packages/rule-draft",
     "@drivacy/shared": "file:../../packages/shared",
     "@privy-io/node": "^0.35.0",
-    "@privy-io/node": "^0.35.0",
     "express": "^5.0.0",
     "pg": "^8.23.0"
   },

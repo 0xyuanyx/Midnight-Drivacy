@@ -4,7 +4,7 @@ import type { AuthDependencies } from "../auth/auth-service.js";
 import type { DriverOnboardingService } from "../auth/driver-onboarding-service.js";
 import { bearerToken, createRequireAuth } from "../middleware/require-auth.js";
 
-/** Returns only the shared application user, not the complete Supabase Auth record. */
+/** Returns only the shared application user, not the complete Privy identity record. */
 export const createAuthRouter = (
   dependencies: AuthDependencies,
   driverOnboardingService?: DriverOnboardingService,
