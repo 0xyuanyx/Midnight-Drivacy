@@ -69,7 +69,14 @@ export class RuleRegistrationService {
     if(deployment&&actor.role!=="INSURER")throw new AppError("RULE_UPDATE_REQUIRES_INSURER","Only the insurer can register a later rule version",403);
     // 기존 registration은 위에서 조회만 한다. 새 등록으로 현재 Rule Version을 과거로 되돌릴 수 없다.
     if(deployment&&(!deployment.currentRuleVersion||toRuleVersionNumber(deployment.currentRuleVersion)>=version))throw new AppError("RULE_VERSION_NOT_NEWER","Only a newer approved rule version can be registered",409);
-    const scope=this.scope(target,scopeRow); if(!deployment){
+    if(deployment){
+      // 현재 Compact 계약은 constructor의 ruleHash를 고정하고 State opening에도 같은 hash를 넣는다.
+      // C가 기존 Confirmed State를 새 Rule로 전이했다는 receipt/Confirmed State 계약이 없는 상태에서
+      // current_rule_version만 바꾸면 이후 운행이 영구히 Rule mismatch가 된다. 체인 전이 계약이
+      // 추가되기 전에는 C 호출 자체를 막아 DB와 체인의 서로 다른 Rule을 성공으로 기록하지 않는다.
+      throw new AppError("RULE_UPDATE_STATE_MIGRATION_REQUIRED","A chain-confirmed Rule/State transition is required before updating this scope",409);
+    }
+    const scope=this.scope(target,scopeRow);
       // 외부 배포 전에 시도 ID를 영속화한다. DB 기록 실패·프로세스 종료 뒤에는
       // C가 기존 거래의 부재를 증명하기 전까지 같은 Scope를 다시 배포하지 않는다.
       const attempt=await this.repo.reserveInitialAttempt(scopeRow.id,target.ruleVersionId,this.runtime);
@@ -84,8 +91,6 @@ export class RuleRegistrationService {
         if(status.data.status!=="not-submitted")throw new AppError("CHAIN_REGISTRATION_UNRESOLVED","Initial deployment status must be recovered before retry",409);
       }
       return this.completeInitial(scopeRow,target,scope,approved,attempt.operationId,
-        await this.adapter.deployRule({operationId:attempt.operationId,scope,approvedRule:approved})); }
-    // Rule 갱신은 기존 Scope 계약과 registration 이력을 유지한다. 새 Deployment나 Genesis로
-    // 누적 State를 초기화하면 과거 운행 연결이 끊기므로 C에는 기존 계약 주소로 update만 요청한다.
-    const registered=this.registered(await this.adapter.updateRule({scope,deployment:{network:deployment.network,adapterProfile:deployment.adapterProfile,chainContractAddress:deployment.chainContractAddress},approvedRule:approved}),approved,deployment); await this.repo.createRegistrationAndSetCurrent({chainScopeDeploymentId:deployment.id,ruleVersionId:target.ruleVersionId,ruleHash:registered.ruleHash,registrationTransactionId:registered.registrationTransactionId});return registered; }); }
+        await this.adapter.deployRule({operationId:attempt.operationId,scope,approvedRule:approved}));
+  }); }
 }

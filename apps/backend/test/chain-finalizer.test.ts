@@ -26,7 +26,9 @@ const fixture = () => {
       return { rows: [{ operation_id: job.operation_id }], rowCount: 1 };
     }
     if (sql.includes("insurance_contracts c")) return { rows: [{ id: "contract" }], rowCount: 1 };
+    if (sql.includes("SELECT j.*,s.confirmed_state FROM public.chain_jobs")) return { rows: [{ ...job, confirmed_state: previous }], rowCount: 1 };
     if (sql.includes("SELECT j.* FROM public.chain_jobs")) return { rows: [job], rowCount: 1 };
+    if (sql.includes("SELECT * FROM public.chain_jobs WHERE operation_id")) return { rows: [job], rowCount: 1 };
     if (sql.includes("SELECT *, claim_expires_at")) return { rows: [{ ...job, claim_valid: job.claim_valid }], rowCount: 1 };
     if (sql.includes("SELECT * FROM public.chain_states")) return { rows: [state], rowCount: 1 };
     if (sql.includes("UPDATE public.chain_states")) {
@@ -142,6 +144,22 @@ describe("ChainFinalizer confirmed-state boundary", () => {
     db.job.status = "db-confirmed"; db.job.confirmed_result = confirmedResult;
     await service.deleteConfirmedSource(actor, "operation"); db.job.deletion_status = "deleted";
     await service.deleteConfirmedSource(actor, "operation"); expect(source.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases a Session generation-state reservation only after C has confirmed safe abandonment", async () => {
+    const db = fixture();
+    const failed = { contractVersion: "bc-v1", execution: "live", operationId: "operation", tripId: "trip",
+      status: "failed", error: { code: "CHAIN_REJECTED", retryable: false } } as const;
+    const service = new ChainFinalizer(db.pool,
+      { getTripStatus: vi.fn(async () => failed), canAbandonTrip: vi.fn(async () => true) },
+      { load: vi.fn(), delete: vi.fn() });
+
+    await service.abandonJob(actor, "operation");
+
+    const release = db.query.mock.calls.map(call => String(call[0]))
+      .find(sql => sql.includes("generation_state_released_at"));
+    expect(release).toContain("j.status='abandoned'");
+    expect(release).toContain("j.trip_id=ds.trip_id");
   });
 });
 

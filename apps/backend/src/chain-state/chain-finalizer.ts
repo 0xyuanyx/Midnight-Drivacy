@@ -203,6 +203,13 @@ export class ChainFinalizer {
       await client.query(`UPDATE public.chain_jobs SET status='abandoned',claim_token=NULL,claim_expires_at=NULL,
         next_action_type=NULL,next_action_at=NULL,abandoned_at=clock_timestamp(),
         raw_expires_at=clock_timestamp()+interval '7 days' WHERE operation_id=$1`, [operationId]);
+      // C가 cancelTrip까지 확정해 canAbandonTrip=true를 준 terminal 실패만 같은 transaction에서
+      // Session 점유를 푼다. pending/unknown/단순 ENDED Session을 풀면 유리한 운행만 골라
+      // 누적할 수 있으므로, 새 운행은 이 안전한 abandon 이후에만 같은 Previous State를 쓸 수 있다.
+      await client.query(`UPDATE public.driving_sessions ds SET generation_state_released_at=clock_timestamp()
+        FROM public.chain_jobs j
+        WHERE j.operation_id=$1 AND j.status='abandoned' AND j.trip_id=ds.trip_id
+          AND ds.generation_state_released_at IS NULL`, [operationId]);
     });
   }
   async deleteConfirmedSource(actor: User, operationId: string): Promise<void> {
