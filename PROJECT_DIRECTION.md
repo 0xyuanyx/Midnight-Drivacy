@@ -7,16 +7,17 @@
 - Decision: `awaiting-wallet-approval` stays pending and receives status checks, not submission retries. `chain-unknown` is status-only recovery; `APPROVAL_CANCELLED` is non-retryable.
 - Decision: DApp Connector v4 `submitTransaction()` returns no chain ID. Its SHA-256 digest is C-internal `localSubmissionReference`, never Shared `transactionId`, `submitted`, or `chain-confirmed`.
 - Security: no browser-to-B confirmation callback exists. A future browser-to-C callback must validate the existing C journal's operation, approval request, and digest; B accepts confirmation only from authenticated C status and retains its CAS checks.
-- Status: polling projection and typed local acknowledgement exist. The HTTP host is implemented below; a concrete C journal/proving/indexer executor and Lace/Preprod E2E remain unimplemented and unverified.
+- Status: polling projection, typed local acknowledgement, and the concrete `DrivingRuntime` executor exist. It reuses the Compact/proof/indexer/`TripJob` pipeline with local development persistence; durable multi-process recovery and Lace/Preprod E2E remain unverified.
 
 ## 2026-09-23 — C/Wallet HTTP host and Browser approval capability
 
 - Decision: the C/Wallet host implements the existing B adapter paths (`trip-sources`, `trip-processing/start`, retry, status, and can-abandon) with the internal adapter bearer token. The host delegates private source, journal, witness, and trusted chain observation to a C execution runtime module; B never receives them.
 - Decision: Browser endpoints are separate from the B adapter token. A short-lived HMAC capability binds one `operationId`, `approvalRequestId`, transaction digest, network, and chain contract. The callback accepts only decision, the already-bound digest, and an optional C-local submission reference; it rejects transaction IDs, block IDs, candidates, commitments, and other extra fields.
 - Decision: Browser submit acknowledgement cannot make a job `submitted` or `chain-confirmed`. The C execution runtime must independently observe a real, queryable chain transaction ID and confirmation before returning those Shared states.
-- Status: the host, capability verifier, callback contract, browser harness UI, and unit tests are implemented. A concrete private C executor and a real Preprod chain/indexer observation adapter are still required before E2E can proceed.
+- Decision: C derives `transactionId` only from the exact SDK-deserialized Wallet-balanced transaction using `tx.identifiers().at(-1)`. SHA-256 `localSubmissionReference` remains local metadata, never a Shared chain ID.
+- Status: the host, capability verifier, browser page, and concrete private C executor are implemented. `LocalJobStore` and the source file store are development/demo persistence only; production durable recovery and real Lace/Preprod E2E remain required.
 
-마지막 업데이트: 2026-09-23 (KST)
+마지막 업데이트: 2026-09-24 (KST)
 
 ## 가입자 Wallet Provider 경계 — 2026-09-23 구현
 

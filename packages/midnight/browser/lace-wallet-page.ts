@@ -1,9 +1,11 @@
 import { LaceProviderError, LaceWalletProvider, discoverLaceWallets, type MidnightWindow } from "./lace-wallet-provider.js";
 
 type PendingApproval = {
-  operationId: string; status: "awaiting-wallet-approval"; approvalRequestId: string;
+  operationId: string; tripId: string; status: "awaiting-wallet-approval" | "chain-unknown"; approvalRequestId: string;
   network: string; chainContractAddress: string; step: "beginTrip" | `appendRecord:${number}` | "finishTrip" | "cancelTrip";
-  transactionHex: string; transactionDigest: string;
+  previousStateCommitment: string; newStateCommitment: string;
+  phase: "balance" | "submit"; transactionHex: string; balancedTransactionHex?: string; transactionDigest: string;
+  walletServices?: { indexer: string; indexerWS: string; proof: string; node: string };
 };
 const expectedNetwork = "preprod";
 const status = document.querySelector<HTMLElement>("#status")!;
@@ -49,30 +51,47 @@ loadButton.onclick = async () => {
     if (!response.ok) throw new Error(`C_RUNTIME_${response.status}`);
     pending = await response.json() as PendingApproval;
     if (pending.network !== expectedNetwork || pending.operationId !== operationId.value.trim()) throw new Error("C_RUNTIME_APPROVAL_MISMATCH");
+    const services = provider.getServiceUris();
+    if (!pending.walletServices || services.indexer !== new URL(pending.walletServices.indexer).toString()
+      || services.indexerWS !== new URL(pending.walletServices.indexerWS).toString()
+      || services.node !== new URL(pending.walletServices.node).toString()
+      || (services.proof ?? "") !== new URL(pending.walletServices.proof).toString()) throw new Error("C_RUNTIME_SERVICE_MISMATCH");
     approvalButton.disabled = false; cancelButton.disabled = false;
     show(`Awaiting wallet approval: ${pending.approvalRequestId} (${pending.step})`);
   } catch (error) { show(error instanceof Error ? error.message : "C_RUNTIME_STATUS_FAILED"); }
 };
 
-async function callback(decision: "approved" | "cancelled", localSubmissionReference?: string) {
+async function callback(body: Record<string, unknown>) {
   if (!pending) throw new Error("NO_PENDING_APPROVAL");
-  const response = await runtimeRequest("POST", "/approval", { decision, transactionDigest: pending.transactionDigest, localSubmissionReference });
+  const response = await runtimeRequest("POST", "/approval", { transactionDigest: pending.transactionDigest, ...body });
   if (!response.ok) throw new Error(`C_RUNTIME_CALLBACK_${response.status}`);
 }
 
 approvalButton.onclick = async () => {
   try {
     if (!pending) throw new Error("NO_PENDING_APPROVAL");
-    const request = { approvalRequestId: pending.approvalRequestId, operationId: pending.operationId, tripId: pending.operationId,
+    const request = { approvalRequestId: pending.approvalRequestId, operationId: pending.operationId, tripId: pending.tripId,
       network: pending.network, chainContractAddress: pending.chainContractAddress, step: pending.step,
-      previousStateCommitment: "C-runtime-bound", newStateCommitment: "C-runtime-bound" };
+      previousStateCommitment: pending.previousStateCommitment, newStateCommitment: pending.newStateCommitment };
+    if (pending.phase !== "balance") throw new Error("C_RUNTIME_NOT_READY_FOR_BALANCE");
     await provider.requestApproval(request);
     const decision = await provider.approveTransaction({ ...request, transactionHex: pending.transactionHex, transactionDigest: pending.transactionDigest });
-    if (decision === "cancelled") { await callback("cancelled"); show("APPROVAL_CANCELLED"); return; }
+    if (decision === "cancelled") { await callback({ decision: "cancelled" }); show("APPROVAL_CANCELLED"); return; }
     const balanced = await provider.balance(pending.transactionHex, pending.approvalRequestId);
+    await callback({ decision: "approved", phase: "balanced", balancedTransactionHex: balanced });
+    let submitReady: Response | undefined;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const response = await runtimeRequest("GET");
+      if (!response.ok) throw new Error(`C_RUNTIME_SUBMIT_${response.status}`);
+      const candidate = await response.json() as PendingApproval;
+      if (candidate.phase === "submit") { pending = candidate; submitReady = response; break; }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (!submitReady) throw new Error("C_RUNTIME_SUBMIT_NOT_READY");
+    if (pending.phase !== "submit" || pending.balancedTransactionHex !== balanced) throw new Error("C_RUNTIME_SUBMISSION_MISMATCH");
     const submission = await provider.submit(balanced);
-    await callback("approved", submission.localSubmissionReference);
-    show("Submitted to Lace. C must independently observe a real chain transaction ID before submitted/confirmed.");
+    await callback({ decision: "approved", phase: "submitted", localSubmissionReference: submission.localSubmissionReference });
+    show("Submitted to Lace. C independently observes the SDK transaction ID and ledger state before confirmation.");
   } catch (error) { show(error instanceof LaceProviderError ? error.code : error instanceof Error ? error.message : "WALLET_APPROVAL_FAILED"); }
 };
-cancelButton.onclick = async () => { try { await callback("cancelled"); show("APPROVAL_CANCELLED"); } catch (error) { show(error instanceof Error ? error.message : "C_RUNTIME_CALLBACK_FAILED"); } };
+cancelButton.onclick = async () => { try { await callback({ decision: "cancelled" }); show("APPROVAL_CANCELLED"); } catch (error) { show(error instanceof Error ? error.message : "C_RUNTIME_CALLBACK_FAILED"); } };

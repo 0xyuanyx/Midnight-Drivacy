@@ -16,7 +16,7 @@ function runtime() {
     async saveSource() { return "source"; }, async loadSource() { throw new Error("unused"); }, async deleteSource() {},
     async startTrip() { return result; }, async retryTemporaryFailure() { return result; }, async getTripStatus() { return result; },
     async canAbandonTrip() { return false; },
-    async getBrowserApproval() { return { request, transactionHex: "aabb", transactionDigest: digest }; },
+    async getBrowserApproval() { return { request, transactionHex: "aabb", transactionDigest: digest, phase: "balance" as const }; },
     async receiveBrowserApproval(input) { callbacks.push(input); },
   };
   return { value, callbacks };
@@ -51,8 +51,8 @@ describe("C/Wallet HTTP runtime boundary", () => {
     await expect(fetch(`${base}/browser/trip-processing/${request.operationId}/approval`, { method: "POST", headers,
       body: JSON.stringify({ decision: "approved", transactionDigest: "b".repeat(64), transactionId: "forged" }) })).resolves.toMatchObject({ status: 400 });
     await expect(fetch(`${base}/browser/trip-processing/${request.operationId}/approval`, { method: "POST", headers,
-      body: JSON.stringify({ decision: "approved", transactionDigest: digest, localSubmissionReference: "c".repeat(64) }) })).resolves.toMatchObject({ status: 204 });
+      body: JSON.stringify({ decision: "approved", phase: "submitted", transactionDigest: digest, localSubmissionReference: "c".repeat(64) }) })).resolves.toMatchObject({ status: 204 });
     expect(fake.callbacks).toEqual([{ request, transactionDigest: digest,
-      callback: { decision: "approved", transactionDigest: digest, localSubmissionReference: "c".repeat(64) } }]);
+      callback: { decision: "approved", phase: "submitted", transactionDigest: digest, localSubmissionReference: "c".repeat(64) } }]);
   });
 });

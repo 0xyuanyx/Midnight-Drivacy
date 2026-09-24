@@ -16,8 +16,23 @@ const capabilityClaims = z.object({
 const approvalCallback = z.object({
   decision: z.enum(["approved", "cancelled"]),
   transactionDigest: z.string().regex(/^[0-9a-f]{64}$/i),
+  phase: z.enum(["balanced", "submitted"]).optional(),
+  // This is the wallet-produced, signed transaction. It is public transaction
+  // data, not wallet key material; C derives the chain ID from it with the SDK.
+  balancedTransactionHex: z.string().regex(/^(?:[0-9a-f]{2})+$/i).optional(),
   localSubmissionReference: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (value.decision === "cancelled" && (value.phase || value.balancedTransactionHex || value.localSubmissionReference)) {
+    context.addIssue({ code: "custom", message: "CANCELLED_CALLBACK_MUST_NOT_INCLUDE_SUBMISSION_DATA" });
+  }
+  if (value.decision === "approved" && value.phase === "balanced" && !value.balancedTransactionHex) {
+    context.addIssue({ code: "custom", message: "BALANCED_TRANSACTION_REQUIRED" });
+  }
+  if (value.decision === "approved" && value.phase === "submitted" && value.balancedTransactionHex) {
+    context.addIssue({ code: "custom", message: "SUBMITTED_CALLBACK_MUST_NOT_REPLACE_TRANSACTION" });
+  }
+  if (value.decision === "approved" && !value.phase) context.addIssue({ code: "custom", message: "APPROVAL_PHASE_REQUIRED" });
+});
 
 export type BrowserApprovalCapability = z.infer<typeof capabilityClaims>;
 export type BrowserApprovalCallback = z.infer<typeof approvalCallback>;
@@ -39,6 +54,9 @@ export interface CWalletProcessingRuntime {
     request: ApprovalRequest;
     transactionHex: string;
     transactionDigest: string;
+    phase: "balance" | "submit";
+    balancedTransactionHex?: string;
+    walletServices?: { indexer: string; indexerWS: string; proof: string; node: string };
   } | undefined>;
   receiveBrowserApproval(input: {
     request: ApprovalRequest;
@@ -108,10 +126,15 @@ export function createCWalletHttpServer(options: CWalletHttpOptions): Server {
         if (!approval || approval.request.approvalRequestId !== claims.approvalRequestId
           || approval.transactionDigest !== claims.transactionDigest || approval.request.network !== claims.network
           || approval.request.chainContractAddress !== claims.chainContractAddress) throw new Error("APPROVAL_NOT_PENDING");
-        if (method === "GET") return json(response, 200, { operationId, status: "awaiting-wallet-approval",
-          approvalRequestId: approval.request.approvalRequestId, network: approval.request.network,
+        if (method === "GET") return json(response, 200, { operationId,
+          status: approval.phase === "balance" ? "awaiting-wallet-approval" : "chain-unknown",
+          approvalRequestId: approval.request.approvalRequestId, tripId: approval.request.tripId, network: approval.request.network,
           chainContractAddress: approval.request.chainContractAddress, step: approval.request.step,
-          transactionHex: approval.transactionHex, transactionDigest: approval.transactionDigest });
+          previousStateCommitment: approval.request.previousStateCommitment,
+          newStateCommitment: approval.request.newStateCommitment,
+          phase: approval.phase, transactionHex: approval.transactionHex,
+          balancedTransactionHex: approval.balancedTransactionHex, transactionDigest: approval.transactionDigest,
+          walletServices: approval.walletServices });
         if (method === "POST" && path.endsWith("/approval")) {
           const callback = approvalCallback.parse(await readJson(request));
           if (callback.transactionDigest !== approval.transactionDigest) throw new Error("APPROVAL_DIGEST_MISMATCH");

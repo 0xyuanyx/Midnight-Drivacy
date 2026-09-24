@@ -4,7 +4,11 @@
 
 `POST /driving-sessions/:sessionId/process` returns a stable `operationId`. An authenticated DRIVER can poll `GET /trip-processing/:operationId`; B authorizes its owned job before querying the configured C/Wallet adapter and returns only safe status fields. `awaiting-wallet-approval` is pending, not failure. B does not accept browser-provided confirmation and holds no wallet secrets.
 
-Lace DApp Connector v4 integration is browser-side only. Its `submitTransaction()` acknowledgement has no chain ID, so C keeps any SHA-256 broadcast reference separate from Shared `transactionId`. Real Lace/Preprod end-to-end submission, trusted chain-ID observation, and a production C journal HTTP runtime are not implemented or verified.
+Lace DApp Connector v4 integration is browser-side only. Its `submitTransaction()` acknowledgement has no chain ID, so C keeps any SHA-256 broadcast reference separate from Shared `transactionId`.
+
+`packages/midnight/runtime/driving-runtime.ts` is the concrete C executor: it reuses the Compact contract, proof provider, indexer provider and `TripJob` pipeline. C derives a transaction ID from the Wallet-balanced transaction with the Midnight SDK, waits for browser submission, and independently validates indexed ledger state before `chain-confirmed`. Its source/journal stores are local development/demo persistence, not a production durable recovery store.
+
+Real Lace/Preprod end-to-end submission and production durable restart recovery are not implemented or verified.
 
 The repository now also has the C/Wallet HTTP host at `packages/midnight/runtime/server.ts`, started with `npm run dev:c-wallet`. It serves the existing Backend adapter paths only with `C_WALLET_ADAPTER_TOKEN`; browser approval uses a separate, short-lived capability and cannot submit a claimed chain confirmation. It requires a deployment-specific `C_WALLET_RUNTIME_MODULE` exporting the private journal/proving/indexer runtime, so it does not substitute synthetic receipts or claim Preprod verification.
 
