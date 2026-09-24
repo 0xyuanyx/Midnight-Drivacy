@@ -35,8 +35,8 @@ describe("insurer workspace navigation", () => {
     expect(content).toHaveValue("500km 이상");
     await user.clear(content);
     await user.type(content, "550km 이상");
-    await user.click(screen.getByRole("button", { name: "규칙 초안으로 이동" }));
-    expect(screen.getByText(/자동 변환 서비스가 연결되면/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "규칙 초안 생성" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("초안 서비스 연결과 보험사 로그인이 필요합니다");
     await user.click(screen.getByRole("button", { name: "문서 내용 다시 수정" }));
     expect(screen.getByLabelText("추출된 약관 내용")).toHaveValue("550km 이상");
   });

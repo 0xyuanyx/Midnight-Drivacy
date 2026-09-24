@@ -121,7 +121,9 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 2026-09-24: 팀원 변경의 5개 메뉴를 유지한 채 추가 화면의 목록 타이포·카드·하단 행동 정렬과 특약 탭 키보드 탐색을 보정했습니다. 로컬 브리지 설정 여부는 실제 서비스 헬스체크와 구분해 표시합니다.
 
-2026-09-23 추가 메뉴를 보험사 웹 프론트에 구현했습니다. 특약 관리의 규칙 변경은 PDF/DOCX/TXT/MD 문서를 브라우저에서 올려 글자를 추출하고 내용을 수정한 뒤 초안 검토 화면으로 이동합니다. 스캔 PDF의 OCR은 제공하지 않으며 글자를 읽지 못하면 직접 보완할 수 있습니다. 검증 이력은 신청을 찾아 기존 평가 요청 상세로 이동하고, 연동 상태는 읽기 전용 목업입니다. 자동 규칙 변환 호출·초안 저장/승인/등록, 실제 Backend/ZK/체인 조회는 아직 연결되지 않았으며 검증 이력은 데모 데이터와 실제 검증의 차이를 표시합니다.
+2026-09-24: A 담당이 기존 특약 문서 확인 화면에서 수정된 약관 텍스트를 Rule Draft API로 보낼 수 있는 토큰 주입형 경계를 추가했습니다. 반환된 값과 약관 근거를 검토하고 실패 또는 `manual_required` 응답에서는 수기로 보완할 수 있습니다. 로그인 디자인·토큰 제공자와 실제 특약 ID가 없으므로 기본 실행은 API를 호출하지 않으며, 생성 결과는 저장·승인·운영 적용되지 않습니다. 가입자 앱에는 인증 토큰을 주입받는 Auth/동의/보험계약/특약 선택/모의 운행 API 호출 경계를 준비했지만 기존 화면은 아직 fixture 흐름입니다. 보험사 신청·심사 Backend API도 현재 없으므로 앱↔웹의 실제 서비스 연동을 완료했다고 보지 않습니다.
+
+2026-09-23 추가 메뉴를 보험사 웹 프론트에 구현했습니다. 특약 관리의 규칙 변경은 PDF/DOCX/TXT/MD 문서를 브라우저에서 올려 글자를 추출하고 내용을 수정한 뒤 초안 검토 화면으로 이동합니다. 스캔 PDF의 OCR은 제공하지 않으며 글자를 읽지 못하면 직접 보완할 수 있습니다. 검증 이력은 신청을 찾아 기존 평가 요청 상세로 이동하고, 연동 상태는 읽기 전용 목업입니다. 2026-09-24에 인증 정보를 주입받으면 호출 가능한 자동 규칙 초안 경계를 추가했으나 기본 실행에는 토큰 제공자가 없으며 초안 저장/승인/등록, 실제 ZK/체인 조회는 연결되지 않았습니다. 검증 이력은 데모 데이터와 실제 검증의 차이를 표시합니다.
 
 ### 두 프론트의 로컬 연동 데모
 
@@ -144,7 +146,7 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 `apps/web` is a separate insurer-facing React + TypeScript + Vite demo based on the [UI rules](docs/WEB_APP_RULES.md) and [implementation plan](docs/WEB_IMPLEMENTATION_PLAN.md). Its Figma-aligned shell has five navigation entries, compact KPI cards, a Dashboard guidance banner, four-column request lists and shared score/discount, proof-table and history details. Search/filter controls open from the Filter button and remain in the URL. The menus are Dashboard, Evaluation Requests, Special Rider Management with a rule-conversion screen, Verification History, and a read-only Integration Status mock. The 500 km approved-rule threshold is separate from the Figma web sample's 524.8 km (the mobile demo still uses 550 km).
 
-The standard web run uses a browser-persisted fixture adapter backed by localStorage. The optional local linked demo shares synthetic application status with the subscriber app through the demo bridge. Neither mode connects to insurer systems, authenticated Backend request/evaluation APIs, or the Midnight proof network. The UI labels this boundary; no real contract or discount is changed. The manual insurer Rule entry/review decision remains unchanged. The rule-change screen extracts text from uploaded PDF documents in the browser, but does not call an LLM, perform OCR, or save a converted Rule draft.
+The standard web run uses a browser-persisted fixture adapter backed by localStorage. The optional local linked demo shares synthetic application status with the subscriber app through the demo bridge. Neither mode connects to insurer systems, authenticated Backend request/evaluation APIs, or the Midnight proof network. The UI labels this boundary; no real contract or discount is changed. The manual insurer Rule entry/review decision remains unchanged. The rule-change screen extracts text from uploaded PDF documents in the browser. A token-injected API boundary can request a review-only Rule draft, but the default fixture run has no authentication provider or real special-contract ID. It does not perform OCR, save a draft, approve a Rule, or register one on-chain.
 
 ```bash
 npm install

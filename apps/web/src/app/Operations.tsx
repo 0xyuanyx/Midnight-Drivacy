@@ -1,34 +1,69 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { WorkspaceState } from "../domain/workspace";
 import { readPolicyDocument } from "./readPolicyDocument";
 import { linkedDemoEnabled } from "./LinkedEvaluations";
 import { Search, Upload, PlugZap } from "lucide-react";
+import { ruleFields, type InsurerApi, type RuleDraft, type RuleField } from "../api/backend";
 
 type RiderTab = "conditions" | "conversion" | "versions";
 type ConversionStage = "upload" | "edit" | "draft" | "manual";
 
 const riderTabs: Array<[RiderTab, string]> = [["conditions", "현재 조건"], ["conversion", "규칙 변경"], ["versions", "변경 이력"]];
+const ruleLabels: Record<RuleField, string> = { speedingPenalty: "과속 감점", accelerationPenalty: "급가속 감점", brakingPenalty: "급제동 감점", minimumDistanceM: "최소 주행거리 (km)", minimumScore: "기본 점수", premiumMinimumScore: "상위 점수", baseDiscountBps: "기본 할인율 (%)", premiumDiscountBps: "상위 할인율 (%)" };
+const emptyValues = () => Object.fromEntries(ruleFields.map((field) => [field, ""])) as Record<RuleField, string>;
+function displayValue(field: RuleField, value: number | null): string { return value === null ? "" : String(field === "minimumDistanceM" ? value / 1000 : field.endsWith("Bps") ? value / 100 : value); }
+
+function DraftFields({ values, evidence, onChange }: { values: Record<RuleField, string>; evidence: RuleDraft["evidence"] | null; onChange: (field: RuleField, value: string) => void }) {
+  return <div className="operations-rule-grid">{ruleFields.map((field) => <label className="operations-rule-field" key={field}><span>{ruleLabels[field]}</span><input aria-label={ruleLabels[field]} type="number" min="0" step={field === "minimumDistanceM" ? "0.001" : field.endsWith("Bps") ? "0.01" : "1"} value={values[field]} onChange={(event) => onChange(field, event.target.value)} placeholder="직접 입력" />{evidence?.[field] ? <small>근거: {evidence[field]}</small> : <small>약관 근거 확인 필요</small>}</label>)}</div>;
+}
 
 function Row({ label, value }: { label: string; value: string }) {
   return <div className="operations-row"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-export function Riders() {
+export function Riders({ ruleDraftApi, specialContractId }: { ruleDraftApi?: Pick<InsurerApi, "createRuleDraft">; specialContractId?: string } = {}) {
   const [tab, setTab] = useState<RiderTab>("conditions");
   const [stage, setStage] = useState<ConversionStage>("upload");
   const [documentName, setDocumentName] = useState("");
   const [policyText, setPolicyText] = useState("");
   const [documentError, setDocumentError] = useState("");
   const [isReading, setIsReading] = useState(false);
+  const [draft, setDraft] = useState<RuleDraft | null>(null);
+  const [draftValues, setDraftValues] = useState<Record<RuleField, string>>(emptyValues);
+  const [draftError, setDraftError] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const draftRequest = useRef(0);
+
+  async function generateDraft() {
+    if (!policyText.trim() || isGenerating) return;
+    setStage("draft");
+    setDraft(null);
+    setDraftError("");
+    if (!ruleDraftApi || !specialContractId) { setDraftError("초안 서비스 연결과 보험사 로그인이 필요합니다. 수기로 조건을 보완할 수 있습니다."); return; }
+    const request = ++draftRequest.current;
+    setIsGenerating(true);
+    try {
+      const result = await ruleDraftApi.createRuleDraft(specialContractId, policyText);
+      if (request !== draftRequest.current) return;
+      setDraft(result);
+      setDraftValues(Object.fromEntries(ruleFields.map((field) => [field, displayValue(field, result.values[field])])) as Record<RuleField, string>);
+      if (result.state === "manual_required") setDraftError("약관에서 검증 가능한 초안을 만들지 못했습니다. 아래 값을 수기로 확인해 주세요.");
+    } catch { if (request === draftRequest.current) setDraftError("초안을 생성하지 못했습니다. 내용을 다시 확인하거나 수기로 보완해 주세요."); }
+    finally { if (request === draftRequest.current) setIsGenerating(false); }
+  }
 
   async function uploadDocument(file?: File) {
     if (!file) return;
+    draftRequest.current += 1;
+    setIsGenerating(false);
     setDocumentError("");
     setIsReading(true);
     try {
       const text = await readPolicyDocument(file);
       setDocumentName(file.name);
       setPolicyText(text);
+      setDraft(null);
+      setDraftValues(emptyValues());
       setStage("edit");
       if (!text.trim()) setDocumentError("문서에서 글자를 읽지 못했습니다. 스캔 문서라면 아래에 약관 내용을 직접 입력해 주세요.");
     } catch (error) {
@@ -41,7 +76,7 @@ export function Riders() {
     <section className="summary-grid" aria-label="특약 요약">
       <article className="summary-card"><span>운영 특약</span><strong>1</strong><small>연결 전</small></article>
       <article className="summary-card"><span>현재 규칙</span><strong>v1.4</strong><small>연결 전</small></article>
-      <article className="summary-card"><span>변환 초안</span><strong>—</strong><small>생성된 초안 없음</small></article>
+      <article className="summary-card"><span>변환 초안</span><strong>{draft?.state === "draft" ? "1" : "—"}</strong><small>{draft?.state === "draft" ? "검토 필요 · 저장 전" : "생성된 초안 없음"}</small></article>
       <article className="summary-card"><span>실제 적용 상태</span><strong>—</strong><small>연결 전</small></article>
     </section>
     <div className="workflow-banner"><div><strong>규칙·조건 관리</strong><p>가입자의 특약 승인 요청은 대시보드에서 처리합니다.</p></div></div>
@@ -54,9 +89,9 @@ export function Riders() {
           {tab === "conditions" ? <div className="operations-stack"><div className="operations-card"><div className="operations-card-head">적용 조건</div><Row label="누적 주행거리" value="500 km 이상" /><Row label="기본 할인" value="80점 이상 · 예상 10%" /><Row label="상위 할인" value="90점 이상 · 예상 12%" /></div><div className="operations-card"><div className="operations-card-head">규칙 상태</div><Row label="현재 버전" value="SAFE-DRIVE v1.4" /><Row label="실제 적용" value="연결 전" /></div><p className="operations-note">운영 규칙의 승인·등록 상태는 서비스 연결 후 확인할 수 있습니다.</p></div> : null}
           {tab === "conversion" ? <div className="operations-stack"><div className="operations-step-nav" role="group" aria-label="규칙 변경 단계"><button type="button" aria-pressed={stage === "upload"} onClick={() => setStage("upload")}>1. 문서 업로드</button><button type="button" aria-pressed={stage === "edit"} disabled={!documentName} onClick={() => setStage("edit")}>2. 내용 확인·수정</button><button type="button" aria-pressed={stage === "draft"} disabled={!policyText.trim()} onClick={() => setStage("draft")}>3. 규칙 초안</button><button type="button" aria-pressed={stage === "manual"} onClick={() => setStage("manual")}>수기 보완</button></div>
             {stage === "upload" ? <div className="operations-card"><div className="operations-card-head">특약 문서 업로드</div><div className="operations-card-body"><label className="operations-upload"><Upload size={20} aria-hidden="true" /><strong>변경할 특약 문서를 선택하세요</strong><span>PDF, DOCX, TXT, MD · 최대 10MB</span><input aria-label="특약 문서 업로드" type="file" accept=".pdf,.docx,.txt,.md" disabled={isReading} onChange={(event) => { void uploadDocument(event.target.files?.[0]); event.target.value = ""; }} /></label>{isReading ? <p className="operations-copy" role="status">문서 내용을 읽고 있습니다.</p> : null}{documentError ? <p className="operations-error" role="alert">{documentError}</p> : null}{documentName ? <p className="operations-copy">현재 문서: {documentName} · <button className="operations-link" type="button" onClick={() => setStage("edit")}>내용 확인·수정</button></p> : null}</div></div> : null}
-            {stage === "edit" ? <div className="operations-card"><div className="operations-card-head">문서 내용 확인·수정</div><div className="operations-card-body"><div className="operations-document-head"><span>{documentName}</span><button className="operations-link" type="button" onClick={() => setStage("upload")}>다른 문서 올리기</button></div><textarea aria-label="추출된 약관 내용" value={policyText} onChange={(event) => { setPolicyText(event.target.value); setDocumentError(""); }} placeholder="문서에서 읽은 내용이 여기에 표시됩니다. 필요한 내용을 직접 수정할 수 있습니다." />{documentError ? <p className="operations-error" role="alert">{documentError}</p> : null}<div className="operations-actions"><span>수정한 내용으로 규칙 초안을 검토합니다.</span><button className="button primary" type="button" disabled={!policyText.trim()} onClick={() => setStage("draft")}>규칙 초안으로 이동</button></div></div></div> : null}
-            {stage === "draft" ? <div className="operations-card"><div className="operations-card-head">규칙 초안</div><div className="operations-card-body"><p className="operations-note">자동 변환 서비스가 연결되면 수정한 문서 내용으로 규칙 초안을 생성할 수 있습니다. 생성된 초안은 담당자가 검토·승인하기 전까지 적용되지 않습니다.</p><div className="operations-actions"><span>원문: {documentName} · {policyText.trim().length.toLocaleString()}자</span><button className="button secondary" type="button" onClick={() => setStage("edit")}>문서 내용 다시 수정</button></div></div></div> : null}
-            {stage === "manual" ? <div className="operations-card"><div className="operations-card-head">수기 보완 항목</div><Row label="필수 조건" value="거리·점수·할인율·감점 계수" /><Row label="다음 단계" value="약관 확인 후 직접 입력·검토" /></div> : null}
+            {stage === "edit" ? <div className="operations-card"><div className="operations-card-head">문서 내용 확인·수정</div><div className="operations-card-body"><div className="operations-document-head"><span>{documentName}</span><button className="operations-link" type="button" onClick={() => setStage("upload")}>다른 문서 올리기</button></div><textarea aria-label="추출된 약관 내용" value={policyText} onChange={(event) => { draftRequest.current += 1; setIsGenerating(false); setPolicyText(event.target.value); setDraft(null); setDocumentError(""); }} placeholder="문서에서 읽은 내용이 여기에 표시됩니다. 필요한 내용을 직접 수정할 수 있습니다." />{documentError ? <p className="operations-error" role="alert">{documentError}</p> : null}<div className="operations-actions"><span>수정한 내용으로 검토용 초안을 생성합니다.</span><button className="button primary" type="button" disabled={!policyText.trim() || isGenerating} onClick={() => { void generateDraft(); }}>규칙 초안 생성</button></div></div></div> : null}
+            {stage === "draft" ? <div className="operations-card"><div className="operations-card-head">규칙 초안</div><div className="operations-card-body"><p className="operations-note">생성 결과는 검토용이며 저장·승인·운영 적용되지 않습니다. 문서 근거와 각 값을 확인해 주세요.</p>{isGenerating ? <p className="operations-copy" role="status">규칙 초안을 생성하고 있습니다.</p> : null}{draftError ? <p className="operations-error" role="alert">{draftError}</p> : null}{draft ? <><p className="operations-copy">담당자 검토가 필요합니다.</p><DraftFields values={draftValues} evidence={draft.evidence} onChange={(field, value) => setDraftValues((current) => ({ ...current, [field]: value }))} /></> : null}<div className="operations-actions"><span>원문: {documentName} · {policyText.trim().length.toLocaleString()}자</span><button className="button secondary" type="button" onClick={() => setStage("edit")}>문서 내용 다시 수정</button></div></div></div> : null}
+            {stage === "manual" ? <div className="operations-card"><div className="operations-card-head">수기 보완 항목</div><div className="operations-card-body"><p className="operations-note">약관 원문을 확인해 필요한 값을 입력하세요. 수기 값도 저장·승인 전 검토가 필요합니다.</p><DraftFields values={draftValues} evidence={draft?.evidence ?? null} onChange={(field, value) => setDraftValues((current) => ({ ...current, [field]: value }))} /></div></div> : null}
           </div> : null}
           {tab === "versions" ? <div className="operations-stack"><div className="operations-card"><div className="operations-card-head">규칙 버전</div><Row label="v1.4" value="조회 전" /><Row label="새 초안" value="없음" /></div><p className="operations-note">버전 등록·적용 이력은 아직 연결되지 않았습니다.</p></div> : null}
         </div>
