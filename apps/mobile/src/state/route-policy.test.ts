@@ -18,6 +18,7 @@ describe("route policy", () => {
   it("redirects direct protected routes to insurance after consent but before policy selection", () => {
     const consentedState = stateWith({ hasConsented: true });
 
+    expect(redirectForRoute("/consent", consentedState)).toBeNull();
     expect(redirectForRoute("/application-review", consentedState)).toBe("/insurance");
     expect(redirectForRoute("/onboarding", consentedState)).toBe("/insurance");
   });

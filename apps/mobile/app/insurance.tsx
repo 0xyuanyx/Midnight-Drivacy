@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -18,6 +18,7 @@ export default function Insurance() {
   const { dispatch, state } = useAppState();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPolicyId, setSelectedPolicyId] = useState(state.selectedPolicyId);
+  const confirming = useRef(false);
 
   useEffect(() => {
     const loadingTimer = setTimeout(() => setIsLoading(false), INSURANCE_LOADING_DELAY_MS);
@@ -25,10 +26,11 @@ export default function Insurance() {
   }, []);
 
   function confirmSelection() {
-    if (!selectedPolicyId) {
+    if (!selectedPolicyId || confirming.current) {
       return;
     }
 
+    confirming.current = true;
     dispatch({ type: "SELECT_INSURANCE", policyId: selectedPolicyId });
     router.replace("/(tabs)/home");
   }
@@ -41,7 +43,7 @@ export default function Insurance() {
       )}
       testID="insurance-screen"
     >
-      <ScreenHeader title="내 보험 조회하기" />
+      <ScreenHeader title="내 보험 조회하기" onBack={() => router.replace("/consent")} />
       <Text style={styles.title}>가입한 보험을 확인해주세요.</Text>
       <Text style={styles.description}>할인 특약을 신청할 보험계약을 선택해요.</Text>
 

@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -10,12 +10,16 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
 import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
+import { applicationTime } from "@/state/application-time";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationResult() {
   const router = useRouter();
   const { state, dispatch } = useAppState();
   const [decidedAt, setDecidedAt] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState(false);
+  const resetInFlight = useRef(false);
   useEffect(() => {
     if (!linkedDemoEnabled || state.applicationStage !== "approved") return;
     let active = true;
@@ -39,15 +43,27 @@ export default function ApplicationResult() {
   return (
     <View style={styles.page}>
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={(
           <View style={{ gap: 0 }}>
-            <PrimaryButton title="초기화하기" variant="ghost" onPress={() => {
-              if (linkedDemoEnabled) void clearLinkedDemoApplication();
-              dispatch({ type: "RESET_DEMO" });
-              router.replace("/onboarding");
+            {resetError ? <Text accessibilityRole="alert" style={styles.resetError}>초기화하지 못했어요. 다시 시도해주세요.</Text> : null}
+            <PrimaryButton title={resetting ? "초기화 중…" : "초기화하기"} disabled={resetting} variant="ghost" onPress={async () => {
+              if (resetInFlight.current) return;
+              resetInFlight.current = true;
+              setResetting(true);
+              setResetError(false);
+              try {
+                if (linkedDemoEnabled) await clearLinkedDemoApplication();
+                dispatch({ type: "RESET_DEMO" });
+                router.replace("/onboarding");
+              } catch {
+                resetInFlight.current = false;
+                setResetting(false);
+                setResetError(true);
+              }
             }} />
-            <PrimaryButton title="홈으로 돌아가기" onPress={() => router.replace("/(tabs)/home")} />
+            <PrimaryButton title="홈으로 돌아가기" disabled={resetting} onPress={() => router.replace("/(tabs)/home")} />
           </View>
         )}
         testID="application-result-screen"
@@ -63,7 +79,7 @@ export default function ApplicationResult() {
           <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>적용 결정</Text></View>
           <View style={styles.row}><Text style={styles.label}>대상</Text><Text style={styles.value}>{policy.productName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>결정일</Text><Text style={styles.value}>{decidedAt ? new Date(decidedAt).toLocaleDateString("ko-KR") : "확인 중"}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>결정 시각</Text><Text style={styles.value}>{applicationTime(linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>보험사에는 필요한 정보만 보냈어요</Text>
@@ -91,4 +107,5 @@ const styles = StyleSheet.create({
   label: { ...typography.caption, color: colors.textSecondary, },
   value: { ...typography.label, color: colors.textPrimary, },
   cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
+  resetError: { ...typography.caption, color: "#BC344B", textAlign: "center" },
 });

@@ -3,6 +3,7 @@ import type { AdapterRuntime, ConfirmedState, RegisteredRule, Scope, Trip, User 
 
 import { ChainProcessingService } from "../src/chain-state/chain-processing-service.js";
 import { PgChainProcessingRepository, type ChainProcessingRepository, type ChainProcessingTarget } from "../src/chain-state/chain-processing-repository.js";
+import { pollingStatus } from "../src/routes/chain-processing.js";
 
 const runtime: AdapterRuntime = { network: "local", adapterProfile: "drivacy-test" };
 const driver: User = { id: "driver", email: "driver@example.invalid", role: "DRIVER" };
@@ -59,6 +60,10 @@ const service = (repository: ChainProcessingRepository) => new ChainProcessingSe
 );
 
 describe("ChainProcessingService", () => {
+  it("does not expose a C-only chain confirmation as a completed driver result", () => {
+    expect(pollingStatus({ status: "chain-confirmed", operationId: "operation", confirmation: { transactionId: "chain-transaction" } } as never))
+      .toEqual({ operationId: "operation", status: "db-pending", transactionId: "chain-transaction" });
+  });
   it("assembles an ended driving session with its stored rule and confirmed state", async () => {
     const request = await service(new MemoryRepository()).assemble(driver, "session", "session-key");
 

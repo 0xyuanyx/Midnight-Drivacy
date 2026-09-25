@@ -141,6 +141,25 @@ export class ChainFinalizer {
     if (job.status === "db-confirmed") return TripProcessingResultSchema.parse(job.confirmed_result);
     return this.readChainStatus(operationId);
   }
+  /** 가입자에게는 B가 확정·저장한 해당 Job의 공개 지표만 반환한다. C의 후보 상태만으로 성공 처리하지 않는다. */
+  async readConfirmedSummary(actor: User, operationId: string) {
+    if (actor.role !== "DRIVER") throw new FinalizationBlocked("NOT_AUTHORIZED");
+    const lookup = await this.pool.query<JobRow>(`SELECT j.* FROM public.chain_jobs j JOIN public.chain_states s
+      ON s.scope_key=j.scope_key WHERE j.operation_id=$1 AND s.owner_user_id=$2`, [operationId, actor.id]);
+    const job = lookup.rows[0];
+    if (!job) throw new FinalizationBlocked("NOT_AUTHORIZED");
+    if (job.status !== "db-confirmed") return null;
+    const result = TripProcessingResultSchema.parse(job.confirmed_result);
+    if (result.status !== "chain-confirmed") throw new FinalizationBlocked("CONFIRMED_RESULT_INVALID");
+    const { state, explanation } = result.candidate;
+    return {
+      operationId, tripId: result.tripId, tripCount: state.tripCount,
+      tripDistanceM: explanation.tripTotals.distanceM, totalDistanceM: state.totals.distanceM,
+      score: state.score, conditionsMet: state.conditionsMet,
+      expectedDiscountBps: state.expectedDiscountBps, ruleVersion: state.rule.version,
+      stateCommitment: state.stateCommitment, transactionId: result.confirmation.transactionId,
+    };
+  }
   async finalize(actor: User, operationId: string, token: string): Promise<TripProcessingResult | undefined> {
     // C 조회는 DB 트랜잭션 밖에서 짧게 실행한다. 월렛 승인을 DB row lock으로 기다리지 않는다.
     const lookup = await this.pool.query<JobRow>(`SELECT j.* FROM public.chain_jobs j JOIN public.chain_states s

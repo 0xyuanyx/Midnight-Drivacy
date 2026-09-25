@@ -1,4 +1,5 @@
 import { typography } from "@/theme/typography";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -6,14 +7,20 @@ import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { demoRule } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function Drive() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const starting = useRef(false);
+  useEffect(() => {
+    if (state.driveStage === "idle") starting.current = false;
+  }, [state.driveStage]);
   const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
-  const progress = Math.min(state.totals.distanceKm / 550, 1);
+  const progress = Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
+  const scoreMet = state.tripsCompleted > 0 && state.totals.score >= demoRule.minimumScore;
   const footer = state.driveStage === "active" ? (
     <PrimaryButton title="주행 체험으로 돌아가기" onPress={() => router.push("/drive-session")} />
   ) : state.driveStage === "result" ? (
@@ -22,6 +29,8 @@ export default function Drive() {
     <PrimaryButton
       title="주행 체험 시작"
       onPress={() => {
+        if (starting.current) return;
+        starting.current = true;
         dispatch({ type: "START_TRIP" });
         router.push("/drive-session");
       }}
@@ -39,29 +48,30 @@ export default function Drive() {
 
   return (
     <AppScreen
+      footerPlacement="tabbed"
       contentContainerStyle={styles.screen}
       fixedFooter={footer}
       testID="drive-screen"
     >
-      <ScreenHeader title="내 보험 조회하기" onBack={() => router.replace("/(tabs)/home")} />
+      <ScreenHeader title="주행" onBack={() => router.replace("/(tabs)/home")} />
       <View style={styles.policyLine}>
         <View style={styles.policyIcon}><Text style={styles.policyIconText}>▣</Text></View>
         <Text style={styles.policyText}>미래손해보험 · 안전운전 할인특약</Text>
       </View>
       <Text style={styles.title}>내 안전운전 현황</Text>
       <View style={styles.scoreBlock}>
-        <Text style={styles.score}>{state.totals.score}점</Text>
-        <Text style={styles.scoreHelper}>현재 점수 · 100점 만점</Text>
+        <Text style={styles.score}>{state.tripsCompleted === 0 ? "--점" : `${state.totals.score}점`}</Text>
+        <Text style={styles.scoreHelper}>{state.tripsCompleted === 0 ? "첫 주행 후 점수를 확인할 수 있어요" : "현재 점수 · 100점 만점"}</Text>
       </View>
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>할인 조건 · 점수 충족</Text>
-          <Text style={styles.successBadge}>{state.totals.score >= 80 ? "점수 충족" : "확인 중"}</Text>
+          <Text style={styles.cardTitle}>{state.tripsCompleted === 0 ? "할인 조건 · 점수 확인" : "할인 조건 · 점수 충족"}</Text>
+          <Text style={[styles.successBadge, !scoreMet && styles.neutralBadge]}>{scoreMet ? "점수 충족" : state.tripsCompleted === 0 ? "측정 전" : "미충족"}</Text>
         </View>
         <View style={styles.progressSpace}><ProgressBar progress={progress} /></View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDetail}>누적 {state.totals.distanceKm} / 550 km · 남은 거리 {Math.max(550 - state.totals.distanceKm, 0)} km</Text>
+          <Text style={styles.cardDetail}>누적 {state.totals.distanceKm} / {demoRule.minimumDistanceKm} km · 남은 거리 {Math.max(demoRule.minimumDistanceKm - state.totals.distanceKm, 0)} km</Text>
           <Text style={styles.percent}>{Math.round(progress * 100)}%</Text>
         </View>
       </View>
@@ -72,7 +82,7 @@ export default function Drive() {
             <Text style={styles.cardTitle}>평가 기간</Text>
             <Text style={styles.cardDetailTop}>최근 운행을 기준으로 평가해요</Text>
           </View>
-          <Text style={styles.day}>D-42</Text>
+          <Text style={styles.day}>최근 90일</Text>
         </View>
       </View>
 
@@ -99,12 +109,13 @@ const styles = StyleSheet.create({
   cardHeader: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between" },
   cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
   successBadge: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  neutralBadge: { backgroundColor: colors.background, color: colors.textSecondary },
   progressSpace: { marginTop: 15 },
   cardFooter: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 10 },
   cardDetail: { ...typography.caption, color: colors.textSecondary, },
   cardDetailTop: { ...typography.caption, color: colors.textSecondary, marginTop: 6 },
   percent: { ...typography.label, color: colors.primary, },
-  day: { ...typography.metricSmall, color: colors.primary, },
+  day: { ...typography.label, color: colors.textPrimary },
   completeCard: { backgroundColor: colors.successBackground, borderRadius: 16, padding: 16 },
   completeTitle: { ...typography.cardTitle, color: colors.success, },
   completeText: { ...typography.body, color: colors.textSecondary, marginTop: 5 },

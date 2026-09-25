@@ -200,8 +200,9 @@ export class ChainJobRecoveryService {
       await this.repository.scheduleStatusCheck(job.operationId, token, new Date(now.getTime() + STATUS_CHECK_DELAY_MS));
       return;
     }
-    if (result.error.code === "TEMPORARY_FAILURE" && result.error.retryable && retryCount < RETRY_DELAYS_MS.length) {
-      await this.repository.scheduleRetry(job.operationId, token, retryCount, new Date(now.getTime() + RETRY_DELAYS_MS[retryCount]));
+    const retryDelay = RETRY_DELAYS_MS[retryCount];
+    if (result.error.code === "TEMPORARY_FAILURE" && result.error.retryable && retryDelay !== undefined) {
+      await this.repository.scheduleRetry(job.operationId, token, retryCount, new Date(now.getTime() + retryDelay));
       return;
     }
     // non-retryable 또는 소진된 오류는 예약만 제거한다. C가 안전 종료를 확인할 때까지 pending Scope를 임의로 풀지 않는다.

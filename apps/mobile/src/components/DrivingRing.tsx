@@ -37,9 +37,12 @@ export function DrivingRing({ startedAt }: { startedAt?: number }) {
 
   useEffect(() => {
     if (reduceMotion || !foreground) return;
-    const loop = Animated.loop(Animated.timing(rotation, {
-      toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true, isInteraction: false,
-    }));
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(rotation, {
+        toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true, isInteraction: false,
+      }),
+      Animated.timing(rotation, { toValue: 0, duration: 0, useNativeDriver: true, isInteraction: false }),
+    ]));
     loop.start();
     return () => { loop.stop(); rotation.setValue(0); };
   }, [foreground, reduceMotion, rotation]);
@@ -47,7 +50,7 @@ export function DrivingRing({ startedAt }: { startedAt?: number }) {
   return (
     <View style={styles.ring}>
       <View style={styles.track} />
-      <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.arc, {
+      <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="driving-ring-arc" style={[styles.arc, {
         transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }],
       }]} />
       <Text style={styles.label}>주행 시간</Text>

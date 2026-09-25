@@ -10,6 +10,7 @@ export type ApplicationStage = "idle" | "pending" | "approved";
 export type DriveStage = "idle" | "active" | "processing" | "result";
 
 export interface AppState {
+  setupPreviewCompleted?: boolean;
   hasConsented: boolean;
   selectedPolicyId: string | null;
   tripsCompleted: TripsCompleted;
@@ -19,9 +20,12 @@ export interface AppState {
   totals: DemoTotals;
   applicationStage: ApplicationStage;
   applicationMode?: "local" | "linked";
+  applicationSubmittedAt?: number;
+  applicationDecidedAt?: number;
 }
 
 export type AppAction =
+  | { type: "COMPLETE_SETUP_PREVIEW" }
   | { type: "ACCEPT_CONSENT" }
   | { type: "SELECT_INSURANCE"; policyId: string }
   | { type: "START_TRIP" }
@@ -54,6 +58,10 @@ function totalsForTrips(tripsCompleted: TripsCompleted): DemoTotals {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function validTimestamp(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 && !Number.isNaN(new Date(value).getTime());
 }
 
 function isTripsCompleted(value: unknown): value is TripsCompleted {
@@ -91,15 +99,16 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
   }
 
   const hasConsented = persistedState.hasConsented === true;
+  const setupPreviewCompleted = persistedState.setupPreviewCompleted === true;
   if (!hasConsented) {
-    return initialAppState;
+    return setupPreviewCompleted ? { ...initialAppState, setupPreviewCompleted: true } : initialAppState;
   }
 
   const selectedPolicyId = isDemoPolicyId(persistedState.selectedPolicyId)
     ? persistedState.selectedPolicyId
     : null;
   if (!selectedPolicyId) {
-    return { ...initialAppState, hasConsented: true };
+    return { ...initialAppState, hasConsented: true, ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}) };
   }
 
   const tripsCompleted = isTripsCompleted(persistedState.tripsCompleted)
@@ -116,6 +125,7 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
   return {
     ...initialAppState,
     hasConsented,
+    ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}),
     selectedPolicyId,
     tripsCompleted,
     driveStage,
@@ -126,11 +136,17 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
     totals,
     applicationStage,
     applicationMode,
+    ...(applicationStage !== "idle" && applicationMode === "local" && validTimestamp(persistedState.applicationSubmittedAt)
+      ? { applicationSubmittedAt: persistedState.applicationSubmittedAt } : {}),
+    ...(applicationStage === "approved" && applicationMode === "local" && validTimestamp(persistedState.applicationDecidedAt)
+      ? { applicationDecidedAt: persistedState.applicationDecidedAt } : {}),
   };
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "COMPLETE_SETUP_PREVIEW":
+      return { ...state, setupPreviewCompleted: true };
     case "ACCEPT_CONSENT":
       return { ...state, hasConsented: true };
     case "SELECT_INSURANCE":
@@ -166,16 +182,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return state.driveStage === "result" ? { ...state, driveStage: "idle" } : state;
     case "SUBMIT_APPLICATION":
       return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
-        ? { ...state, applicationStage: "pending", applicationMode: action.mode ?? "local" }
+        ? { ...state, applicationStage: "pending", applicationMode: action.mode ?? "local", applicationSubmittedAt: action.mode === "linked" ? undefined : Date.now(), applicationDecidedAt: undefined }
         : state;
     case "APPROVE_APPLICATION":
       return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "pending"
-        ? { ...state, applicationStage: "approved" }
+        ? { ...state, applicationStage: "approved", applicationDecidedAt: state.applicationMode === "linked" ? undefined : Date.now() }
         : state;
     case "RESET_DEMO":
       return initialAppState;
     case "RESET_APPLICATION":
-      return state.applicationStage !== "idle" ? { ...state, applicationStage: "idle", applicationMode: undefined } : state;
+      return state.applicationStage !== "idle" ? { ...state, applicationStage: "idle", applicationMode: undefined, applicationSubmittedAt: undefined, applicationDecidedAt: undefined } : state;
     case "HYDRATE":
       return normalizePersistedAppState(action.persistedState, action.mode);
     default:

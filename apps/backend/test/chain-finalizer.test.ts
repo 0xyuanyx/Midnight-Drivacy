@@ -128,6 +128,20 @@ describe("ChainFinalizer confirmed-state boundary", () => {
     expect(chain.getTripStatus).not.toHaveBeenCalled(); expect(db.state.version).toBe(0);
   });
 
+  it("exposes only the owning driver's persisted confirmed summary", async () => {
+    const db = fixture();
+    const { service } = finalizer(db, confirmedResult);
+    await expect(service.readConfirmedSummary(actor, "operation")).resolves.toBeNull();
+    db.job.status = "db-confirmed"; db.job.confirmed_result = confirmedResult;
+    await expect(service.readConfirmedSummary(actor, "operation")).resolves.toEqual({
+      operationId: "operation", tripId: "trip", tripCount: 1, tripDistanceM: 1,
+      totalDistanceM: 1, score: 100, conditionsMet: false, expectedDiscountBps: 0,
+      ruleVersion: 1, stateCommitment: "new-state", transactionId: "transaction",
+    });
+    expect(JSON.stringify(await service.readConfirmedSummary(actor, "operation"))).not.toContain("datasetRoot");
+    await expect(service.readConfirmedSummary({ ...actor, role: "INSURER" }, "operation")).rejects.toThrow("NOT_AUTHORIZED");
+  });
+
   it("requires a current claim and the owning DRIVER before a DB confirmation", async () => {
     const expired = fixture(); expired.job.claim_valid = false;
     await expect(finalizer(expired, confirmedResult).service.finalize(actor, "operation", "claim")).rejects.toThrow("STALE_CLAIM");

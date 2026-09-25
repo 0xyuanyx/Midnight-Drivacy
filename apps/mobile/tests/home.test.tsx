@@ -1,4 +1,5 @@
 import { fireEvent, render } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 
 import Home from "../app/(tabs)/home";
@@ -67,6 +68,16 @@ describe("Home and bottom tabs", () => {
     expect(replace).toHaveBeenCalledWith("/application");
   });
 
+  it("raises the pill above the bottom edge while keeping the score card compact", async () => {
+    const tabView = await render(<BottomTabBar />);
+    expect(StyleSheet.flatten(tabView.getByTestId("bottom-tab-safe-area").props.style).paddingBottom).toBe(36);
+    await tabView.unmount();
+    const homeView = await render(<Home />);
+    const card = StyleSheet.flatten(homeView.getByTestId("home-score-card").props.style);
+    expect(card.padding).toBe(16);
+    expect(card.marginTop).toBe(18);
+  });
+
   it.each([
     [0, "첫 주행 체험 시작"],
     [1, "두 번째 주행 체험 시작"],
@@ -80,8 +91,8 @@ describe("Home and bottom tabs", () => {
 
     const { getByRole, getByText } = await render(<Home />);
 
-    expect(getByText(`${stateForTrips(tripsCompleted).totals.distanceKm} km`)).toBeTruthy();
-    expect(getByText(`${stateForTrips(tripsCompleted).totals.score}점`)).toBeTruthy();
+    expect(getByText(`${stateForTrips(tripsCompleted).totals.distanceKm} / 500 km`)).toBeTruthy();
+    expect(getByText(tripsCompleted === 0 ? "--점" : `${stateForTrips(tripsCompleted).totals.score}점`)).toBeTruthy();
     expect(getByRole("button", { name: actionLabel })).toBeTruthy();
   });
 

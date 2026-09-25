@@ -1,7 +1,7 @@
 import { typography } from "@/theme/typography";
 import { useState } from "react";
 import brandImage from "../assets/images/drivacy-3d.png";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -74,18 +74,25 @@ function ConsentRow({ checked, index, onDetail, onToggle, title }: {
   );
 }
 
-export default function Onboarding() {
+export default function Onboarding({ startWithConsent = false }: { startWithConsent?: boolean }) {
   const router = useRouter();
-  const { dispatch } = useAppState();
-  const [consentSheetVisible, setConsentSheetVisible] = useState(false);
-  const [consents, setConsents] = useState([false, false]);
+  const { state, dispatch } = useAppState();
+  const [pageHeight, setPageHeight] = useState(874);
+  const compact = pageHeight < 700;
+  const [consentSheetVisible, setConsentSheetVisible] = useState(startWithConsent);
+  const [consents, setConsents] = useState([state.hasConsented, state.hasConsented]);
   const [detail, setDetail] = useState<ConsentDetail>(null);
   const allConsentsAccepted = consents.every(Boolean);
 
   function closeConsentSheet() {
     setConsentSheetVisible(false);
-    setConsents([false, false]);
+    setConsents([state.hasConsented, state.hasConsented]);
     setDetail(null);
+  }
+
+  function dismissConsentSheet() {
+    closeConsentSheet();
+    if (startWithConsent && state.hasConsented) router.replace("/insurance");
   }
 
   function toggleConsent(index: number) {
@@ -102,21 +109,21 @@ export default function Onboarding() {
   const selectedDetail = detail ? detailCopy[detail] : null;
 
   return (
-    <View style={styles.page}>
+    <View style={styles.page} onLayout={event => setPageHeight(event.nativeEvent.layout.height)}>
       <AppScreen
-        contentContainerStyle={styles.screen}
-        fixedFooter={<PrimaryButton title="동의하고 시작하기" onPress={() => setConsentSheetVisible(true)} />}
+        contentContainerStyle={[styles.screen, compact && styles.compactScreen]}
+        fixedFooter={<PrimaryButton title={state.setupPreviewCompleted ? "동의하고 시작하기" : "시작하기"} onPress={() => state.setupPreviewCompleted ? setConsentSheetVisible(true) : router.replace("/setup")} />}
         testID="onboarding-screen"
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, compact && styles.compactHero]}>
           <Text style={styles.title}>안전운전 점수로{`\n`}보험료를 할인받아요.</Text>
           <Text style={styles.description}>운전 기록은 점수 계산에만 쓰고,{`\n`}보험사에는 할인 결과만 보내요.</Text>
         </View>
-        <Image accessibilityLabel="Drivacy 3D V 로고" source={brandImage} resizeMode="contain" style={styles.brandImage} />
+        <Image accessibilityLabel="Drivacy 3D V 로고" source={brandImage} resizeMode="contain" style={[styles.brandImage, compact && styles.compactBrandImage]} />
       </AppScreen>
       {consentSheetVisible ? (
-        <View style={styles.modalBackdrop}>
-          <Pressable accessibilityLabel="동의 창 닫기" accessibilityRole="button" onPress={closeConsentSheet} style={styles.backdropDismiss} />
+        <View style={[styles.modalBackdrop, Platform.OS === "web" && styles.webBackdrop]} testID="consent-backdrop">
+          <Pressable accessibilityLabel="동의 창 닫기" accessibilityRole="button" onPress={dismissConsentSheet} style={styles.backdropDismiss} />
           <SafeAreaView edges={["bottom"]} style={styles.sheetSafeArea} testID="consent-sheet-safe-area">
             <ScrollView
               contentContainerStyle={styles.sheetScrollContent}
@@ -156,7 +163,7 @@ export default function Onboarding() {
                     <ConsentRow checked={consents[1]} index={1} onDetail={() => setDetail("driving")} onToggle={() => toggleConsent(1)} title="선택한 운행 기록 처리 동의" />
                   </View>
                   <PrimaryButton disabled={!allConsentsAccepted} title="동의하고 계속하기" onPress={acceptConsent} testID="consent-continue" />
-                  <PrimaryButton title="닫기" variant="ghost" onPress={closeConsentSheet} />
+                  <PrimaryButton title="닫기" variant="ghost" onPress={dismissConsentSheet} />
                 </View>
               )}
             </ScrollView>
@@ -168,13 +175,17 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  brandImage: { alignSelf: "center", width: 240, height: 245, marginTop: 32 },
+  brandImage: { alignSelf: "center", width: 200, height: 205, marginTop: 80, flexShrink: 0 },
+  compactBrandImage: { width: 220, height: 180, marginTop: 20 },
+  compactScreen: { paddingTop: 36 },
+  compactHero: { marginTop: 20 },
   page: { flex: 1 },
   screen: { paddingBottom: 24, paddingTop: 72 },
   hero: { marginTop: 42 },
   title: { ...typography.display, color: colors.textPrimary, },
   description: { ...typography.body, color: colors.textSecondary, marginTop: 8 },
   modalBackdrop: { backgroundColor: "rgba(30, 30, 40, 0.34)", bottom: 0, justifyContent: "flex-end", left: 0, position: "absolute", right: 0, top: 0, zIndex: 1000 },
+  webBackdrop: { top: -22 },
   backdropDismiss: { flex: 1 },
   sheetSafeArea: { backgroundColor: colors.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, flexShrink: 1, maxHeight: "88%", overflow: "hidden" },
   sheetScroll: { flexGrow: 0, flexShrink: 1 },

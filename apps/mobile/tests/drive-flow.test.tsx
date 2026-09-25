@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
+import { StyleSheet } from "react-native";
 
 import Drive from "../app/(tabs)/drive";
 import DriveProcessing from "../app/drive-processing";
@@ -52,13 +53,25 @@ describe("Driving flow", () => {
 
     expect(getByRole("button", { name: "주행 체험 시작" })).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "주행 체험 시작" }));
+    await fireEvent.press(getByRole("button", { name: "주행 체험 시작" }));
     expect(dispatch).toHaveBeenCalledWith({ type: "START_TRIP" });
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/drive-session");
+    expect(push).toHaveBeenCalledTimes(1);
 
     mockUseAppState.mockReturnValue({ state: stateForTrips(2), dispatch, isHydrated: true });
     await rerender(<Drive />);
     expect(queryByRole("button", { name: "주행 체험 시작" })).toBeNull();
     expect(getByText("두 번의 주행 체험을 마쳤습니다.")).toBeTruthy();
+  });
+
+  it("keeps the pre-drive score unmeasured rather than calling 100 points achieved", async () => {
+    const { getByText, queryByText } = await render(<Drive />);
+    expect(getByText("--점")).toBeTruthy();
+    expect(getByText("할인 조건 · 점수 확인")).toBeTruthy();
+    expect(queryByText("100점")).toBeNull();
+    expect(queryByText("내 보험 조회하기")).toBeNull();
+    expect(getByText("누적 0 / 500 km · 남은 거리 500 km")).toBeTruthy();
   });
 
   it("offers an active trip resume action instead of claiming all trips are complete", async () => {
@@ -72,14 +85,29 @@ describe("Driving flow", () => {
     expect(push).toHaveBeenCalledWith("/drive-session");
   });
 
+  it("allows the second drive after the first session returns to idle", async () => {
+    const { getByRole, rerender } = await render(<Drive />);
+    await fireEvent.press(getByRole("button", { name: "주행 체험 시작" }));
+
+    mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
+    await rerender(<Drive />);
+    mockUseAppState.mockReturnValue({ state: stateForTrips(1), dispatch, isHydrated: true });
+    await rerender(<Drive />);
+
+    await fireEvent.press(getByRole("button", { name: "주행 체험 시작" }));
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
+
   it("moves an active simulated drive into persisted processing without changing totals", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0, "active"), dispatch, isHydrated: true });
     const { getByRole, getByText } = await render(<DriveSession />);
 
     expect(getByText("주행 체험 중")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "주행 종료" }));
+    await fireEvent.press(getByRole("button", { name: "주행 종료" }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: "FINISH_TRIP" });
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith("/drive-processing");
   });
 
@@ -122,14 +150,18 @@ describe("Driving flow", () => {
 
   it("shows fixture totals and replaces navigation when returning home", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
-    const { getAllByText, getByRole, getByText } = await render(<DriveResult />);
+    const { getAllByText, getByRole, getByText, getByTestId } = await render(<DriveResult />);
 
-    expect(getByText("-8점")).toBeTruthy();
+    expect(StyleSheet.flatten(getByTestId("drive-result-screen").props.style).paddingBottom).toBeUndefined();
+    expect(getAllByText("92점")).toHaveLength(2);
     expect(getAllByText("300 km")).toHaveLength(2);
-    expect(getByText("92점")).toBeTruthy();
+    expect(getByText("첫 주행 점수")).toBeTruthy();
     await fireEvent.press(getByRole("button", { name: "홈으로 돌아가기" }));
+    await fireEvent.press(getByRole("button", { name: "뒤로" }));
 
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
   it("dismisses a result when the result header back action returns home", async () => {
@@ -140,5 +172,13 @@ describe("Driving flow", () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: "DISMISS_TRIP_RESULT" });
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
+  it("emphasizes the current score after the second trip, keeping change as context", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(2, "result"), dispatch, isHydrated: true });
+    const ui = await render(<DriveResult />);
+    expect(ui.getAllByText("87점")).toHaveLength(2);
+    expect(ui.queryByText("-5점")).toBeNull();
+    expect(ui.getByText("92점 → 87점")).toBeTruthy();
   });
 });

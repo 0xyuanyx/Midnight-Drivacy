@@ -7,6 +7,7 @@ import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Wordmark } from "@/components/Wordmark";
+import { demoRule } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { homePresentation } from "@/state/home-presentation";
 import { colors } from "@/theme/tokens";
@@ -15,11 +16,12 @@ export default function Home() {
   const router = useRouter();
   const { state } = useAppState();
   const presentation = homePresentation(state);
-  const progress = Math.min(state.totals.distanceKm / 550, 1);
+  const progress = Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
 
   return (
     <AppScreen
       contentContainerStyle={styles.screen}
+      footerPlacement="tabbed"
       fixedFooter={(
         <PrimaryButton
           title={presentation.action}
@@ -34,32 +36,26 @@ export default function Home() {
         <Text style={styles.title}>{presentation.title}</Text>
       </View>
 
-      <View style={styles.scoreCard}>
+      <View style={styles.scoreCard} testID="home-score-card">
         <View style={styles.scoreHeader}>
           <Text style={styles.scoreLabel}>내 안전운전 점수</Text>
           {state.totals.isEligible ? <Text style={styles.status}>조건 충족</Text> : null}
         </View>
         <View style={styles.scoreRow}>
-          <Text style={styles.scoreValue}>{state.totals.score}점</Text>
+          <Text style={styles.scoreValue}>{state.tripsCompleted === 0 ? "--점" : `${state.totals.score}점`}</Text>
           <View style={styles.discountBlock}>
             <Text style={styles.discountLabel}>예상 할인</Text>
             <Text style={styles.discountValue}>{state.totals.isEligible ? `${state.totals.expectedDiscountPercent}%` : "—"}</Text>
           </View>
         </View>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>할인 조건까지 {Math.round(progress * 100)}%</Text>
-          <Text style={styles.distance}>{state.totals.distanceKm} / 550 km</Text>
+          <Text style={styles.progressLabel}>거리 조건 {Math.round(progress * 100)}%</Text>
+          <Text style={styles.distance}>{state.totals.distanceKm} / {demoRule.minimumDistanceKm} km</Text>
         </View>
         <ProgressBar progress={progress} />
         <View style={styles.metaRow}>
-          <View>
-            <Text style={styles.metaLabel}>평가 기간</Text>
-            <Text style={styles.metaValue}>D-42</Text>
-          </View>
-          <View style={styles.metaRight}>
-            <Text style={styles.metaLabel}>누적거리</Text>
-            <Text style={styles.metaValue}>{state.totals.distanceKm} km</Text>
-          </View>
+          <Text style={styles.metaLabel}>평가 기간</Text>
+          <Text style={styles.metaValue}>최근 90일</Text>
         </View>
       </View>
 
@@ -86,22 +82,21 @@ const styles = StyleSheet.create({
   screen: { paddingBottom: 8 },
   hero: {},
   title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
-  scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 24, padding: 18 },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 18, padding: 16 },
   scoreHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   scoreLabel: { ...typography.cardTitle, color: colors.textPrimary, },
   status: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
-  scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
+  scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
   scoreValue: { ...typography.metric, color: colors.textPrimary, },
   discountBlock: { alignItems: "flex-end", paddingBottom: 4 },
   discountLabel: { ...typography.caption, color: colors.textSecondary, },
   discountValue: { ...typography.metricSmall, color: colors.primary, marginTop: 3 },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 21 },
+  progressHeader: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 8, marginTop: 12 },
   progressLabel: { ...typography.label, color: colors.textSecondary, },
   distance: { ...typography.label, color: colors.textSecondary, },
-  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 18, paddingTop: 15 },
-  metaRight: { marginLeft: "auto" },
+  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 12, paddingTop: 10 },
   metaLabel: { ...typography.caption, color: colors.textSecondary, },
-  metaValue: { ...typography.label, color: colors.textPrimary, marginTop: 4 },
+  metaValue: { ...typography.label, color: colors.textPrimary },
   privacyCard: { alignItems: "center", backgroundColor: "#EAF2FF", borderRadius: 16, flexDirection: "row", marginTop: 13, padding: 16 },
   privacyIcon: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 999, height: 28, justifyContent: "center", width: 28 },
   privacyCheck: { color: colors.surface, fontSize: 14, fontWeight: "900" },

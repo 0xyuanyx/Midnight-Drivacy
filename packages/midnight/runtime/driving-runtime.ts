@@ -53,7 +53,7 @@ export interface DrivingRuntimeEndpoints {
 
 /** Local-only configuration, supplied when C starts -- never by B/browser HTTP. */
 export interface DrivingRuntimeConfiguration {
-  network: string;
+  network: ChainConfirmation["network"];
   endpoints: DrivingRuntimeEndpoints;
   chainContractAddress: string;
   compiledAssetsPath: string;
@@ -259,7 +259,7 @@ export class DrivingRuntime implements CWalletProcessingRuntime {
     const runtime = this;
     const walletProvider: { hooks?: TransactionHooks; operationId?: string;
       getCoinPublicKey(): any; getEncryptionPublicKey(): any; balanceTx(tx: { serialize(): Uint8Array }): Promise<any>;
-      submitTx(tx: { serialize(): Uint8Array; identifiers(): string[] }): Promise<void> } = {
+      submitTx(tx: { serialize(): Uint8Array; identifiers(): string[] }): Promise<string> } = {
       getCoinPublicKey: () => runtime.config.walletPublicKeys.coinPublicKey,
       getEncryptionPublicKey: () => runtime.config.walletPublicKeys.encryptionPublicKey,
       async balanceTx(tx) {
@@ -281,9 +281,10 @@ export class DrivingRuntime implements CWalletProcessingRuntime {
         if (serialized !== pending.balancedTransactionHex) throw new Error("BALANCED_TRANSACTION_MISMATCH");
         const transactionId = tx.identifiers().at(-1); if (!transactionId) throw new Error("FINALIZED_TRANSACTION_ID_UNAVAILABLE");
         pending.phase = "submit";
-        return hooks.submit(transactionId, async () => {
+        await hooks.submit(transactionId, async () => {
           const sent = deferred<void>(); pending.submitted = sent.resolve; await sent.promise;
         });
+        return transactionId;
       },
     };
     const providers = {
@@ -302,7 +303,7 @@ export class DrivingRuntime implements CWalletProcessingRuntime {
     const state = await (this.providers!.publicDataProvider as { queryContractState(address: string): Promise<{ data: unknown } | undefined> })
       .queryContractState(this.config.chainContractAddress);
     if (!state) throw new Error("CONTRACT_STATE_NOT_INDEXED");
-    return Driving.ledger(state.data);
+    return Driving.ledger(state.data as Parameters<typeof Driving.ledger>[0]);
   }
   private requireOwnerSecret() { if (!this.ownerSecret) throw new Error("RUNTIME_NOT_INITIALIZED"); return this.ownerSecret; }
 }

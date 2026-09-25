@@ -57,11 +57,36 @@ describe("Discount application flow", () => {
     });
   });
 
+  it("shows a readiness summary before the single disclosure review", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(2), dispatch, isHydrated: true });
+    const ui = await render(<Application />);
+    expect(ui.getByText("할인 신청을 준비했어요")).toBeTruthy();
+    expect(ui.queryByText("제공되는 결과")).toBeNull();
+    await fireEvent.press(ui.getByRole("button", { name: "신청 내용 검토" }));
+    expect(push).toHaveBeenCalledWith("/application-review");
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("renders recorded local times and never invents dates for legacy applications", async () => {
+    const date = new Date(2026, 8, 25, 10, 15).getTime();
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "pending"), applicationSubmittedAt: date }, dispatch, isHydrated: true });
+    const ui = await render(<ApplicationSubmitted />);
+    expect(ui.getByText("2026.09.25 10:15")).toBeTruthy();
+    await ui.unmount();
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "approved"), applicationDecidedAt: date }, dispatch, isHydrated: true });
+    const result = await render(<ApplicationResult />);
+    expect(result.getByText("2026.09.25 10:15")).toBeTruthy();
+    mockUseAppState.mockReturnValue({ state: stateForTrips(2, "approved"), dispatch, isHydrated: true });
+    await result.rerender(<ApplicationResult />);
+    expect(result.getByText("기록 없음")).toBeTruthy();
+    expect(result.queryByText("확인 중")).toBeNull();
+  });
+
   it("explains that the application is unavailable before eligibility", async () => {
     const { getByText, queryByRole } = await render(<Application />);
 
     expect(getByText(/아직 할인 신청 조건을/)).toBeTruthy();
-    expect(getByText("누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.")).toBeTruthy();
+    expect(getByText("누적 500 km 이상, 안전운전 점수 80점 이상이 필요합니다.")).toBeTruthy();
     expect(queryByRole("button", { name: "할인 신청 검토" })).toBeNull();
   });
 
@@ -114,10 +139,13 @@ describe("Discount application flow", () => {
     const { getByRole } = await render(<ApplicationReview />);
 
     await fireEvent.press(getByRole("button", { name: "뒤로" }));
-    expect(back).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/(tabs)/application");
 
-    await fireEvent.press(getByRole("button", { name: "할인 신청 제출" }));
+    const submitButton = getByRole("button", { name: "할인 신청 제출" });
+    await fireEvent.press(submitButton);
+    await fireEvent.press(submitButton);
     expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith("/application-submitted");
   });
 

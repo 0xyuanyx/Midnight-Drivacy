@@ -31,8 +31,10 @@ describe("Insurance selection", () => {
     });
   });
 
-  afterEach(() => {
-    jest.runOnlyPendingTimers();
+  afterEach(async () => {
+    await act(() => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
   });
 
@@ -47,6 +49,12 @@ describe("Insurance selection", () => {
     });
 
     expect(queryAllByTestId("policy-card")).toHaveLength(3);
+  });
+
+  it("returns to the consent sheet from the insurance back action", async () => {
+    const { getByRole } = await render(<Insurance />);
+    await fireEvent.press(getByRole("button", { name: "뒤로" }));
+    expect(replace).toHaveBeenCalledWith("/consent");
   });
 
   it("enables the selection action only after one policy is selected", async () => {
@@ -83,12 +91,16 @@ describe("Insurance selection", () => {
       jest.advanceTimersByTime(250);
     });
     await fireEvent.press(getAllByTestId("policy-card")[1]);
-    await fireEvent.press(getByRole("button", { name: "이 보험 선택하기" }));
+    const confirmButton = getByRole("button", { name: "이 보험 선택하기" });
+    await fireEvent.press(confirmButton);
+    await fireEvent.press(confirmButton);
 
     expect(dispatch).toHaveBeenCalledWith({
       type: "SELECT_INSURANCE",
       policyId: "policy-family-driver",
     });
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledTimes(1);
   });
 });

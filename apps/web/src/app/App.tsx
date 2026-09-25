@@ -5,6 +5,7 @@ import { applyDecision, getDashboardMetrics, getEvaluationMetrics, getEvaluation
 import { readLocation, toUrl, type DetailTab, type LocationState, type RequestWorkflow, type Workflow } from "./navigation";
 import { Connections, Riders, VerificationHistory } from "./Operations";
 import { LinkedEvaluations, LinkedVerificationHistory, linkedDemoEnabled } from "./LinkedEvaluations";
+import type { InsurerApi } from "../api/backend";
 
 const tabsByWorkflow: Record<RequestWorkflow, Array<{ id: DetailTab; label: string }>> = {
   dashboard: [{ id: "info", label: "요청 정보" }, { id: "proof", label: "검증 결과" }, { id: "history", label: "처리 이력" }],
@@ -95,12 +96,12 @@ function HistoryList({ entries }: { entries: DashboardRequest["history"] }) {
 
 function DashboardDetail({ request, tab }: { request: DashboardRequest; tab: DetailTab }) {
   if (tab === "history") return <HistoryList entries={request.history} />;
-  return tab === "proof" ? <ProofDetail item={request} /> : <ResultDetail item={request} />;
+  return tab === "proof" ? <ProofDetail /> : <ResultDetail item={request} />;
 }
 
 function EvaluationDetail({ evaluation, tab }: { evaluation: EvaluationRequest; tab: DetailTab }) {
   if (tab === "history") return <HistoryList entries={evaluation.history} />;
-  return tab === "proof" ? <ProofDetail item={evaluation} /> : <ResultDetail item={evaluation} />;
+  return tab === "proof" ? <ProofDetail /> : <ResultDetail item={evaluation} />;
 }
 
 function ResultDetail({ item }: { item: DashboardRequest | EvaluationRequest }) {
@@ -108,7 +109,7 @@ function ResultDetail({ item }: { item: DashboardRequest | EvaluationRequest }) 
   return <div className="detail-stack"><div className="result-hero"><div className="score-result"><span>최종 안전운전 점수</span><strong>{item.result.score}</strong><small>/ 100점</small></div><div className="discount-result"><span>해당 할인 구간</span><strong>{outcome.eligible ? `${outcome.discountPercent}%` : "미충족"}</strong><small>{outcome.eligible ? "보험료 할인" : "조건 미달"}</small></div></div><dl className="result-grid"><div><dt>평가기간</dt><dd>{item.result.evaluationPeriod}</dd></div><div><dt>누적 주행거리</dt><dd>{item.result.accumulatedDistanceKm} km</dd></div><div><dt>적용 규칙</dt><dd>{item.rule.version}</dd></div><div><dt>최소 조건</dt><dd>{item.rule.minimumScore}점 · {item.rule.minimumDistanceKm} km</dd></div></dl><div className="privacy-note"><span className="privacy-icon"><CircleDot size={15} strokeWidth={1.8} /></span><div><strong>원본 주행기록은 제공되지 않았습니다</strong><p>정확한 위치, 이동경로, 운행시각과 구간별 속도 없이 승인된 계산 결과만 표시됩니다.</p></div></div></div>;
 }
 
-function ProofDetail({ item: _item }: { item: DashboardRequest | EvaluationRequest }) {
+function ProofDetail() {
   const rows = ["규칙 해시", "Dataset Root", "상태 커밋먼트", "Nullifier"];
   return <div className="detail-stack"><div className="verification-card unavailable"><span className="verification-icon"><CircleAlert size={18} strokeWidth={2.2} /></span><div><strong>검증 정보 없음</strong><p>증명 및 체인 검증 결과가 연결되지 않았습니다.</p></div></div><div className="proof-table">{rows.map((label) => <div className="proof-row" key={label}><span>{label}</span><code>—</code><strong>확인 전</strong></div>)}</div></div>;
 }
@@ -159,7 +160,7 @@ function ConfirmDialog({ confirmation, busy, error, onCancel, onApply }: { confi
   return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (!busy && event.currentTarget === event.target) onCancel(); }}><div ref={dialogRef} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><span className="dialog-icon"><FileCheck2 size={22} /></span><h2 id="confirm-title">{confirmation.title}</h2><p>{confirmation.description}</p><div className="dialog-notice"><CircleAlert size={16} /> 현재 보험 계약 시스템과 연결되지 않아 계약 정보는 변경되지 않습니다.</div>{error ? <p className="dialog-error" role="alert">{error}</p> : null}<div className="dialog-actions"><button ref={cancelRef} className="button secondary" type="button" disabled={busy} onClick={onCancel}>취소</button><button className="button primary" type="button" disabled={busy} onClick={onApply}>{busy ? "저장 중…" : "결정 저장"}</button></div></div></div>;
 }
 
-export function App({ adapter = fixtureAdapter }: { adapter?: InsurerWorkspaceAdapter }) {
+export function App({ adapter = fixtureAdapter, ruleDraftApi, specialContractId }: { adapter?: InsurerWorkspaceAdapter; ruleDraftApi?: Pick<InsurerApi, "createRuleDraft">; specialContractId?: string }) {
   const [utility, setUtility] = useState<string | null>(null);
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [location, setLocation] = useState<LocationState>(() => readLocation());
@@ -196,7 +197,7 @@ export function App({ adapter = fixtureAdapter }: { adapter?: InsurerWorkspaceAd
       <SideNav active={location.workflow} onNavigate={(workflow) => navigate(workflow)} />
       <main className="main-content">
         <PageHeader workflow={location.workflow} onUtility={setUtility} />
-        {location.workflow === "connections" ? <Connections /> : linkedDemoEnabled && location.workflow === "evaluations" ? <LinkedEvaluations /> : linkedDemoEnabled && location.workflow === "history" ? <LinkedVerificationHistory /> : !state ? <section className="panel async-state">{loadError ? <><CircleAlert size={24} /><strong>요청을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span><button className="button primary" type="button" onClick={() => setLoadAttempt((value) => value + 1)}>다시 불러오기</button></> : <><span className="loading-dot" /><strong>업무 요청을 불러오는 중입니다.</strong></>}</section> : location.workflow === "riders" ? <Riders /> : location.workflow === "history" ? <VerificationHistory state={state} onOpenEvaluation={(id) => navigate("evaluations", id, "proof")} /> : requestWorkflow ? <>
+        {location.workflow === "connections" ? <Connections /> : linkedDemoEnabled && location.workflow === "evaluations" ? <LinkedEvaluations /> : linkedDemoEnabled && location.workflow === "history" ? <LinkedVerificationHistory /> : !state ? <section className="panel async-state">{loadError ? <><CircleAlert size={24} /><strong>요청을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span><button className="button primary" type="button" onClick={() => setLoadAttempt((value) => value + 1)}>다시 불러오기</button></> : <><span className="loading-dot" /><strong>업무 요청을 불러오는 중입니다.</strong></>}</section> : location.workflow === "riders" ? <Riders ruleDraftApi={ruleDraftApi} specialContractId={specialContractId} /> : location.workflow === "history" ? <VerificationHistory state={state} onOpenEvaluation={(id) => navigate("evaluations", id, "proof")} /> : requestWorkflow ? <>
           <SummaryGrid workflow={requestWorkflow} state={state} />
           {requestWorkflow === "dashboard" ? <div className="workflow-banner"><div><strong>승인 업무는 대시보드에서 처리해요</strong><p>특약 관리에서는 조건과 할인율을 확인합니다. 가입자 요청 승인과 규칙 변경은 별도 업무입니다.</p></div><button type="button" onClick={() => { const pending = state.requests.find((item) => item.status === "pending"); if (pending) navigate("dashboard", pending.id); }}>대기 요청 처리 →</button></div> : null}
           <div className="workspace-grid"><RequestList key={requestWorkflow} workflow={requestWorkflow} state={state} selectedId={selected?.id ?? ""} query={location.query} filter={location.filter} onQuery={(query) => updateLocation({ ...location, query }, true)} onFilter={(filter) => updateLocation({ ...location, filter })} onSelect={(id) => navigate(requestWorkflow, id, location.tab)} />{selected ? <DetailPanel workflow={requestWorkflow} item={selected} tab={location.tab} onTab={(tab) => navigate(requestWorkflow, selected.id, tab)} onConfirm={openConfirmation} /> : <section className="panel empty-detail"><strong>선택할 요청이 없습니다.</strong></section>}</div>

@@ -5,7 +5,9 @@ import { useRouter } from "expo-router";
 import { AppScreen } from "@/components/AppScreen";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { demoPolicies } from "@/fixtures/demo";
+import { demoPolicies, demoRule } from "@/fixtures/demo";
+import { linkedDemoEnabled } from "@/api/linked-demo";
+import { applicationTime } from "@/state/application-time";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
@@ -26,6 +28,7 @@ export default function Application() {
   if (!state.totals.isEligible) {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="주행으로 이동" onPress={() => router.replace("/drive")} />}
         testID="application-ineligible-screen"
@@ -34,8 +37,8 @@ export default function Application() {
         <Text style={styles.title}>아직 할인 신청 조건을{`\n`}충족하지 않았어요.</Text>
         <Text style={styles.description}>두 번의 주행 체험을 완료하면 결과를 확인할 수 있어요.</Text>
         <Card title="현재 진행도">
-          <Text style={styles.largeValue}>{state.totals.distanceKm} / 550 km</Text>
-          <Text style={styles.cardText}>누적 550 km 이상, 안전운전 점수 80점 이상이 필요합니다.</Text>
+          <Text style={styles.largeValue}>{state.totals.distanceKm} / {demoRule.minimumDistanceKm} km</Text>
+          <Text style={styles.cardText}>누적 {demoRule.minimumDistanceKm} km 이상, 안전운전 점수 {demoRule.minimumScore}점 이상이 필요합니다.</Text>
         </Card>
       </AppScreen>
     );
@@ -44,16 +47,17 @@ export default function Application() {
   if (state.applicationStage === "pending") {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="신청 내역 보기" onPress={() => router.push("/application-submitted")} />}
         testID="application-pending-screen"
       >
         <PageEyebrow>신청 완료</PageEyebrow>
-        <Text style={styles.title}>보험사가 결과를 검토하고 있어요.</Text>
+        <Text style={styles.title}>{linkedDemoEnabled ? "신청 처리 상태를 확인해 주세요." : "보험사가 결과를 검토하고 있어요."}</Text>
         <Text style={styles.description}>신청 정보와 처리 상태를 확인하세요.</Text>
-        <Card title="신청 상태"><Text style={styles.statusBadge}>검토 중</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
+        <Card title="신청 상태"><Text style={[styles.statusBadge, styles.neutralBadge]}>{linkedDemoEnabled ? "내역에서 확인" : "검토 중"}</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
         <Card title="제출한 결과"><Text style={styles.cardText}>최종 점수 {state.totals.score}점 · 조건 충족{`\n`}평가 기간 최근 90일</Text></Card>
-        <Card title="신청 내역"><Text style={styles.cardText}>신청 번호 DR-DEMO-001{`\n`}제출 시각 2026.09.22 10:00</Text></Card>
+        <Card title="신청 내역"><Text style={styles.cardText}>{linkedDemoEnabled ? "신청 번호와 최신 처리 상태는 신청 내역에서 확인할 수 있어요." : `신청 번호 DR-DEMO-001\n제출 시각 ${applicationTime(state.applicationSubmittedAt)}`}</Text></Card>
       </AppScreen>
     );
   }
@@ -61,6 +65,7 @@ export default function Application() {
   if (state.applicationStage === "approved") {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="결과 자세히 보기" onPress={() => router.push("/application-result")} />}
         testID="application-approved-screen"
@@ -77,6 +82,7 @@ export default function Application() {
 
   return (
     <AppScreen
+      footerPlacement="tabbed"
       contentContainerStyle={styles.screen}
       fixedFooter={(
         <PrimaryButton
@@ -89,18 +95,15 @@ export default function Application() {
       testID="application-eligible-screen"
     >
       <PageEyebrow>안전운전 결과 제출</PageEyebrow>
-      <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
-      <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>
+      <Text style={styles.title}>할인 신청을 준비했어요</Text>
+      <Text style={styles.description}>다음 화면에서 제공할 정보를 확인한 뒤 제출해 주세요.</Text>
 
       <Card title="제출 대상"><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 최근 90일</Text></Card>
-      <Card selected title="제공되는 결과">
-        <Text style={styles.checkLine}>✓ 최종 안전운전점수 {state.totals.score}점</Text>
-        <Text style={styles.checkLine}>✓ 예상 할인 구간 {state.totals.expectedDiscountPercent}%</Text>
-        <Text style={styles.checkLine}>✓ 조건 충족 여부 충족</Text>
-        <Text style={styles.checkLine}>✓ 평가기간 및 누적 거리</Text>
+      <Card selected title="신청 조건 충족">
+        <Text style={styles.largeValue}>예상 할인 {state.totals.expectedDiscountPercent}%</Text>
+        <Text style={styles.cardText}>안전운전 {state.totals.score}점 · 누적 {state.totals.distanceKm} km</Text>
       </Card>
-      <Card title="제공하지 않는 원본"><Text style={styles.cardText}>정확한 위치 · 이동경로 · 운행시각 · 구간별 속도</Text></Card>
-      <Text style={styles.demoNote}>증명 검증 정보는 제출 후 별도로 확인할 수 있습니다.</Text>
+      <Text style={styles.demoNote}>아직 제출되지 않았어요. 예상 할인과 최종 적용 결정은 다를 수 있어요.</Text>
     </AppScreen>
   );
 }
@@ -113,9 +116,9 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: colors.primary },
   cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
   cardText: { ...typography.caption, color: colors.textSecondary, marginTop: 8 },
-  checkLine: { ...typography.caption, color: colors.textPrimary, marginTop: 3 },
   largeValue: { ...typography.metricSmall, color: colors.textPrimary, marginTop: 10 },
   statusBadge: { ...typography.badge, alignSelf: "flex-end", backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  neutralBadge: { backgroundColor: colors.background, color: colors.textSecondary },
   resultHero: { alignItems: "center", marginBottom: 24, marginTop: 6 },
   resultValue: { ...typography.metric, color: colors.primary, },
   resultLabel: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },

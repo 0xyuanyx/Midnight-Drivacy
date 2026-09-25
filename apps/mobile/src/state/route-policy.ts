@@ -2,6 +2,8 @@ import { hasSelectedDemoPolicy, type AppState } from "./app-state";
 
 export type AppRoute =
   | "/onboarding"
+  | "/setup"
+  | "/consent"
   | "/insurance"
   | "/(tabs)/home"
   | "/(tabs)/drive"
@@ -11,7 +13,7 @@ export type AppRoute =
 
 export function initialRouteForState(state: AppState): AppRoute {
   if (!state.hasConsented) {
-    return "/onboarding";
+    return state.setupPreviewCompleted ? "/consent" : "/onboarding";
   }
 
   if (!hasSelectedDemoPolicy(state)) {
@@ -56,11 +58,12 @@ export function redirectForRoute(pathname: string, state: AppState): AppRoute | 
   }
 
   if (!state.hasConsented) {
-    return pathname === "/onboarding" ? null : "/onboarding";
+    if (state.setupPreviewCompleted) return pathname === "/consent" || pathname === "/onboarding" ? null : "/consent";
+    return pathname === "/onboarding" || pathname === "/setup" ? null : "/onboarding";
   }
 
   if (!hasSelectedDemoPolicy(state)) {
-    return pathname === "/insurance" ? null : "/insurance";
+    return pathname === "/insurance" || pathname === "/consent" ? null : "/insurance";
   }
 
   const isFocusedDriveRoute = pathname === "/drive-session" || pathname === "/drive-processing" || pathname === "/drive-result";
@@ -69,7 +72,7 @@ export function redirectForRoute(pathname: string, state: AppState): AppRoute | 
     return pathname === expectedRoute ? null : expectedRoute;
   }
 
-  return pathname === "/onboarding" || pathname === "/insurance"
+  return pathname === "/onboarding" || pathname === "/insurance" || pathname === "/setup" || pathname === "/consent"
     ? "/(tabs)/home"
     : null;
 }

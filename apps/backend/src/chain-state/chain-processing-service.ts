@@ -85,4 +85,8 @@ export class ChainProcessingService {
   public getStatus(user: User, operationId: string): Promise<TripProcessingResult> {
     return this.finalizer.readStatus(user, operationId);
   }
+
+  public getConfirmedSummary(user: User, operationId: string) {
+    return this.finalizer.readConfirmedSummary(user, operationId);
+  }
 }

@@ -17,7 +17,7 @@ type PollingStatus = {
   transactionId?: string;
 };
 
-const pollingStatus = (result: Awaited<ReturnType<ChainProcessingService["getStatus"]>>): PollingStatus => {
+export const pollingStatus = (result: Awaited<ReturnType<ChainProcessingService["getStatus"]>>): PollingStatus => {
   if (result.status === "awaiting-wallet-approval") {
     return { operationId: result.operationId, status: result.status, approvalRequestId: result.approvalRequestId };
   }
@@ -25,7 +25,8 @@ const pollingStatus = (result: Awaited<ReturnType<ChainProcessingService["getSta
     return { operationId: result.operationId, status: result.status, transactionId: result.transactionId };
   }
   if (result.status === "chain-confirmed") {
-    return { operationId: result.operationId, status: result.status, transactionId: result.confirmation.transactionId };
+    // 체인 관측은 B의 DB 확정 이전이다. 가입자 화면의 종단 성공으로 내보내지 않는다.
+    return { operationId: result.operationId, status: "db-pending", transactionId: result.confirmation.transactionId };
   }
   return { operationId: result.operationId, status: result.status };
 };
@@ -51,7 +52,16 @@ export const createChainProcessingRouter = (auth: AuthDependencies, service: Cha
     const operationId = uuid.safeParse(request.params.operationId);
     if (!operationId.success) throw new AppError("INVALID_REQUEST", "Processing operation is invalid", 400);
     try {
-      response.json(pollingStatus(await service.getStatus(request.authUser!, operationId.data)));
+      const result = await service.getStatus(request.authUser!, operationId.data);
+      const status = pollingStatus(result);
+      if (result.status === "chain-confirmed") {
+        const summary = await service.getConfirmedSummary(request.authUser!, operationId.data);
+        if (summary) {
+          response.json({ operationId: operationId.data, status: "db-confirmed", summary });
+          return;
+        }
+      }
+      response.json(status);
     } catch (error) { processingError(error); }
   });
   return router;
