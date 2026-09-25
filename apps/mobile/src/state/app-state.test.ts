@@ -21,6 +21,25 @@ function completeTrip(state = readyState()) {
 }
 
 describe("appReducer", () => {
+  it("retains submission and decision times across retries and hydration, clearing them on reset", () => {
+    const clock = jest.spyOn(Date, "now").mockReturnValue(1800000000000);
+    try {
+      const ready = completeTrip(completeTrip());
+      const pending = appReducer(ready, { type: "SUBMIT_APPLICATION" });
+      expect(pending.applicationSubmittedAt).toBe(1800000000000);
+      clock.mockReturnValue(1800000060000);
+      expect(appReducer(pending, { type: "SUBMIT_APPLICATION" })).toBe(pending);
+      const approved = appReducer(pending, { type: "APPROVE_APPLICATION" });
+      expect(approved.applicationDecidedAt).toBe(1800000060000);
+      const restored = normalizePersistedAppState(approved);
+      expect(restored.applicationSubmittedAt).toBe(1800000000000);
+      expect(restored.applicationDecidedAt).toBe(1800000060000);
+      const reset = appReducer(restored, { type: "RESET_APPLICATION" });
+      expect(reset.applicationSubmittedAt).toBeUndefined();
+      expect(reset.applicationDecidedAt).toBeUndefined();
+      expect(normalizePersistedAppState(approved, "linked").applicationDecidedAt).toBeUndefined();
+    } finally { clock.mockRestore(); }
+  });
   it("starts the deterministic demo at zero kilometres and 100 points", () => {
     expect(initialAppState).toEqual({
       hasConsented: false,

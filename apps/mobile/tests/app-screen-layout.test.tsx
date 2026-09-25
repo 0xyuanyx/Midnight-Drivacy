@@ -11,6 +11,7 @@ it("uses one footer height for every screen without tabs", async () => {
   );
 
   expect(StyleSheet.flatten(ui.getByTestId("app-screen-footer").props.style).paddingBottom).toBe(48);
+  expect(StyleSheet.flatten(ui.getByTestId("app-screen-footer").props.style).position).not.toBe("absolute");
 });
 
 it("uses the separate tabbed footer height", async () => {

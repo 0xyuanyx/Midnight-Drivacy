@@ -298,7 +298,7 @@ export function SetupFlow({
     setStep(next);
   }
   function back() {
-    if (step === "connecting" && inFlight.current) return;
+    if (step === "complete" || (step === "connecting" && inFlight.current)) return;
     Keyboard.dismiss();
     operation.current += 1;
     inFlight.current = false;
@@ -311,9 +311,8 @@ export function SetupFlow({
       return;
     }
     // Once a wallet exists, never return to creation or silently create a second one.
-    if (step === "connecting" || step === "complete") {
-      go("connecting");
-      setError("준비한 월렛으로 연결을 다시 확인해주세요.");
+    if (step === "connecting") {
+      go("intro");
       return;
     }
     go(
@@ -443,7 +442,7 @@ export function SetupFlow({
         : step === "profile"
           ? profile
           : step === "intro"
-            ? () => go("password")
+            ? () => wallet.current ? void connect() : go("password")
             : step === "password"
               ? create
               : step === "connecting"
@@ -458,7 +457,7 @@ export function SetupFlow({
     email: "인증코드 받기",
     code: "코드 확인하기",
     profile: "입력하고 계속하기",
-    intro: "확인하고 월렛 만들기",
+    intro: wallet.current ? "준비한 월렛 연결하기" : "확인하고 월렛 만들기",
     password: "월렛 만들고 연결하기",
     connecting: wallet.current ? "다시 연결하기" : "다시 시도하기",
     complete: "DriVacy 시작하기",
@@ -475,6 +474,16 @@ export function SetupFlow({
         fixedFooter={
           step === "connecting" && !error ? undefined : (
             <View style={s.footer}>
+              {step === "profile" && (
+                <Check label="가입 정보 처리 안내 확인" checked={profileConsent} onPress={() => setProfileConsent(v => !v)}>
+                  가입 정보 처리 안내를 확인했어요.
+                </Check>
+              )}
+              {step === "password" && (
+                <Check label="기기 분실 안내 확인" checked={acknowledged} onPress={() => setAcknowledged(v => !v)}>
+                  기기를 잃으면 현재 버전에서 월렛을 복구할 수 없다는 점을 확인했어요.
+                </Check>
+              )}
               {!!error && !["email", "code"].includes(step) && (
                 <Text accessibilityRole="alert" style={s.error}>
                   {error}
@@ -503,6 +512,7 @@ export function SetupFlow({
         <ScreenHeader
           title={headings[step]}
           onBack={back}
+          showBack={step !== "complete"}
           backDisabled={step === "connecting" && busy}
         />
         <View style={s.hero}>
@@ -567,7 +577,7 @@ export function SetupFlow({
           )}
           {step === "connecting" && (
             <>
-              <Text style={s.title}>월렛을 연결하고 있어요</Text>
+              <Text style={s.title}>{error ? "월렛 연결을 확인해주세요" : "월렛을 연결하고 있어요"}</Text>
               <Text style={s.description}>
                 이 기기의 월렛과 네트워크 상태를 확인해요.{"\n"}완료되기 전에는
                 거래를 시작하지 않아요.
@@ -747,13 +757,6 @@ export function SetupFlow({
                   목적과 보유 기간은 서비스 연결 전에 확정해야 합니다.
                 </Text>
               )}
-              <Check
-                label="가입 정보 처리 안내 확인"
-                checked={profileConsent}
-                onPress={() => setProfileConsent((v) => !v)}
-              >
-                가입 정보 처리 안내를 확인했어요.
-              </Check>
             </View>
           </View>
         )}
@@ -818,19 +821,11 @@ export function SetupFlow({
                 passwordsMatch ? "success" : confirmation ? "error" : "neutral"
               }
             />
-            <Check
-              label="기기 분실 안내 확인"
-              checked={acknowledged}
-              onPress={() => setAcknowledged((v) => !v)}
-            >
-              기기를 잃으면 현재 버전에서 월렛을{"\n"}복구할 수 없다는 점을
-              확인했어요.
-            </Check>
           </View>
         )}
         {step === "connecting" && (
           <>
-            <Spinner />
+            {!error && <Spinner />}
             <View style={s.connectionCards}>
               <Card
                 tone={wallet.current && !services.preview ? "green" : "blue"}
@@ -887,7 +882,7 @@ export function SetupFlow({
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  footer: { backgroundColor: colors.background, paddingTop: 6 },
+  footer: { backgroundColor: colors.background, gap: 8 },
   screen: {
     paddingTop: 18,
     paddingHorizontal: 20,
@@ -923,7 +918,6 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     minHeight: 44,
-    marginTop: 14,
     gap: 10,
   },
   check: {

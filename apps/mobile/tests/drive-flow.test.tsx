@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
+import { StyleSheet } from "react-native";
 
 import Drive from "../app/(tabs)/drive";
 import DriveProcessing from "../app/drive-processing";
@@ -69,6 +70,8 @@ describe("Driving flow", () => {
     expect(getByText("--점")).toBeTruthy();
     expect(getByText("할인 조건 · 점수 확인")).toBeTruthy();
     expect(queryByText("100점")).toBeNull();
+    expect(queryByText("내 보험 조회하기")).toBeNull();
+    expect(getByText("누적 0 / 500 km · 남은 거리 500 km")).toBeTruthy();
   });
 
   it("offers an active trip resume action instead of claiming all trips are complete", async () => {
@@ -147,8 +150,9 @@ describe("Driving flow", () => {
 
   it("shows fixture totals and replaces navigation when returning home", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
-    const { getAllByText, getByRole, getByText } = await render(<DriveResult />);
+    const { getAllByText, getByRole, getByText, getByTestId } = await render(<DriveResult />);
 
+    expect(StyleSheet.flatten(getByTestId("drive-result-screen").props.style).paddingBottom).toBeUndefined();
     expect(getAllByText("92점")).toHaveLength(2);
     expect(getAllByText("300 km")).toHaveLength(2);
     expect(getByText("첫 주행 점수")).toBeTruthy();
@@ -168,5 +172,13 @@ describe("Driving flow", () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: "DISMISS_TRIP_RESULT" });
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
+  it("emphasizes the current score after the second trip, keeping change as context", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(2, "result"), dispatch, isHydrated: true });
+    const ui = await render(<DriveResult />);
+    expect(ui.getAllByText("87점")).toHaveLength(2);
+    expect(ui.queryByText("-5점")).toBeNull();
+    expect(ui.getByText("92점 → 87점")).toBeTruthy();
   });
 });

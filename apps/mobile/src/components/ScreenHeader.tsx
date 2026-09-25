@@ -4,11 +4,11 @@ import { useRouter } from "expo-router";
 
 import { colors, tokens } from "@/theme/tokens";
 
-export function ScreenHeader({ title, onBack, backDisabled = false }: { title: string; onBack?: () => void; backDisabled?: boolean }) {
+export function ScreenHeader({ title, onBack, backDisabled = false, showBack = true }: { title: string; onBack?: () => void; backDisabled?: boolean; showBack?: boolean }) {
   const router = useRouter();
   return (
     <View style={styles.header}>
-      <Pressable
+      {showBack ? <Pressable
         accessibilityLabel="뒤로"
         accessibilityRole="button"
         accessibilityState={{ disabled: backDisabled }}
@@ -18,7 +18,7 @@ export function ScreenHeader({ title, onBack, backDisabled = false }: { title: s
         style={({ pressed }) => [styles.back, pressed && styles.pressed]}
       >
         <Text style={styles.backIcon}>‹</Text>
-      </Pressable>
+      </Pressable> : <View style={styles.spacer} />}
       <Text style={styles.title}>{title}</Text>
       <View style={styles.spacer} />
     </View>

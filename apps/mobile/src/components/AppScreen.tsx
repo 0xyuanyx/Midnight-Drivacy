@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, tokens } from "@/theme/tokens";
+import { colors } from "@/theme/tokens";
 
 interface AppScreenProps {
   children: React.ReactNode;
@@ -24,7 +23,6 @@ export function AppScreen({
   scrollTestID,
   testID,
 }: AppScreenProps) {
-  const [footerHeight, setFooterHeight] = useState(tokens.ctaHeight + (footerPlacement === "tabbed" ? 12 : 48));
   const content = (
     <View style={[styles.content, contentContainerStyle]} testID={testID}>
       {children}
@@ -35,7 +33,8 @@ export function AppScreen({
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, fixedFooter ? { paddingBottom: footerHeight + 16 } : null]}
+          style={styles.viewport}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           testID={scrollTestID}
@@ -43,10 +42,10 @@ export function AppScreen({
           {content}
         </ScrollView>
       ) : (
-        <View style={[styles.nonScrollContent, fixedFooter ? { paddingBottom: footerHeight + 16 } : null]}>{content}</View>
+        <View style={styles.nonScrollContent}>{content}</View>
       )}
       {fixedFooter ? (
-        <View pointerEvents="box-none" style={[styles.fixedFooter, footerPlacement === "tabbed" ? styles.tabbedFooter : styles.plainFooter]} onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} testID="app-screen-footer">
+        <View style={[styles.fixedFooter, footerPlacement === "tabbed" ? styles.tabbedFooter : styles.plainFooter]} testID="app-screen-footer">
           <View style={styles.fixedFooterInner}>{fixedFooter}</View>
         </View>
       ) : null}
@@ -62,6 +61,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  viewport: { flex: 1, minHeight: 0 },
   nonScrollContent: {
     flex: 1,
   },
@@ -75,10 +75,9 @@ const styles = StyleSheet.create({
   },
   fixedFooter: {
     alignItems: "center",
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    right: 0,
+    flexShrink: 0,
+    backgroundColor: colors.background,
+    paddingTop: 12,
   },
   plainFooter: { paddingBottom: 48 },
   tabbedFooter: { paddingBottom: 12 },

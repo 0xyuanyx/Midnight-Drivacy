@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
 import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled, type LinkedDemoApplication } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
+import { applicationTime } from "@/state/application-time";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationSubmitted() {
@@ -97,7 +98,7 @@ export default function ApplicationSubmitted() {
         <Text style={styles.title}>{missing ? "신청 기록을 찾지 못했어요." : linked?.reviewStatus === "REJECTED" ? "할인이 적용되지 않았어요." : "보험사가 결과를 검토하고 있어요."}</Text>
         <Text style={styles.description}>{missing ? "신청 기록을 확인할 수 없습니다. 다시 제출해 주세요." : linkedDemoEnabled ? "신청 정보와 처리 상태를 확인하세요." : "신청 정보와 처리 상태를 확인하세요."}</Text>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{missing ? "기록 없음" : linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>보험사</Text><Text style={styles.value}>{policy.insurerName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>예상 할인 구간</Text><Text style={styles.value}>{state.totals.expectedDiscountPercent}%</Text></View>
@@ -110,7 +111,7 @@ export default function ApplicationSubmitted() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>신청 내역</Text>
           <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>{linked?.id ?? (linkedDemoEnabled ? "확인 중" : "DR-DEMO-001")}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{linked ? new Date(linked.submittedAt).toLocaleString("ko-KR") : linkedDemoEnabled ? "확인 중" : "2026.09.22 10:00"}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{linkedDemoEnabled ? linked ? applicationTime(linked.submittedAt) : missing ? "기록 없음" : "확인 중" : applicationTime(state.applicationSubmittedAt)}</Text></View>
         </View>
         {refreshError ? <Text style={styles.demoNote}>신청 정보를 불러오지 못했습니다. 다시 시도해 주세요.</Text> : null}
         <Text style={styles.demoNote}>{linkedDemoEnabled ? "증명·체인 검증 정보는 아직 연결되지 않았습니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text>
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, padding: 16 },
   cardHeader: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between" },
   cardTitle: { ...typography.cardTitle, color: colors.textPrimary, },
-  badge: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  badge: { ...typography.badge, backgroundColor: colors.background, borderRadius: 999, color: colors.textSecondary, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
   row: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginTop: 10 },
   label: { ...typography.caption, color: colors.textSecondary, },
   value: { ...typography.label, color: colors.textPrimary, },

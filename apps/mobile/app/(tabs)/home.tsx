@@ -7,6 +7,7 @@ import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Wordmark } from "@/components/Wordmark";
+import { demoRule } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { homePresentation } from "@/state/home-presentation";
 import { colors } from "@/theme/tokens";
@@ -15,7 +16,7 @@ export default function Home() {
   const router = useRouter();
   const { state } = useAppState();
   const presentation = homePresentation(state);
-  const progress = Math.min(state.totals.distanceKm / 550, 1);
+  const progress = Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
 
   return (
     <AppScreen
@@ -48,19 +49,13 @@ export default function Home() {
           </View>
         </View>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>할인 조건까지 {Math.round(progress * 100)}%</Text>
-          <Text style={styles.distance}>{state.totals.distanceKm} / 550 km</Text>
+          <Text style={styles.progressLabel}>거리 조건 {Math.round(progress * 100)}%</Text>
+          <Text style={styles.distance}>{state.totals.distanceKm} / {demoRule.minimumDistanceKm} km</Text>
         </View>
         <ProgressBar progress={progress} />
         <View style={styles.metaRow}>
-          <View>
-            <Text style={styles.metaLabel}>평가 기간</Text>
-            <Text style={styles.metaValue}>D-42</Text>
-          </View>
-          <View style={styles.metaRight}>
-            <Text style={styles.metaLabel}>누적거리</Text>
-            <Text style={styles.metaValue}>{state.totals.distanceKm} km</Text>
-          </View>
+          <Text style={styles.metaLabel}>평가 기간</Text>
+          <Text style={styles.metaValue}>최근 90일</Text>
         </View>
       </View>
 
@@ -96,13 +91,12 @@ const styles = StyleSheet.create({
   discountBlock: { alignItems: "flex-end", paddingBottom: 4 },
   discountLabel: { ...typography.caption, color: colors.textSecondary, },
   discountValue: { ...typography.metricSmall, color: colors.primary, marginTop: 3 },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 12 },
+  progressHeader: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 8, marginTop: 12 },
   progressLabel: { ...typography.label, color: colors.textSecondary, },
   distance: { ...typography.label, color: colors.textSecondary, },
-  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 12, paddingTop: 10 },
-  metaRight: { marginLeft: "auto" },
+  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", marginTop: 12, paddingTop: 10 },
   metaLabel: { ...typography.caption, color: colors.textSecondary, },
-  metaValue: { ...typography.label, color: colors.textPrimary, marginTop: 4 },
+  metaValue: { ...typography.label, color: colors.textPrimary },
   privacyCard: { alignItems: "center", backgroundColor: "#EAF2FF", borderRadius: 16, flexDirection: "row", marginTop: 13, padding: 16 },
   privacyIcon: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 999, height: 28, justifyContent: "center", width: 28 },
   privacyCheck: { color: colors.surface, fontSize: 14, fontWeight: "900" },

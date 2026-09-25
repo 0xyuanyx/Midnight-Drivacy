@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
 import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
+import { applicationTime } from "@/state/application-time";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationResult() {
@@ -78,7 +79,7 @@ export default function ApplicationResult() {
           <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>적용 결정</Text></View>
           <View style={styles.row}><Text style={styles.label}>대상</Text><Text style={styles.value}>{policy.productName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>결정일</Text><Text style={styles.value}>{decidedAt ? new Date(decidedAt).toLocaleDateString("ko-KR") : "확인 중"}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>결정 시각</Text><Text style={styles.value}>{applicationTime(linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>보험사에는 필요한 정보만 보냈어요</Text>

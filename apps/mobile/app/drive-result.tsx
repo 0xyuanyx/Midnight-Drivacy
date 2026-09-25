@@ -24,7 +24,6 @@ export default function DriveResult() {
   if (state.driveStage !== "result") return null;
   const trip = demoTrips[Math.max(state.tripsCompleted - 1, 0)];
   const previousScore = state.tripsCompleted === 1 ? null : demoTrips[0].cumulativeTotals.score;
-  const scoreDelta = previousScore === null ? null : state.totals.score - previousScore;
 
   function returnHome() {
     if (returning.current) return;
@@ -35,7 +34,6 @@ export default function DriveResult() {
 
   return (
     <AppScreen
-      contentContainerStyle={styles.screen}
       fixedFooter={(
         <PrimaryButton
           title="홈으로 돌아가기"
@@ -48,7 +46,7 @@ export default function DriveResult() {
       <PageEyebrow position="withBack">주행 처리 완료</PageEyebrow>
       <Text style={styles.title}>이번 주행 결과</Text>
       <View style={styles.resultHero}>
-        <Text style={styles.delta}>{scoreDelta === null ? `${state.totals.score}점` : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}점`}</Text>
+        <Text style={styles.delta}>{state.totals.score}점</Text>
         <Text style={styles.deltaHelper}>{previousScore === null ? "첫 주행 점수" : `${previousScore}점 → ${state.totals.score}점`}</Text>
       </View>
 
@@ -74,7 +72,6 @@ export default function DriveResult() {
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingBottom: 24 },
   title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
   resultHero: { alignItems: "center", marginVertical: 24 },
   delta: { ...typography.metric, color: colors.primary, },

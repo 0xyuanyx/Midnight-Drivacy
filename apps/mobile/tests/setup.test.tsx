@@ -112,6 +112,8 @@ it("validates wallet passwords and retries connection without creating another w
   expect(api.createWallet).toHaveBeenCalledTimes(1);
   expect(ui.getByText("서비스 연결 전")).toBeTruthy();
   expect(ui.getByTestId("completion-mark")).toBeTruthy();
+  expect(ui.queryByRole("button", { name: "뒤로" })).toBeNull();
+  expect(ui.queryByRole("progressbar")).toBeNull();
   await fireEvent.press(ui.getByText("DriVacy 시작하기"));
   expect(complete).toHaveBeenCalledTimes(1);
 });
@@ -133,6 +135,24 @@ it("ignores a late email response after going back", async () => {
   await act(async () => resolve());
   expect(back).toHaveBeenCalledTimes(1);
   expect(ui.queryByLabelText("6자리 인증번호")).toBeNull();
+});
+
+it("reuses the prepared wallet after leaving a failed connection and returning through the intro", async () => {
+  const api = services();
+  (api.connectWallet as jest.Mock).mockRejectedValueOnce(new Error("연결을 다시 시도해주세요."));
+  const ui = await render(<SetupFlow services={api} onBack={jest.fn()} onComplete={jest.fn()} />);
+  await reachWallet(ui);
+  await fireEvent.changeText(ui.getByLabelText("월렛 암호"), "long-password");
+  await fireEvent.changeText(ui.getByLabelText("월렛 암호 확인"), "long-password");
+  await fireEvent.press(ui.getByRole("checkbox", { name: "기기 분실 안내 확인" }));
+  await fireEvent.press(ui.getByText("월렛 만들고 연결하기"));
+  expect(ui.queryByRole("progressbar")).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: "뒤로" }));
+  expect(ui.queryByRole("alert")).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: "준비한 월렛 연결하기" }));
+  expect(api.createWallet).toHaveBeenCalledTimes(1);
+  expect(api.connectWallet).toHaveBeenCalledTimes(2);
+  expect(ui.getByTestId("completion-mark")).toBeTruthy();
 });
 
 it("blocks duplicate sends while the request is pending", async () => {

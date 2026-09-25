@@ -1,3 +1,6 @@
+/** Approved demo threshold, not the 550 km cumulative sample result. */
+export const demoRule = { minimumDistanceKm: 500, minimumScore: 80 } as const;
+
 export interface DemoTotals {
   distanceKm: number;
   score: number;

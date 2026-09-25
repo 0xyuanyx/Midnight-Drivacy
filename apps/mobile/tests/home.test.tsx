@@ -91,7 +91,7 @@ describe("Home and bottom tabs", () => {
 
     const { getByRole, getByText } = await render(<Home />);
 
-    expect(getByText(`${stateForTrips(tripsCompleted).totals.distanceKm} km`)).toBeTruthy();
+    expect(getByText(`${stateForTrips(tripsCompleted).totals.distanceKm} / 500 km`)).toBeTruthy();
     expect(getByText(tripsCompleted === 0 ? "--점" : `${stateForTrips(tripsCompleted).totals.score}점`)).toBeTruthy();
     expect(getByRole("button", { name: actionLabel })).toBeTruthy();
   });
