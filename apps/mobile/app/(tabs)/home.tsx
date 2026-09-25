@@ -20,6 +20,7 @@ export default function Home() {
   return (
     <AppScreen
       contentContainerStyle={styles.screen}
+      footerPlacement="tabbed"
       fixedFooter={(
         <PrimaryButton
           title={presentation.action}
@@ -34,13 +35,13 @@ export default function Home() {
         <Text style={styles.title}>{presentation.title}</Text>
       </View>
 
-      <View style={styles.scoreCard}>
+      <View style={styles.scoreCard} testID="home-score-card">
         <View style={styles.scoreHeader}>
           <Text style={styles.scoreLabel}>내 안전운전 점수</Text>
           {state.totals.isEligible ? <Text style={styles.status}>조건 충족</Text> : null}
         </View>
         <View style={styles.scoreRow}>
-          <Text style={styles.scoreValue}>{state.totals.score}점</Text>
+          <Text style={styles.scoreValue}>{state.tripsCompleted === 0 ? "--점" : `${state.totals.score}점`}</Text>
           <View style={styles.discountBlock}>
             <Text style={styles.discountLabel}>예상 할인</Text>
             <Text style={styles.discountValue}>{state.totals.isEligible ? `${state.totals.expectedDiscountPercent}%` : "—"}</Text>
@@ -86,19 +87,19 @@ const styles = StyleSheet.create({
   screen: { paddingBottom: 8 },
   hero: {},
   title: { ...typography.title, color: colors.textPrimary, marginTop: 8 },
-  scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 24, padding: 18 },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 18, padding: 16 },
   scoreHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   scoreLabel: { ...typography.cardTitle, color: colors.textPrimary, },
   status: { ...typography.badge, backgroundColor: colors.successBackground, borderRadius: 999, color: colors.success, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
-  scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
+  scoreRow: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
   scoreValue: { ...typography.metric, color: colors.textPrimary, },
   discountBlock: { alignItems: "flex-end", paddingBottom: 4 },
   discountLabel: { ...typography.caption, color: colors.textSecondary, },
   discountValue: { ...typography.metricSmall, color: colors.primary, marginTop: 3 },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 21 },
+  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, marginTop: 12 },
   progressLabel: { ...typography.label, color: colors.textSecondary, },
   distance: { ...typography.label, color: colors.textSecondary, },
-  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 18, paddingTop: 15 },
+  metaRow: { borderTopColor: "#EDF0F4", borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 12, paddingTop: 10 },
   metaRight: { marginLeft: "auto" },
   metaLabel: { ...typography.caption, color: colors.textSecondary, },
   metaValue: { ...typography.label, color: colors.textPrimary, marginTop: 4 },

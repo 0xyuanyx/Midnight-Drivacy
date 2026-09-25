@@ -114,10 +114,13 @@ describe("Discount application flow", () => {
     const { getByRole } = await render(<ApplicationReview />);
 
     await fireEvent.press(getByRole("button", { name: "뒤로" }));
-    expect(back).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/(tabs)/application");
 
-    await fireEvent.press(getByRole("button", { name: "할인 신청 제출" }));
+    const submitButton = getByRole("button", { name: "할인 신청 제출" });
+    await fireEvent.press(submitButton);
+    await fireEvent.press(submitButton);
     expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith("/application-submitted");
   });
 

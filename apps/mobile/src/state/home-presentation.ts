@@ -28,6 +28,6 @@ export function homePresentation(state: AppState) {
   };
   return {
     action: state.tripsCompleted === 0 ? "첫 주행 체험 시작" : "두 번째 주행 체험 시작", route: "/drive" as const,
-    title: "민준님, 이번 달도\n안전하게 달리고 있어요.", status: "할인 조건 준비 중", detail: `누적 ${state.totals.distanceKm} / 550 km · ${state.tripsCompleted} / 2회 주행`,
+    title: "이번 달도\n안전하게 달려봐요.", status: "할인 조건 준비 중", detail: `누적 ${state.totals.distanceKm} / 550 km · ${state.tripsCompleted} / 2회 주행`,
   };
 }

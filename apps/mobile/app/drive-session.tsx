@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -14,6 +14,7 @@ import { colors } from "@/theme/tokens";
 export default function DriveSession() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const finishing = useRef(false);
 
   useEffect(() => {
     if (state.driveStage !== "active") router.replace("/(tabs)/drive");
@@ -28,6 +29,8 @@ export default function DriveSession() {
         <PrimaryButton
           title="주행 종료"
           onPress={() => {
+            if (finishing.current) return;
+            finishing.current = true;
             dispatch({ type: "FINISH_TRIP" });
             router.replace("/drive-processing");
           }}
@@ -36,7 +39,7 @@ export default function DriveSession() {
       scrollTestID="drive-session-scroll"
       testID="drive-session-screen"
     >
-      <ScreenHeader title="주행 체험" />
+      <ScreenHeader title="주행 체험" onBack={() => router.replace("/(tabs)/drive")} />
       <PageEyebrow position="withBack">주행 체험 중</PageEyebrow>
       <Text style={styles.title}>기록을 수집하고 있어요</Text>
 

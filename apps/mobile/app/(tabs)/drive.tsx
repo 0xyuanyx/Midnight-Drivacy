@@ -1,4 +1,5 @@
 import { typography } from "@/theme/typography";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -12,6 +13,10 @@ import { colors } from "@/theme/tokens";
 export default function Drive() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const starting = useRef(false);
+  useEffect(() => {
+    if (state.driveStage === "idle") starting.current = false;
+  }, [state.driveStage]);
   const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
   const progress = Math.min(state.totals.distanceKm / 550, 1);
   const footer = state.driveStage === "active" ? (
@@ -22,6 +27,8 @@ export default function Drive() {
     <PrimaryButton
       title="주행 체험 시작"
       onPress={() => {
+        if (starting.current) return;
+        starting.current = true;
         dispatch({ type: "START_TRIP" });
         router.push("/drive-session");
       }}
@@ -39,6 +46,7 @@ export default function Drive() {
 
   return (
     <AppScreen
+      footerPlacement="tabbed"
       contentContainerStyle={styles.screen}
       fixedFooter={footer}
       testID="drive-screen"
@@ -50,14 +58,14 @@ export default function Drive() {
       </View>
       <Text style={styles.title}>내 안전운전 현황</Text>
       <View style={styles.scoreBlock}>
-        <Text style={styles.score}>{state.totals.score}점</Text>
-        <Text style={styles.scoreHelper}>현재 점수 · 100점 만점</Text>
+        <Text style={styles.score}>{state.tripsCompleted === 0 ? "--점" : `${state.totals.score}점`}</Text>
+        <Text style={styles.scoreHelper}>{state.tripsCompleted === 0 ? "첫 주행 후 점수를 확인할 수 있어요" : "현재 점수 · 100점 만점"}</Text>
       </View>
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>할인 조건 · 점수 충족</Text>
-          <Text style={styles.successBadge}>{state.totals.score >= 80 ? "점수 충족" : "확인 중"}</Text>
+          <Text style={styles.cardTitle}>{state.tripsCompleted === 0 ? "할인 조건 · 점수 확인" : "할인 조건 · 점수 충족"}</Text>
+          <Text style={styles.successBadge}>{state.tripsCompleted > 0 && state.totals.score >= 80 ? "점수 충족" : "확인 중"}</Text>
         </View>
         <View style={styles.progressSpace}><ProgressBar progress={progress} /></View>
         <View style={styles.cardFooter}>

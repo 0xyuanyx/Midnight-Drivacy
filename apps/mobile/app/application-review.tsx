@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -18,12 +18,14 @@ export default function ApplicationReview() {
   const { dispatch, state } = useAppState();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitInFlight = useRef(false);
   const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (!state.totals.isEligible || state.applicationStage !== "idle") {
     return (
       <View style={styles.page}>
         <AppScreen
+          footerPlacement="tabbed"
           contentContainerStyle={styles.screen}
           fixedFooter={<PrimaryButton title="할인 신청으로 돌아가기" onPress={() => router.replace("/(tabs)/application")} />}
           testID="application-review-guard-screen"
@@ -41,16 +43,22 @@ export default function ApplicationReview() {
   return (
     <View style={styles.page}>
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={(
-          <PrimaryButton title="할인 신청 제출" onPress={async () => {
-            if (submitting) return;
+          <PrimaryButton disabled={submitting} title={submitting ? "제출 중…" : "할인 신청 제출"} onPress={async () => {
+            if (submitInFlight.current) return;
+            submitInFlight.current = true;
+            setSubmitting(true);
+            setSubmitError(null);
             if (linkedDemoEnabled) {
-              setSubmitting(true);
-              setSubmitError(null);
               try { await submitLinkedDemoApplication(policy.id); }
-              catch { setSubmitError("신청 정보를 제출하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요."); setSubmitting(false); return; }
-              setSubmitting(false);
+              catch {
+                setSubmitError("신청 정보를 제출하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.");
+                setSubmitting(false);
+                submitInFlight.current = false;
+                return;
+              }
             }
             dispatch({ type: "SUBMIT_APPLICATION", ...(linkedDemoEnabled ? { mode: "linked" as const } : {}) });
             router.replace("/application-submitted");
@@ -58,7 +66,7 @@ export default function ApplicationReview() {
         )}
         testID="application-review-screen"
       >
-        <ScreenHeader title="서류" />
+        <ScreenHeader title="서류" onBack={() => router.replace("/(tabs)/application")} backDisabled={submitting} />
         <PageEyebrow position="withBack">안전운전 결과 제출</PageEyebrow>
         <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
         <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>

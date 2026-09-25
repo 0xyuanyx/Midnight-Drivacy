@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -18,7 +18,12 @@ export default function ApplicationSubmitted() {
   const [linked, setLinked] = useState<LinkedDemoApplication | null>(null);
   const [refreshError, setRefreshError] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const refreshInFlight = useRef(false);
+  const restartInFlight = useRef(false);
   const refresh = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     try {
       const current = await getLinkedDemoApplication();
       setLinked(current);
@@ -29,7 +34,23 @@ export default function ApplicationSubmitted() {
         router.replace("/application-result");
       }
     } catch { setRefreshError(true); }
+    finally { refreshInFlight.current = false; }
   }, [dispatch, router]);
+  async function restartApplication() {
+    if (restartInFlight.current) return;
+    restartInFlight.current = true;
+    setRestarting(true);
+    setRefreshError(false);
+    try {
+      await clearLinkedDemoApplication();
+      dispatch({ type: "RESET_APPLICATION" });
+      router.replace("/(tabs)/application");
+    } catch {
+      restartInFlight.current = false;
+      setRestarting(false);
+      setRefreshError(true);
+    }
+  }
   useEffect(() => {
     if (!linkedDemoEnabled || state.applicationStage !== "pending") return;
     void refresh();
@@ -53,13 +74,15 @@ export default function ApplicationSubmitted() {
   return (
     <View style={styles.page}>
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={(
           <PrimaryButton
-            title={linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
+            title={restarting ? "다시 준비 중…" : linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
+            disabled={restarting}
             onPress={() => {
               if (linkedDemoEnabled) {
-                if (missing) { void clearLinkedDemoApplication(); dispatch({ type: "RESET_APPLICATION" }); router.replace("/(tabs)/application"); }
+                if (missing) void restartApplication();
                 else void refresh();
                 return;
               }

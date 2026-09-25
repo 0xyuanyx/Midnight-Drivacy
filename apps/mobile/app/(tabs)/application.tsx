@@ -26,6 +26,7 @@ export default function Application() {
   if (!state.totals.isEligible) {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="주행으로 이동" onPress={() => router.replace("/drive")} />}
         testID="application-ineligible-screen"
@@ -44,6 +45,7 @@ export default function Application() {
   if (state.applicationStage === "pending") {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="신청 내역 보기" onPress={() => router.push("/application-submitted")} />}
         testID="application-pending-screen"
@@ -61,6 +63,7 @@ export default function Application() {
   if (state.applicationStage === "approved") {
     return (
       <AppScreen
+        footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={<PrimaryButton title="결과 자세히 보기" onPress={() => router.push("/application-result")} />}
         testID="application-approved-screen"
@@ -77,6 +80,7 @@ export default function Application() {
 
   return (
     <AppScreen
+      footerPlacement="tabbed"
       contentContainerStyle={styles.screen}
       fixedFooter={(
         <PrimaryButton

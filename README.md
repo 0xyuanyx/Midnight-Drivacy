@@ -100,7 +100,7 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 - LLM은 승인 전 초안을 작성하며, 승인된 규칙만 계산과 증명에 적용합니다.
 - 실제 GPS 수집, 외부 내비게이션 연동, 실제 보험사 시스템 연동은 MVP에서 제외합니다.
 - 예시 보험사 한 곳, 특약 한 종 및 모의 주행기록을 대상으로 합니다.
-- 이메일 기반 로그인과 역할 구분을 MVP에 포함합니다. 인증은 Supabase Auth의 이메일·비밀번호 방식을 채택했고 정확한 API 계약은 구체화 전입니다.
+- 이메일 기반 로그인과 역할 구분을 MVP에 포함합니다. 기존 계획은 Supabase Auth 이메일·비밀번호였으나, 2026-09-25 신규 디자인에 맞춰 가입자 프론트는 이메일 6자리 OTP로 구성했습니다. 실제 Auth 설정·세션·가입자 provisioning 연결은 별도입니다.
 - 가입자용 자체 보관형 임베디드 월렛을 Midnight Wallet SDK로 구현할 계획입니다. 가입자 개인키를 서버에 저장하지 않으며 보험사는 별도 월렛 설치 없이 이용합니다. 실제 SDK·네트워크 연동은 아직 미구현이고 다중 기기 복구는 MVP에서 제외합니다.
 - Dataset Merkle Tree를 MVP에 적용할 계획입니다. Driver Merkle Tree는 필수 채택으로 확정하지 않았습니다.
 - 원본은 운행별 Midnight 검증과 트랜잭션 반영 확인 후 삭제하며, 실패 시 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 일시적 실패는 최초 시도 외 3회(1·5·15분 간격) 자동 재시도하고, 소진 후 체인 실패가 확인된 원본은 최대 7일 보관 후 삭제하는 기준을 채택했습니다. 체인 결과 불명은 상태를 먼저 확인합니다. 실제 운영 구현은 후속 작업입니다.
@@ -116,6 +116,10 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 원본 기록은 설계상 Drivacy의 계산·증명 처리 영역에 일시적으로 존재합니다. 보험사와 공개 원장에 원본을 전달하지 않는 것이 목표이며, Drivacy 자체가 원본에 접근하지 않는 구조로 표현하지 않습니다.
 
 ## Mobile demo (Expo Go scope)
+
+2026-09-25: 신규 이메일·코드·가입 정보·월렛 안내/암호/연결/완료의 7개 화면을 `/setup`에 추가했습니다. 시작하기 → 가입 준비 → 보험조회 동의 → 보험 선택으로 이어집니다. 기본 실행은 서버에 이메일을 보내지 않으며 화면 확인용 코드 `123456`을 입력합니다. 프로필은 유효한 형식으로 입력하고 정보 안내를 확인한 뒤, 화면 확인용 암호를 12자 이상 입력합니다. 실제 계정 인증·월렛 생성은 수행하지 않으며 완료 화면은 `서비스 연결 전`으로 표시합니다. 개인정보·코드·암호는 영속 저장하지 않고, 비민감한 준비 화면 완료 여부만 기존 데모 저장소에 기록합니다. 기존 보험 선택 완료 데이터는 유지하므로 새 흐름을 다시 보려면 결과 상세의 초기화하기를 사용합니다. [검수 및 실제 연결 전 요청사항](docs/MOBILE_SETUP_AUDIT.md)을 참고하세요.
+
+2026-09-25 화면 보정: 생년월일 입력 표기를 `YYYY/MM/DD`로 바꾸고 완료 체크를 공통 초록 심벌로 통일했습니다. 첫 운행 전 점수는 `--점`, 첫 결과는 최초 확정 점수로 표시합니다. 홈 점수 카드의 세로 여백을 줄이고 탭 pill을 위로 올렸으며, 동의 덮개의 웹 미리보기 상단 공백과 주행 링의 반복 회전을 보정했습니다. 앱 테스트 79개, 타입 검사, 린트, Web/iOS/Android export가 통과했습니다. 날짜 입력은 웹 미리보기에서도 확인했으며 물리 기기 화면 검수는 별도입니다. 데모 산식과 실제 서비스 연결 범위는 그대로입니다.
 
 ## Insurer web demo
 
@@ -164,9 +168,11 @@ Mobile UI rules are maintained in [MOBILE_APP_RULES.md](docs/MOBILE_APP_RULES.md
 
 Latest verification (2026-09-23): 58 mobile tests, typecheck, lint and the Web/iOS/Android export passed. Browser QA exercised both trips, elapsed time in session and result, Home → Documents → submission → result, the gray reset placement above Home, and the framed web preview. Reset dispatch/navigation is automated-test verified; physical-device execution and a full small-screen/accessibility audit remain unverified.
 
-`apps/mobile` is a deterministic subscriber-facing Expo Router demo. It covers onboarding consent, selecting one of three local example policies, and a three-tab flow: **Home**, **Driving**, and **Documents**. The consent sheet uses two required check rows with chevrons that open full disclosures for policy/rider lookup and selected driving-record processing. The primary navigation uses a bottom-offset floating iOS-style pill, policy selection uses a card-border-only selected state, and blue primary actions share fixed bottom slots—with separate alignment for tabbed and non-tabbed screens. Blue eyebrow labels also share fixed positions for screens with and without a back header, and the shared `DriVacy` wordmark renders the capital `V` in blue. Two simulated trips deterministically progress from 0 km / 100 points through 300 km / 92 points to 550 km / 87 points and a 10% expected discount. The application review expressly excludes precise location, route, segment speed, and exact driving time.
+`apps/mobile` is a deterministic subscriber-facing Expo Router demo. It covers onboarding consent, selecting one of three local example policies, and a three-tab flow: **Home**, **Driving**, and **Documents**. The consent sheet uses two required check rows with chevrons that open full disclosures for policy/rider lookup and selected driving-record processing. The primary navigation uses a bottom-offset floating iOS-style pill, policy selection uses a card-border-only selected state, and blue primary actions share fixed bottom slots—with separate alignment for tabbed and non-tabbed screens. Blue eyebrow labels also share fixed positions for screens with and without a back header, and the shared `DriVacy` wordmark renders the capital `V` in blue. Two simulated trips deterministically progress from an unmeasured `--` display (internal 100-point calculation baseline) through 300 km / 92 points to 550 km / 87 points and a 10% expected discount. The application review expressly excludes precise location, route, segment speed, and exact driving time.
 
 The subscriber app's Expo web target is a fast preview of the same React Native application, not the insurer web product above. It adds an iPhone-style frame only on web so review screenshots are easier to read; iOS and Android builds do not include that frame.
+
+2026-09-25 frontend follow-up: the onboarding and email/wallet setup preview use the same non-tab CTA slot, while tabbed screens use one separate slot above the floating pill. Setup inputs gate the next action, clear stale errors while editing, and support keyboard Next/Done transitions. This is a UI flow preview; email delivery, account persistence, and wallet creation remain unconnected.
 
 The app persists only this demo state locally with AsyncStorage. Hydration and route guards stop resumed or deep-linked sessions from bypassing required consent and policy selection. An authorized active simulated trip resumes through its persisted lifecycle, and its deterministic completion is applied exactly once; this is local UI-state handling, not GPS collection, proof processing, or a chain operation. The app does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number/time, and “demo approval” are presentation states only. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
 

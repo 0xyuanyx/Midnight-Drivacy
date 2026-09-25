@@ -10,6 +10,7 @@ export type ApplicationStage = "idle" | "pending" | "approved";
 export type DriveStage = "idle" | "active" | "processing" | "result";
 
 export interface AppState {
+  setupPreviewCompleted?: boolean;
   hasConsented: boolean;
   selectedPolicyId: string | null;
   tripsCompleted: TripsCompleted;
@@ -22,6 +23,7 @@ export interface AppState {
 }
 
 export type AppAction =
+  | { type: "COMPLETE_SETUP_PREVIEW" }
   | { type: "ACCEPT_CONSENT" }
   | { type: "SELECT_INSURANCE"; policyId: string }
   | { type: "START_TRIP" }
@@ -91,15 +93,16 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
   }
 
   const hasConsented = persistedState.hasConsented === true;
+  const setupPreviewCompleted = persistedState.setupPreviewCompleted === true;
   if (!hasConsented) {
-    return initialAppState;
+    return setupPreviewCompleted ? { ...initialAppState, setupPreviewCompleted: true } : initialAppState;
   }
 
   const selectedPolicyId = isDemoPolicyId(persistedState.selectedPolicyId)
     ? persistedState.selectedPolicyId
     : null;
   if (!selectedPolicyId) {
-    return { ...initialAppState, hasConsented: true };
+    return { ...initialAppState, hasConsented: true, ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}) };
   }
 
   const tripsCompleted = isTripsCompleted(persistedState.tripsCompleted)
@@ -116,6 +119,7 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
   return {
     ...initialAppState,
     hasConsented,
+    ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}),
     selectedPolicyId,
     tripsCompleted,
     driveStage,
@@ -131,6 +135,8 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "COMPLETE_SETUP_PREVIEW":
+      return { ...state, setupPreviewCompleted: true };
     case "ACCEPT_CONSENT":
       return { ...state, hasConsented: true };
     case "SELECT_INSURANCE":

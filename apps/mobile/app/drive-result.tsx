@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -15,6 +15,7 @@ import { colors } from "@/theme/tokens";
 export default function DriveResult() {
   const router = useRouter();
   const { dispatch, state } = useAppState();
+  const returning = useRef(false);
 
   useEffect(() => {
     if (state.driveStage !== "result") router.replace("/(tabs)/drive");
@@ -22,10 +23,12 @@ export default function DriveResult() {
 
   if (state.driveStage !== "result") return null;
   const trip = demoTrips[Math.max(state.tripsCompleted - 1, 0)];
-  const previousScore = state.tripsCompleted === 1 ? 100 : demoTrips[0].cumulativeTotals.score;
-  const scoreDelta = state.totals.score - previousScore;
+  const previousScore = state.tripsCompleted === 1 ? null : demoTrips[0].cumulativeTotals.score;
+  const scoreDelta = previousScore === null ? null : state.totals.score - previousScore;
 
   function returnHome() {
+    if (returning.current) return;
+    returning.current = true;
     dispatch({ type: "DISMISS_TRIP_RESULT" });
     router.replace("/(tabs)/home");
   }
@@ -45,8 +48,8 @@ export default function DriveResult() {
       <PageEyebrow position="withBack">주행 처리 완료</PageEyebrow>
       <Text style={styles.title}>이번 주행 결과</Text>
       <View style={styles.resultHero}>
-        <Text style={styles.delta}>{scoreDelta > 0 ? "+" : ""}{scoreDelta}점</Text>
-        <Text style={styles.deltaHelper}>{previousScore}점 → {state.totals.score}점</Text>
+        <Text style={styles.delta}>{scoreDelta === null ? `${state.totals.score}점` : `${scoreDelta > 0 ? "+" : ""}${scoreDelta}점`}</Text>
+        <Text style={styles.deltaHelper}>{previousScore === null ? "첫 주행 점수" : `${previousScore}점 → ${state.totals.score}점`}</Text>
       </View>
 
       <View style={styles.card}>

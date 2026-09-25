@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react-native";
-import { AppState } from "react-native";
+import { AccessibilityInfo, Animated, AppState } from "react-native";
 import { DrivingRing, elapsedLabel } from "@/components/DrivingRing";
 import { appReducer, initialAppState, normalizePersistedAppState } from "@/state/app-state";
 
@@ -36,5 +36,15 @@ describe("driving clock", () => {
   it("formats hour boundaries and clamps a backwards clock", () => {
     expect(elapsedLabel(1000, 3662000)).toBe("01:01:01");
     expect(elapsedLabel(2000, 1000)).toBe("00:00:00");
+  });
+
+  it("resets the ring angle between revolutions so the next turn can animate", async () => {
+    jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
+    const timing = jest.spyOn(Animated, "timing");
+    const view = await render(<DrivingRing startedAt={Date.now()} />);
+    expect(timing.mock.calls.some(([, config]) => config.toValue === 1 && config.duration === 2400)).toBe(true);
+    expect(timing.mock.calls.some(([, config]) => config.toValue === 0 && config.duration === 0)).toBe(true);
+    await view.unmount();
+    jest.restoreAllMocks();
   });
 });

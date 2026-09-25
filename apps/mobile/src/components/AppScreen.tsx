@@ -2,12 +2,13 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors } from "@/theme/tokens";
+import { colors, tokens } from "@/theme/tokens";
 
 interface AppScreenProps {
   children: React.ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
   fixedFooter?: React.ReactNode;
+  footerPlacement?: "plain" | "tabbed";
   scroll?: boolean;
   scrollTestID?: string;
   testID?: string;
@@ -18,11 +19,12 @@ export function AppScreen({
   children,
   contentContainerStyle,
   fixedFooter,
+  footerPlacement = "plain",
   scroll = true,
   scrollTestID,
   testID,
 }: AppScreenProps) {
-  const [footerHeight, setFooterHeight] = useState(66);
+  const [footerHeight, setFooterHeight] = useState(tokens.ctaHeight + (footerPlacement === "tabbed" ? 12 : 48));
   const content = (
     <View style={[styles.content, contentContainerStyle]} testID={testID}>
       {children}
@@ -44,7 +46,7 @@ export function AppScreen({
         <View style={[styles.nonScrollContent, fixedFooter ? { paddingBottom: footerHeight + 16 } : null]}>{content}</View>
       )}
       {fixedFooter ? (
-        <View pointerEvents="box-none" style={styles.fixedFooter} onLayout={event => setFooterHeight(event.nativeEvent.layout.height)}>
+        <View pointerEvents="box-none" style={[styles.fixedFooter, footerPlacement === "tabbed" ? styles.tabbedFooter : styles.plainFooter]} onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} testID="app-screen-footer">
           <View style={styles.fixedFooterInner}>{fixedFooter}</View>
         </View>
       ) : null}
@@ -60,14 +62,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  scrollContentWithFooter: {
-    paddingBottom: 82,
-  },
   nonScrollContent: {
     flex: 1,
-  },
-  nonScrollContentWithFooter: {
-    paddingBottom: 82,
   },
   content: {
     flex: 1,
@@ -81,10 +77,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     bottom: 0,
     left: 0,
-    paddingBottom: 12,
     position: "absolute",
     right: 0,
   },
+  plainFooter: { paddingBottom: 48 },
+  tabbedFooter: { paddingBottom: 12 },
   fixedFooterInner: {
     maxWidth: 520,
     paddingHorizontal: 20,

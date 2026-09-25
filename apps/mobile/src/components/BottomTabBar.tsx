@@ -58,7 +58,7 @@ export function BottomTabBar() {
   const router = useRouter();
 
   return (
-    <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
+    <SafeAreaView edges={["bottom"]} style={styles.safeArea} testID="bottom-tab-safe-area">
       <View accessibilityRole="tablist" style={styles.tabBar} testID="bottom-tab-pill">
         {tabs.map((tab) => {
           const selected = isActivePath(pathname, tab.href);
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   safeArea: {
     alignItems: "center",
     backgroundColor: colors.background,
-    paddingBottom: 12,
+    paddingBottom: 36,
     paddingTop: 6,
   },
   tabBar: {

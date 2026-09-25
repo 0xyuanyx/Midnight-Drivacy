@@ -1,4 +1,5 @@
 import { fireEvent, render } from "@testing-library/react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 
 import Onboarding from "../app/onboarding";
@@ -24,7 +25,7 @@ describe("Onboarding", () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue({ replace } as unknown as ReturnType<typeof useRouter>);
     mockUseAppState.mockReturnValue({
-      state: initialAppState,
+      state: { ...initialAppState, setupPreviewCompleted: true },
       dispatch,
       isHydrated: true,
     });
@@ -40,6 +41,14 @@ describe("Onboarding", () => {
     expect(getByRole("button", { name: "동의하고 계속하기" }).props.accessibilityState?.disabled).toBe(
       true,
     );
+  });
+
+  it("sends a new user to account setup before insurance consent", async () => {
+    mockUseAppState.mockReturnValue({ state: initialAppState, dispatch, isHydrated: true });
+    const { getByRole, queryByText } = await render(<Onboarding />);
+    await fireEvent.press(getByRole("button", { name: "시작하기" }));
+    expect(replace).toHaveBeenCalledWith("/setup");
+    expect(queryByText(/DriVacy를 시작하려면/)).toBeNull();
   });
 
   it("opens each required consent disclosure from its chevron and returns to the list", async () => {
@@ -70,6 +79,18 @@ describe("Onboarding", () => {
       expect.objectContaining({ bottom: "additive", left: "off", right: "off", top: "off" }),
     );
     expect(sheetScroll.props.keyboardShouldPersistTaps).toBe("handled");
+  });
+
+  it("extends the consent scrim above the web preview content inset", async () => {
+    const originalOS = Platform.OS;
+    Object.defineProperty(Platform, "OS", { configurable: true, value: "web" });
+    try {
+      const { getByRole, getByTestId } = await render(<Onboarding />);
+      await fireEvent.press(getByRole("button", { name: "동의하고 시작하기" }));
+      expect(StyleSheet.flatten(getByTestId("consent-backdrop").props.style).top).toBe(-22);
+    } finally {
+      Object.defineProperty(Platform, "OS", { configurable: true, value: originalOS });
+    }
   });
 
   it("keeps the consent action disabled until both required rows are checked", async () => {
@@ -115,5 +136,18 @@ describe("Onboarding", () => {
     expect(getByRole("button", { name: "동의하고 계속하기" }).props.accessibilityState?.disabled).toBe(
       true,
     );
+  });
+
+  it("returns from an already accepted consent sheet to insurance selection", async () => {
+    mockUseAppState.mockReturnValue({
+      state: { ...initialAppState, setupPreviewCompleted: true, hasConsented: true },
+      dispatch,
+      isHydrated: true,
+    });
+    const { getAllByRole, getByRole } = await render(<Onboarding startWithConsent />);
+
+    expect(getAllByRole("checkbox").every(row => row.props.accessibilityState?.checked)).toBe(true);
+    await fireEvent.press(getByRole("button", { name: "닫기" }));
+    expect(replace).toHaveBeenCalledWith("/insurance");
   });
 });
