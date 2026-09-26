@@ -48,6 +48,77 @@ describe("Driving flow", () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(0), dispatch, isHydrated: true });
   });
 
+  it("starts an authenticated session before entering the drive screen", async () => {
+    const state = { ...stateForTrips(0), source: "backend" as const,
+      selectedPolicyId: "11111111-1111-4111-8111-111111111111",
+      backendTarget: { specialContractId: "22222222-2222-4222-8222-222222222222", evaluationPeriod: "period-1" } };
+    const start = jest.fn().mockResolvedValue({ sessionId: "session-1", startedAt: "2026-09-26T00:00:00Z", trip: { id: "trip-1" } });
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true, backend: { workflow: { start } } } as never);
+    const ui = await render(<Drive />);
+    await fireEvent.press(ui.getByRole("button", { name: "주행 체험 시작" }));
+    expect(start).toHaveBeenCalledWith({ insuranceContractId: state.selectedPolicyId, specialContractId: state.backendTarget.specialContractId, evaluationPeriod: "period-1" });
+    expect(dispatch).toHaveBeenCalledWith({ type: "START_BACKEND_TRIP", sessionId: "session-1", operationId: "trip-1", startedAt: Date.parse("2026-09-26T00:00:00Z") });
+    expect(push).toHaveBeenCalledWith("/drive-session");
+  });
+
+  it("waits for a DB-confirmed result instead of completing after a timer", async () => {
+    jest.useFakeTimers();
+    const state = { ...stateForTrips(0, "processing"), source: "backend" as const,
+      selectedPolicyId: "11111111-1111-4111-8111-111111111111",
+      backendTarget: { specialContractId: "22222222-2222-4222-8222-222222222222", evaluationPeriod: "period-1" },
+      backendSession: { sessionId: "session-1", operationId: "trip-1" } };
+    let status = "db-pending";
+    const workflow = { endAndProcess: async () => "trip-1", poll: async () => status === "db-pending"
+      ? { operationId: "trip-1", status: "db-pending" }
+      : { operationId: "trip-1", status: "db-confirmed", summary: { operationId: "trip-1", tripId: "trip-1", tripCount: 1, tripDistanceM: 1200, totalDistanceM: 1200, score: 91, conditionsMet: false, expectedDiscountBps: 0, ruleVersion: 1, stateCommitment: "commitment", transactionId: "tx-1" } } };
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true, backend: { workflow } } as never);
+    const ui = await render(<DriveProcessing />);
+    await act(async () => { await Promise.resolve(); });
+    expect(ui.getByText(/DB에 확정/)).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalled();
+    await act(async () => { jest.advanceTimersByTime(700); await Promise.resolve(); });
+    expect(dispatch).not.toHaveBeenCalled();
+    status = "db-confirmed";
+    await act(async () => { jest.advanceTimersByTime(3000); await Promise.resolve(); });
+    expect(dispatch).toHaveBeenCalledWith({ type: "COMPLETE_BACKEND_TRIP", summary: expect.objectContaining({ score: 91, operationId: "trip-1" }) });
+    expect(replace).toHaveBeenCalledWith("/drive-result");
+    jest.useRealTimers();
+  });
+
+  it("ends the authenticated session before opening processing", async () => {
+    const state = { ...stateForTrips(0, "active"), source: "backend" as const,
+      selectedPolicyId: "11111111-1111-4111-8111-111111111111",
+      backendTarget: { specialContractId: "22222222-2222-4222-8222-222222222222", evaluationPeriod: "period-1" },
+      backendSession: { sessionId: "session-1", operationId: "trip-1" }, tripStartedAt: Date.now() - 3000 };
+    const endAndProcess = jest.fn().mockResolvedValue("trip-1");
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true, backend: {
+      api: { getDrivingSession: async () => ({ sessionId: "session-1", status: "GENERATED", startedAt: new Date(state.tripStartedAt).toISOString(), endedAt: null,
+        trip: { id: "trip-1", source: "simulated", collectionEnabled: true, datasetSalt: "private", records: [{ index: 0, durationSeconds: 1, distanceM: 1200, speedingCount: 0, accelerationCount: 0, brakingCount: 0 }] } }) },
+      workflow: { endAndProcess },
+    } } as never);
+    const ui = await render(<DriveSession />);
+    await act(async () => { await Promise.resolve(); });
+    expect(ui.getByText("1/1 구간")).toBeTruthy();
+    await fireEvent.press(ui.getByRole("button", { name: "주행 종료" }));
+    expect(endAndProcess).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "FINISH_BACKEND_TRIP", endedAt: expect.any(Number) });
+    expect(replace).toHaveBeenCalledWith("/drive-processing");
+  });
+
+  it("renders the confirmed backend trip distance and status without fixture claims", async () => {
+    const state = { ...stateForTrips(1, "result"), source: "backend" as const,
+      selectedPolicyId: "11111111-1111-4111-8111-111111111111",
+      backendSummary: { operationId: "trip-1", tripId: "trip-1", tripCount: 1,
+        tripDistanceM: 1200, totalDistanceM: 1200, score: 91, conditionsMet: false,
+        expectedDiscountBps: 0, ruleVersion: 1, stateCommitment: "commitment", transactionId: "tx-1" },
+      totals: { distanceKm: 1.2, score: 91, isEligible: false, expectedDiscountPercent: 0 } };
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true } as never);
+    const ui = await render(<DriveResult />);
+    expect(ui.getAllByText("1.2 km")).toHaveLength(2);
+    expect(ui.getByText("DB 확정 완료")).toBeTruthy();
+    expect(ui.queryByText("로컬 계산 완료")).toBeNull();
+  });
+
   it("authorizes a simulated drive before entering the focused session", async () => {
     const { getByRole, rerender, getByText, queryByRole } = await render(<Drive />);
 

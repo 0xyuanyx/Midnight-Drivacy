@@ -7,31 +7,78 @@ import { AppScreen } from "@/components/AppScreen";
 import { PolicyCard } from "@/components/PolicyCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { demoPolicies } from "@/fixtures/demo";
+import { demoPolicies, type DemoPolicy } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 const INSURANCE_LOADING_DELAY_MS = 250;
 
+interface BackendPolicyOption { contractId: string; specialContractId: string; policy: DemoPolicy }
+
+function backendPolicyOptions(input: unknown): BackendPolicyOption[] {
+  if (!Array.isArray(input)) throw new Error("보험 조회 응답이 올바르지 않습니다.");
+  return input.flatMap((contract): BackendPolicyOption[] => {
+    if (!contract || typeof contract !== "object" || typeof contract.id !== "string"
+      || typeof contract.insurerName !== "string" || !Array.isArray(contract.specialContracts)) {
+      throw new Error("보험 조회 응답이 올바르지 않습니다.");
+    }
+    return contract.specialContracts.filter((rider: { isEligible?: boolean }) => rider.isEligible === true)
+      .map((rider: { id: string; name: string; status: string }) => ({
+        contractId: contract.id, specialContractId: rider.id,
+        policy: { id: `${contract.id}:${rider.id}`, insurerName: contract.insurerName,
+          productName: `자동차보험 · ${rider.name}`, riderName: rider.name,
+          statusLabel: contract.status, vehicleNumber: "서버 제공 정보 없음",
+          coveragePeriod: `${String(contract.coverageStartsAt).slice(0, 10)}–${String(contract.coverageEndsAt).slice(0, 10)}` },
+      }));
+  });
+}
+
 export default function Insurance() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
+  const { dispatch, state, backend } = useAppState();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPolicyId, setSelectedPolicyId] = useState(state.selectedPolicyId);
+  const [backendOptions, setBackendOptions] = useState<BackendPolicyOption[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const confirming = useRef(false);
+  const showDemoPolicies = Boolean(backend && !isLoading && !error && backendOptions.length === 0);
 
   useEffect(() => {
+    if (backend) {
+      let active = true;
+      void backend.api.listInsuranceContracts().then((result) => {
+        if (active) { setBackendOptions(backendPolicyOptions(result)); setIsLoading(false); }
+      }).catch(() => { if (active) { setError("보험 정보를 불러오지 못했습니다. 다시 시도해 주세요."); setIsLoading(false); } });
+      return () => { active = false; };
+    }
     const loadingTimer = setTimeout(() => setIsLoading(false), INSURANCE_LOADING_DELAY_MS);
     return () => clearTimeout(loadingTimer);
-  }, []);
+  }, [backend]);
 
-  function confirmSelection() {
+  async function confirmSelection() {
     if (!selectedPolicyId || confirming.current) {
       return;
     }
 
     confirming.current = true;
-    dispatch({ type: "SELECT_INSURANCE", policyId: selectedPolicyId });
+    if (backend && !showDemoPolicies) {
+      const option = backendOptions.find((item) => item.policy.id === selectedPolicyId);
+      if (!option) { confirming.current = false; return; }
+      try {
+        await backend.api.selectSpecialContract(option.contractId, option.specialContractId);
+        const periods = await backend.api.listEvaluationPeriods(option.contractId, option.specialContractId);
+        if (!Array.isArray(periods) || periods.length !== 1 || !periods[0]
+          || typeof periods[0].id !== "string") throw new Error("평가기간을 확인할 수 없습니다.");
+        dispatch({ type: "SELECT_BACKEND_INSURANCE", policyId: option.contractId,
+          specialContractId: option.specialContractId, evaluationPeriod: periods[0].id });
+        router.replace("/(tabs)/home");
+      } catch {
+        setError("보험·특약의 평가기간을 확인하지 못했습니다. 다시 시도해 주세요.");
+        confirming.current = false;
+      }
+      return;
+    }
+    dispatch({ type: showDemoPolicies ? "SELECT_DEMO_INSURANCE" : "SELECT_INSURANCE", policyId: selectedPolicyId });
     router.replace("/(tabs)/home");
   }
 
@@ -39,7 +86,10 @@ export default function Insurance() {
     <AppScreen
       contentContainerStyle={styles.screen}
       fixedFooter={isLoading ? undefined : (
-        <PrimaryButton disabled={!selectedPolicyId} title="이 보험 선택하기" onPress={confirmSelection} />
+        <View style={styles.footer}>
+          {showDemoPolicies ? <Text style={styles.demoNote}>표시된 보험은 데모용 예시이며 실제 가입 계약이 아니에요.</Text> : null}
+          <PrimaryButton disabled={!selectedPolicyId} title="이 보험 선택하기" onPress={confirmSelection} />
+        </View>
       )}
       testID="insurance-screen"
     >
@@ -56,7 +106,7 @@ export default function Insurance() {
       ) : (
         <>
           <View style={styles.list}>
-            {demoPolicies.map((policy) => (
+            {(backend && !showDemoPolicies ? backendOptions.map((option) => option.policy) : demoPolicies).map((policy) => (
               <PolicyCard
                 key={policy.id}
                 onPress={() => setSelectedPolicyId(policy.id)}
@@ -67,6 +117,7 @@ export default function Insurance() {
           </View>
         </>
       )}
+      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     </AppScreen>
   );
 }
@@ -100,4 +151,7 @@ const styles = StyleSheet.create({
   list: {
     marginTop: 24,
   },
+  error: { ...typography.caption, color: "#C12D39", marginTop: 16 },
+  footer: { gap: 10 },
+  demoNote: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
 });

@@ -11,6 +11,7 @@
     "build:deps": "npm run build --workspace=@drivacy/shared && npm run build --workspace=@drivacy/rule-draft",
     "predev": "npm run build:deps",
     "dev": "npm run dev --workspace=@drivacy/backend",
+    "dev:auth-only": "NODE_EXTRA_CA_CERTS=config/supabase-root-2021.crt node --env-file=.env --import tsx apps/backend/src/auth-only-server.ts",
     "dev:insurer": "npm run dev --workspace=@drivacy/web -- --port 5173 --strictPort",
     "dev:driver": "npm run start --workspace=@drivacy/mobile",
     "dev:driver-preview": "npm run web --workspace=@drivacy/mobile -- --port 8081",

@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { useRouter } from "expo-router";
 
 import Application from "../app/(tabs)/application";
@@ -55,6 +55,75 @@ describe("Discount application flow", () => {
       dispatch,
       isHydrated: true,
     });
+  });
+
+  it("returns an authenticated demo user to insurance selection after reset", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "approved"), demoMode: true }, dispatch, isHydrated: true } as never);
+    const ui = await render(<ApplicationResult />);
+    await fireEvent.press(ui.getByRole("button", { name: "초기화하기" }));
+    expect(dispatch).toHaveBeenCalledWith({ type: "RESET_DEMO" });
+    expect(replace).toHaveBeenCalledWith("/insurance");
+  });
+
+  it("submits authenticated contract IDs and keeps verification pending", async () => {
+    const state: AppState = { ...stateForTrips(2), source: "backend",
+      selectedPolicyId: "11111111-1111-4111-8111-111111111111",
+      backendTarget: { specialContractId: "22222222-2222-4222-8222-222222222222", evaluationPeriod: "period-1" } };
+    const application = { id: "app-1", insuranceContractId: state.selectedPolicyId,
+      specialContractId: state.backendTarget!.specialContractId, specialContractName: "안전운전 특약",
+      score: 87, distanceM: 550000, conditionsMet: true, expectedDiscountBps: 1000,
+      appliedDiscountBps: null, submittedAt: "2026-09-26T00:00:00Z", decidedAt: null,
+      verificationStatus: "PENDING", reviewStatus: "PENDING_REVIEW" };
+    const createDiscountApplication = jest.fn().mockResolvedValue(application);
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true, backend: { api: { createDiscountApplication } } } as never);
+    const ui = await render(<ApplicationReview />);
+    await fireEvent.press(ui.getByRole("button", { name: "할인 신청 제출" }));
+    expect(createDiscountApplication).toHaveBeenCalledWith(state.selectedPolicyId, state.backendTarget!.specialContractId);
+    expect(dispatch).toHaveBeenCalledWith({ type: "SYNC_BACKEND_APPLICATION", application: expect.objectContaining({ stage: "pending-verification", reviewStatus: "PENDING_REVIEW" }) });
+    expect(dispatch).not.toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
+  });
+
+  it("keeps a verified backend application pending until the insurer applies it", async () => {
+    const application = { id: "app-1", insuranceContractId: "contract-1", specialContractId: "rider-1",
+      specialContractName: "안전운전 특약", score: 91, distanceM: 1200, conditionsMet: true,
+      expectedDiscountBps: 1000, appliedDiscountBps: null, submittedAt: "2026-09-26T00:00:00Z",
+      decidedAt: null, verificationStatus: "PENDING", reviewStatus: "PENDING_REVIEW", stage: "pending-verification" };
+    const state: AppState = { ...stateForTrips(2, "pending"), source: "backend", selectedPolicyId: "contract-1",
+      backendTarget: { specialContractId: "rider-1", evaluationPeriod: "period-1" }, backendApplication: application as AppState["backendApplication"] };
+    const getDiscountApplication = jest.fn().mockResolvedValueOnce({ ...application, verificationStatus: "VERIFIED" })
+      .mockResolvedValueOnce({ ...application, verificationStatus: "VERIFIED", reviewStatus: "APPLIED", appliedDiscountBps: 800, decidedAt: "2026-09-26T01:00:00Z" });
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true, backend: { api: { getDiscountApplication } } } as never);
+    const ui = await render(<ApplicationSubmitted />);
+    await act(async () => { await Promise.resolve(); });
+    expect(dispatch).toHaveBeenCalledWith({ type: "SYNC_BACKEND_APPLICATION", application: expect.objectContaining({ stage: "pending-insurer" }) });
+    expect(replace).not.toHaveBeenCalledWith("/application-result");
+    await fireEvent.press(ui.getByRole("button", { name: "처리 상태 새로고침" }));
+    expect(dispatch).toHaveBeenCalledWith({ type: "SYNC_BACKEND_APPLICATION", application: expect.objectContaining({ stage: "applied", appliedDiscountBps: 800 }) });
+    expect(replace).toHaveBeenCalledWith("/application-result");
+  });
+
+  it("shows the insurer's applied rate rather than the expected discount and cannot reset real state", async () => {
+    const state: AppState = { ...stateForTrips(2, "approved"), source: "backend",
+      selectedPolicyId: "contract-1", backendTarget: { specialContractId: "rider-1", evaluationPeriod: "period-1" },
+      backendApplication: { id: "app-1", insuranceContractId: "contract-1", specialContractId: "rider-1",
+        specialContractName: "안전운전 특약", score: 91, distanceM: 1200, conditionsMet: true,
+        expectedDiscountBps: 1000, appliedDiscountBps: 800, submittedAt: "2026-09-26T00:00:00Z",
+        decidedAt: "2026-09-26T01:00:00Z", verificationStatus: "VERIFIED", reviewStatus: "APPLIED", stage: "applied" } };
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true } as never);
+    const ui = await render(<ApplicationResult />);
+    expect(ui.getByText("8%")).toBeTruthy();
+    expect(ui.queryByText("10%")).toBeNull();
+    expect(ui.queryByRole("button", { name: "초기화하기" })).toBeNull();
+  });
+
+  it("does not show fixture 500 km thresholds for an authenticated ineligible driver", async () => {
+    const state: AppState = { ...stateForTrips(1), source: "backend", selectedPolicyId: "contract-1",
+      backendTarget: { specialContractId: "rider-1", evaluationPeriod: "period-1" },
+      totals: { distanceKm: 1.2, score: 91, isEligible: false, expectedDiscountPercent: 0 } };
+    mockUseAppState.mockReturnValue({ state, dispatch, isHydrated: true } as never);
+    const ui = await render(<Application />);
+    expect(ui.queryByText(/500 km/)).toBeNull();
+    expect(ui.getByText(/서버 확정 누적/)).toBeTruthy();
   });
 
   it("shows a readiness summary before the single disclosure review", async () => {

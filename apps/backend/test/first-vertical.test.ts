@@ -139,6 +139,13 @@ class MemoryInsuranceRepository implements InsuranceRepository {
   public async findSelection(contractId: string): Promise<SelectionRow | undefined> {
     return this.selections.get(contractId);
   }
+
+  public async findEvaluationPeriods(contractId: string, specialContractId: string, userId: string) {
+    return contractId === driverContractId && specialContractId === eligibleSpecialContractId && userId === driverId
+      && this.selections.get(contractId)?.specialContractId === specialContractId
+      ? [{ id: "period-2026-q3", startDate: "2026-07-01", endDate: "2026-09-30" }]
+      : [];
+  }
 }
 
 const appFor = (role: "DRIVER" | "INSURER" = "DRIVER") => {
@@ -240,6 +247,18 @@ describe("insurance-contract routes", () => {
     expect(owned.status).toBe(200);
     expect(owned.body).toHaveLength(3);
     expect(other.status).toBe(404);
+  });
+
+  it("returns the server-owned evaluation period only for the selected rider and owned contract", async () => {
+    const { app } = appFor();
+    await driverRequest(app).put(`/insurance-contracts/${driverContractId}/special-contract-selection`).send({ specialContractId: eligibleSpecialContractId });
+    const available = await driverRequest(app).get(`/insurance-contracts/${driverContractId}/special-contracts/${eligibleSpecialContractId}/evaluation-periods`);
+    const foreign = await driverRequest(app).get(`/insurance-contracts/${otherDriverContractId}/special-contracts/${eligibleSpecialContractId}/evaluation-periods`);
+    const wrongRider = await driverRequest(app).get(`/insurance-contracts/${driverContractId}/special-contracts/${otherContractSpecialContractId}/evaluation-periods`);
+    expect(available.status).toBe(200);
+    expect(available.body).toEqual([{ id: "period-2026-q3", startDate: "2026-07-01", endDate: "2026-09-30" }]);
+    expect(foreign.status).toBe(404);
+    expect(wrongRider.status).toBe(404);
   });
 });
 

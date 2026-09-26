@@ -24,6 +24,12 @@ export interface SelectionRow {
   selectedAt: Date | string;
 }
 
+export interface EvaluationPeriodRow {
+  id: string;
+  startDate: Date | string;
+  endDate: Date | string;
+}
+
 export interface InsuranceRepository {
   listOwnedContracts(userId: string): Promise<InsuranceContractRow[]>;
   findOwnedContract(contractId: string, userId: string): Promise<InsuranceContractRow | undefined>;
@@ -31,6 +37,7 @@ export interface InsuranceRepository {
   findSelectableSpecialContract(contractId: string, specialContractId: string): Promise<Pick<SpecialContractRow, "id" | "isEligible"> | undefined>;
   upsertSelection(contractId: string, specialContractId: string): Promise<SelectionRow>;
   findSelection(contractId: string): Promise<SelectionRow | undefined>;
+  findEvaluationPeriods(contractId: string, specialContractId: string, userId: string): Promise<EvaluationPeriodRow[]>;
 }
 
 export class PgInsuranceRepository implements InsuranceRepository {
@@ -144,5 +151,22 @@ export class PgInsuranceRepository implements InsuranceRepository {
     );
 
     return result.rows[0];
+  }
+
+  public async findEvaluationPeriods(contractId: string, specialContractId: string, userId: string): Promise<EvaluationPeriodRow[]> {
+    const result = await this.pool.query<EvaluationPeriodRow>(
+      `SELECT es.evaluation_period_id AS id,
+              es.evaluation_starts_on::text AS "startDate",
+              es.evaluation_ends_on::text AS "endDate"
+       FROM public.evaluation_scopes es
+       JOIN public.insurance_contracts c ON c.id = es.insurance_contract_id AND c.owner_user_id = $3
+       JOIN public.special_contract_selections sel ON sel.insurance_contract_id = c.id
+         AND sel.special_contract_id = es.special_contract_id
+       WHERE es.insurance_contract_id = $1 AND es.special_contract_id = $2
+         AND es.owner_user_id = $3
+       ORDER BY es.evaluation_starts_on DESC`,
+      [contractId, specialContractId, userId],
+    );
+    return result.rows;
   }
 }

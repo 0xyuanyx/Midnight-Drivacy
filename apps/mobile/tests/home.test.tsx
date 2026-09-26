@@ -78,6 +78,16 @@ describe("Home and bottom tabs", () => {
     expect(card.marginTop).toBe(18);
   });
 
+  it("shows confirmed backend distance without the fixture threshold", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(1), source: "backend",
+      selectedPolicyId: "contract-1", backendTarget: { specialContractId: "rider-1", evaluationPeriod: "period-1" },
+      totals: { distanceKm: 1.2, score: 91, isEligible: false, expectedDiscountPercent: 0 } },
+      dispatch, isHydrated: true } as never);
+    const ui = await render(<Home />);
+    expect(ui.getByText("확정 누적 1.2 km")).toBeTruthy();
+    expect(ui.queryByText(/500 km/)).toBeNull();
+  });
+
   it.each([
     [0, "첫 주행 체험 시작"],
     [1, "두 번째 주행 체험 시작"],

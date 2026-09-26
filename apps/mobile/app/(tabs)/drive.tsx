@@ -1,5 +1,5 @@
 import { typography } from "@/theme/typography";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -13,14 +13,16 @@ import { colors } from "@/theme/tokens";
 
 export default function Drive() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
+  const { dispatch, state, backend } = useAppState();
   const starting = useRef(false);
+  const [startError, setStartError] = useState<string | null>(null);
   useEffect(() => {
     if (state.driveStage === "idle") starting.current = false;
   }, [state.driveStage]);
   const canStart = state.tripsCompleted < 2 && state.driveStage === "idle";
-  const progress = Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
-  const scoreMet = state.tripsCompleted > 0 && state.totals.score >= demoRule.minimumScore;
+  const live = state.source === "backend";
+  const progress = live ? (state.totals.isEligible ? 1 : 0) : Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
+  const scoreMet = live ? state.totals.isEligible : state.tripsCompleted > 0 && state.totals.score >= demoRule.minimumScore;
   const footer = state.driveStage === "active" ? (
     <PrimaryButton title="주행 체험으로 돌아가기" onPress={() => router.push("/drive-session")} />
   ) : state.driveStage === "result" ? (
@@ -28,9 +30,27 @@ export default function Drive() {
   ) : canStart ? (
     <PrimaryButton
       title="주행 체험 시작"
-      onPress={() => {
+      onPress={async () => {
         if (starting.current) return;
         starting.current = true;
+        setStartError(null);
+        if (live) {
+          if (!backend || !state.selectedPolicyId || !state.backendTarget) {
+            setStartError("인증된 운행 연결을 확인할 수 없습니다."); starting.current = false; return;
+          }
+          try {
+            const response = await backend.workflow.start({ insuranceContractId: state.selectedPolicyId,
+              specialContractId: state.backendTarget.specialContractId, evaluationPeriod: state.backendTarget.evaluationPeriod });
+            const session = response as { sessionId: string; startedAt: string; trip: { id: string } };
+            dispatch({ type: "START_BACKEND_TRIP", sessionId: session.sessionId, operationId: session.trip.id,
+              startedAt: Date.parse(session.startedAt) });
+            router.push("/drive-session");
+          } catch {
+            setStartError("운행을 시작하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
+            starting.current = false;
+          }
+          return;
+        }
         dispatch({ type: "START_TRIP" });
         router.push("/drive-session");
       }}
@@ -71,8 +91,8 @@ export default function Drive() {
         </View>
         <View style={styles.progressSpace}><ProgressBar progress={progress} /></View>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDetail}>누적 {state.totals.distanceKm} / {demoRule.minimumDistanceKm} km · 남은 거리 {Math.max(demoRule.minimumDistanceKm - state.totals.distanceKm, 0)} km</Text>
-          <Text style={styles.percent}>{Math.round(progress * 100)}%</Text>
+        <Text style={styles.cardDetail}>{live ? `서버 확정 누적 ${state.totals.distanceKm} km · ${scoreMet ? "조건 충족" : "조건 확인 중"}` : `누적 ${state.totals.distanceKm} / ${demoRule.minimumDistanceKm} km · 남은 거리 ${Math.max(demoRule.minimumDistanceKm - state.totals.distanceKm, 0)} km`}</Text>
+          {!live ? <Text style={styles.percent}>{Math.round(progress * 100)}%</Text> : null}
         </View>
       </View>
 
@@ -82,7 +102,7 @@ export default function Drive() {
             <Text style={styles.cardTitle}>평가 기간</Text>
             <Text style={styles.cardDetailTop}>최근 운행을 기준으로 평가해요</Text>
           </View>
-          <Text style={styles.day}>최근 90일</Text>
+          <Text style={styles.day}>{live ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text>
         </View>
       </View>
 
@@ -90,6 +110,7 @@ export default function Drive() {
         <Text style={styles.cardTitle}>주행 기록</Text>
         <Text style={styles.cardDetailTop}>최근 운행 {state.tripsCompleted}건 · 점수 변화 확인</Text>
       </View>
+      {startError ? <Text accessibilityRole="alert" style={styles.error}>{startError}</Text> : null}
 
     </AppScreen>
   );
@@ -119,4 +140,5 @@ const styles = StyleSheet.create({
   completeCard: { backgroundColor: colors.successBackground, borderRadius: 16, padding: 16 },
   completeTitle: { ...typography.cardTitle, color: colors.success, },
   completeText: { ...typography.body, color: colors.textSecondary, marginTop: 5 },
+  error: { ...typography.caption, color: "#C12D39", marginTop: 8 },
 });

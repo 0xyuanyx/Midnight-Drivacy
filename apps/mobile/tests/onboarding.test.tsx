@@ -31,6 +31,24 @@ describe("Onboarding", () => {
     });
   });
 
+  it("waits for authenticated Backend consent before advancing", async () => {
+    let reject = true;
+    const grantConsent = jest.fn(async () => { if (reject) throw new Error("network"); return { consented: true }; });
+    mockUseAppState.mockReturnValue({ state: { ...initialAppState, setupPreviewCompleted: true }, dispatch, isHydrated: true,
+      backend: { api: { grantConsent } } } as never);
+    const ui = await render(<Onboarding />);
+    await fireEvent.press(ui.getByRole("button", { name: "동의하고 시작하기" }));
+    await fireEvent.press(ui.getByRole("checkbox", { name: "1번째 필수 동의" }));
+    await fireEvent.press(ui.getByRole("checkbox", { name: "2번째 필수 동의" }));
+    await fireEvent.press(ui.getByRole("button", { name: "동의하고 계속하기" }));
+    expect(dispatch).not.toHaveBeenCalledWith({ type: "ACCEPT_CONSENT" });
+    reject = false;
+    await fireEvent.press(ui.getByRole("button", { name: "동의하고 계속하기" }));
+    expect(grantConsent).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenCalledWith({ type: "ACCEPT_CONSENT" });
+    expect(replace).toHaveBeenCalledWith("/insurance");
+  });
+
   it("opens the consent sheet from the start action", async () => {
     const { getByRole, getByText, queryByText } = await render(<Onboarding />);
 

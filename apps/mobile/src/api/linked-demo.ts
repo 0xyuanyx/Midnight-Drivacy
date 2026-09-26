@@ -4,6 +4,10 @@ const submissionKeyKey = "@drivacy/linked-demo-submission-key/v1";
 
 export const linkedDemoEnabled = Boolean(bridgeUrl);
 
+export function canUseLinkedDemoBridge(demoMode: boolean | undefined, enabled = linkedDemoEnabled): boolean {
+  return enabled && demoMode !== true;
+}
+
 export interface LinkedDemoApplication {
   id: string;
   policyId: string;

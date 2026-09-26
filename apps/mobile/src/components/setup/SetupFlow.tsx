@@ -235,8 +235,6 @@ export function SetupFlow({
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
   const [phone, setPhone] = useState("");
-  const [profileConsent, setProfileConsent] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -279,8 +277,7 @@ export function SetupFlow({
   const profileValid =
     !!name.trim() &&
     validBirth(birth) &&
-    /^01[016789]\d{7,8}$/.test(phone.replace(/\D/g, "")) &&
-    profileConsent;
+    /^01[016789]\d{7,8}$/.test(phone.replace(/\D/g, ""));
   const canContinue =
     step === "email"
       ? emailValid
@@ -388,8 +385,11 @@ export function SetupFlow({
       setError("이름, 생년월일과 휴대전화 번호를 확인해주세요.");
       return;
     }
-    if (!profileConsent) {
-      setError("가입 정보 처리 안내를 확인해주세요.");
+    if (services.completeProfile) {
+      void run(async () => {
+        await services.completeProfile!({ name: name.trim(), birthDate: birth.replace(/\//g, "-"), phoneNumber: phone.replace(/\D/g, "") });
+        onComplete();
+      });
       return;
     }
     go("intro");
@@ -474,11 +474,6 @@ export function SetupFlow({
         fixedFooter={
           step === "connecting" && !error ? undefined : (
             <View style={s.footer}>
-              {step === "profile" && (
-                <Check label="가입 정보 처리 안내 확인" checked={profileConsent} onPress={() => setProfileConsent(v => !v)}>
-                  가입 정보 처리 안내를 확인했어요.
-                </Check>
-              )}
               {step === "password" && (
                 <Check label="기기 분실 안내 확인" checked={acknowledged} onPress={() => setAcknowledged(v => !v)}>
                   기기를 잃으면 현재 버전에서 월렛을 복구할 수 없다는 점을 확인했어요.
@@ -706,7 +701,7 @@ export function SetupFlow({
               placeholder="1990/01/01"
               keyboardType="number-pad"
               maxLength={10}
-              helper={birthInvalid ? "생년월일을 확인해주세요." : "8자리 날짜 형식"}
+              helper={birthInvalid ? "생년월일을 확인해주세요." : undefined}
               helperTone={birthInvalid ? "error" : "neutral"}
             />
             <Field
@@ -736,28 +731,9 @@ export function SetupFlow({
               helper={phoneInvalid ? "휴대전화 번호를 확인해주세요." : "문자 인증은 진행하지 않아요."}
               helperTone={phoneInvalid ? "error" : "neutral"}
             />
-            <View style={[s.card, s.blue, s.notice]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="가입 정보 처리 안내 상세"
-                onPress={() => setShowPrivacy((v) => !v)}
-              >
-                <Text style={s.cardTitle}>
-                  입력 정보 안내 {showPrivacy ? "⌃" : "›"}
-                </Text>
-                <Text style={s.cardBody}>
-                  이 단계에서는 실제 보험계약 조회나{"\n"}본인확인을 진행하지
-                  않아요.
-                </Text>
-              </Pressable>
-              {showPrivacy && (
-                <Text style={s.cardBody}>
-                  이름·생년월일·휴대전화 번호는 가입 정보 입력 화면 확인에만
-                  사용하며, 현재 서버 전송·저장하지 않습니다. 실제 서비스의 수집
-                  목적과 보유 기간은 서비스 연결 전에 확정해야 합니다.
-                </Text>
-              )}
-            </View>
+            <Text style={s.profileDisclosure}>
+              입력한 정보는 가입 프로필에 저장돼요. 본인확인이나 보험계약 조회는 아직 하지 않아요.
+            </Text>
           </View>
         )}
         {step === "intro" && (
@@ -893,6 +869,7 @@ const s = StyleSheet.create({
   eyebrow: { ...typography.eyebrow, color: colors.primary, marginBottom: 8 },
   form: { marginTop: 34 },
   profileForm: { marginTop: 30 },
+  profileDisclosure: { ...typography.caption, color: "#667080", lineHeight: 20 },
   field: { marginBottom: 20 },
   label: { ...typography.label, color: "#343A47", marginBottom: 8 },
   input: {
@@ -913,7 +890,6 @@ const s = StyleSheet.create({
   yellow: { backgroundColor: "#FFFAEC" },
   green: { backgroundColor: "#EDFAF3" },
   cards: { marginTop: 28, gap: 12 },
-  notice: { borderWidth: 1, borderColor: "#D4E0F2", padding: 16, marginTop: 0 },
   checkRow: {
     flexDirection: "row",
     alignItems: "center",

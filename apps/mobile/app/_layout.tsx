@@ -1,42 +1,45 @@
+import { useEffect } from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
-import { Redirect, Stack, usePathname } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import regularFont from "../assets/fonts/Pretendard-Regular.otf";
 import semiboldFont from "../assets/fonts/Pretendard-SemiBold.otf";
 import boldFont from "../assets/fonts/Pretendard-Bold.otf";
 
-import { AppProvider, useAppState } from "@/state/app-provider";
+import { useAppState } from "@/state/app-provider";
+import AuthProvider from "@/auth/AuthProvider";
 import { redirectForRoute } from "@/state/route-policy";
 import { colors } from "@/theme/tokens";
 
 function RouteGate() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isHydrated, state } = useAppState();
+  const redirect = isHydrated ? redirectForRoute(pathname, state) : null;
 
-  if (!isHydrated) {
-    return (
-      <View style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
-
-  const redirect = redirectForRoute(pathname, state);
-  if (redirect) {
-    return <Redirect href={redirect} />;
-  }
+  useEffect(() => {
+    if (redirect) router.replace(redirect);
+  }, [redirect, router]);
 
   const navigator = <Stack screenOptions={{ headerShown: false }} />;
+  const content = <>
+    {navigator}
+    {(!isHydrated || redirect) && (
+      <View style={styles.routeLoading}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    )}
+  </>;
   if (Platform.OS !== "web") {
-    return navigator;
+    return <View style={styles.nativeRoot}>{content}</View>;
   }
 
   return (
     <View style={styles.webStage}>
       <View style={styles.webDevice}>
         <View pointerEvents="none" style={styles.dynamicIsland} />
-        <View style={styles.webScreen}>{navigator}</View>
+        <View style={styles.webScreen}>{content}</View>
       </View>
     </View>
   );
@@ -50,14 +53,26 @@ export default function RootLayout() {
   });
   if (!fontsLoaded && !fontError) return <ActivityIndicator color={colors.primary} />;
   return (
-    <AppProvider>
+    <AuthProvider>
       <StatusBar style="dark" />
       <RouteGate />
-    </AppProvider>
+    </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  nativeRoot: { flex: 1 },
+  routeLoading: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 30,
+  },
   webStage: {
     alignItems: "center",
     backgroundColor: "#08080A",

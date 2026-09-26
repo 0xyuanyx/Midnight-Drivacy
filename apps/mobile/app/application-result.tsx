@@ -8,7 +8,7 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
-import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled } from "@/api/linked-demo";
+import { canUseLinkedDemoBridge, clearLinkedDemoApplication, getLinkedDemoApplication } from "@/api/linked-demo";
 import { useAppState } from "@/state/app-provider";
 import { applicationTime } from "@/state/application-time";
 import { colors } from "@/theme/tokens";
@@ -16,6 +16,7 @@ import { colors } from "@/theme/tokens";
 export default function ApplicationResult() {
   const router = useRouter();
   const { state, dispatch } = useAppState();
+  const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
   const [decidedAt, setDecidedAt] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(false);
@@ -25,10 +26,14 @@ export default function ApplicationResult() {
     let active = true;
     void getLinkedDemoApplication().then((application) => { if (active) setDecidedAt(application?.decidedAt ?? null); }).catch(() => undefined);
     return () => { active = false; };
-  }, [state.applicationStage]);
-  const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
+  }, [linkedDemoEnabled, state.applicationStage]);
+  const live = state.source === "backend";
+  const rejected = live && state.applicationStage === "rejected";
+  const policy = live
+    ? { productName: "선택한 보험계약", riderName: state.backendApplication?.specialContractName ?? "안전운전 특약" }
+    : demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
-  if (state.applicationStage !== "approved") {
+  if (state.applicationStage !== "approved" && !rejected) {
     return (
       <AppScreen
         contentContainerStyle={styles.screen}
@@ -48,7 +53,7 @@ export default function ApplicationResult() {
         fixedFooter={(
           <View style={{ gap: 0 }}>
             {resetError ? <Text accessibilityRole="alert" style={styles.resetError}>초기화하지 못했어요. 다시 시도해주세요.</Text> : null}
-            <PrimaryButton title={resetting ? "초기화 중…" : "초기화하기"} disabled={resetting} variant="ghost" onPress={async () => {
+            {!live ? <PrimaryButton title={resetting ? "초기화 중…" : "초기화하기"} disabled={resetting} variant="ghost" onPress={async () => {
               if (resetInFlight.current) return;
               resetInFlight.current = true;
               setResetting(true);
@@ -56,34 +61,36 @@ export default function ApplicationResult() {
               try {
                 if (linkedDemoEnabled) await clearLinkedDemoApplication();
                 dispatch({ type: "RESET_DEMO" });
-                router.replace("/onboarding");
+                router.replace(state.demoMode ? "/insurance" : "/onboarding");
               } catch {
                 resetInFlight.current = false;
                 setResetting(false);
                 setResetError(true);
               }
-            }} />
+            }} /> : null}
             <PrimaryButton title="홈으로 돌아가기" disabled={resetting} onPress={() => router.replace("/(tabs)/home")} />
           </View>
         )}
         testID="application-result-screen"
       >
         <PageEyebrow>할인 처리 결과</PageEyebrow>
-        <Text style={styles.title}>할인 적용 결정이 완료되었어요</Text>
+        <Text style={styles.title}>{rejected ? "할인이 적용되지 않았어요" : "할인 적용 결정이 완료되었어요"}</Text>
         <Text style={styles.description}>{linkedDemoEnabled ? "신청 처리 결과를 확인하세요." : "최종 결과를 확인하세요."}</Text>
         <View style={styles.resultHero}>
-          <Text style={styles.resultValue}>{state.totals.expectedDiscountPercent}%</Text>
-          <Text style={styles.resultLabel}>안전운전 할인 적용 결정</Text>
+          <Text style={styles.resultValue}>{rejected ? "미적용" : live ? `${(state.backendApplication?.appliedDiscountBps ?? 0) / 100}%` : `${state.totals.expectedDiscountPercent}%`}</Text>
+          <Text style={styles.resultLabel}>{rejected ? "보험사 미적용 결정" : "안전운전 할인 적용 결정"}</Text>
         </View>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>적용 결정</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>{rejected ? "미적용 결정" : "적용 결정"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>대상</Text><Text style={styles.value}>{policy.productName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>결정 시각</Text><Text style={styles.value}>{applicationTime(linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>결정 시각</Text><Text style={styles.value}>{applicationTime(live ? state.backendApplication?.decidedAt : linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>보험사에는 필요한 정보만 보냈어요</Text>
-          <Text style={styles.cardText}>{linkedDemoEnabled ? "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다." : "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다."}</Text>
+          <Text style={styles.cardText}>{live
+            ? "신청의 증명 검증과 보험사 적용 결정은 각각 확인되었습니다. 위치와 이동 경로는 표시하지 않습니다."
+            : "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다."}</Text>
         </View>
       </AppScreen>
       <BottomTabBar />

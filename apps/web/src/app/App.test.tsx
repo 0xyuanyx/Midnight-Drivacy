@@ -3,8 +3,19 @@ import userEvent from "@testing-library/user-event";
 import type { InsurerWorkspaceAdapter } from "../data/fixture-adapter";
 import { applyDecision, createFixtureWorkspace } from "../domain/workspace";
 import { App } from "./App";
+import type { InsurerApi } from "../api/backend";
 
 describe("insurer workspace navigation", () => {
+  it("uses authenticated Backend evaluations when an insurer API is provided", async () => {
+    window.history.replaceState(null, "", "/evaluations");
+    const insurerApi = { listDiscountApplications: async () => [{ id: "backend-app-1", specialContractName: "실제 특약",
+      score: 91, distanceM: 1200, expectedDiscountBps: 1000, appliedDiscountBps: null,
+      verificationStatus: "PENDING", reviewStatus: "PENDING_REVIEW", submittedAt: "2026-09-26T00:00:00Z" }] } as unknown as InsurerApi;
+    render(<App insurerApi={insurerApi} />);
+    expect(await screen.findByText("backend-app-1")).toBeInTheDocument();
+    expect(screen.getByText("실제 특약")).toBeInTheDocument();
+    expect(screen.queryByText("박민준")).toBeNull();
+  });
   it("preserves five menus and supports keyboard navigation through rider tabs", async () => {
     window.history.replaceState(null, "", "/riders");
     const user = userEvent.setup();

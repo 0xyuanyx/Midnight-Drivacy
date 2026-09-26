@@ -54,6 +54,9 @@ export function createInsurerApi({ baseUrl, getAccessToken, fetcher = fetch }: C
     },
     saveRuleVersionDraft: (specialContractId: string, input: RuleDraftInput) => request(`/special-contracts/${encodeURIComponent(specialContractId)}/rules/versions`, "POST", input),
     getRules: (specialContractId: string) => request(`/special-contracts/${encodeURIComponent(specialContractId)}/rules`, "GET"),
+    listDiscountApplications: () => request("/insurer/discount-applications", "GET"),
+    getDiscountApplication: (id: string) => request(`/insurer/discount-applications/${encodeURIComponent(id)}`, "GET"),
+    decideDiscountApplication: (id: string, decision: "APPLIED" | "REJECTED") => request(`/insurer/discount-applications/${encodeURIComponent(id)}/decision`, "POST", { decision }),
   };
 }
 

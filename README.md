@@ -1,5 +1,23 @@
 # Midnight-Drivacy
 
+### 가입 후 화면 전환 보정 (2026-09-26)
+
+Expo Router의 최상위 스택을 경로 변경 중에도 유지해 온보딩과 동의 화면이 번갈아 전체 초기화되는 문제를 수정했습니다. `dev:auth-only`는 C/Wallet 없이 가입뿐 아니라 인증된 동의 조회/저장과 본인 보험계약·특약 조회도 제공합니다. 실제 소유 계약이 0건이면 서버는 빈 목록을 반환하고, 앱은 기존 보험 fixture 3개를 작은 데모 안내와 함께 표시합니다. 선택 후에는 로컬 데모 흐름으로 전환하며 예시 계약을 DB에 만들거나 실제 계약·주행·할인 신청 API에 보내지 않습니다. 조회 오류는 fixture로 대체하지 않습니다. 실제 동의 확정은 사용자가 직접 진행해야 하고, C/Wallet 주행·증명 경로는 여전히 제공하지 않습니다.
+
+### 가입 정보 입력 보정 (2026-09-26)
+
+가입 정보 화면은 생년월일의 중복된 형식 안내와 실제 저장 동작에 맞지 않는 파란 안내 박스·확인 체크를 제거했습니다. 입력한 정보가 가입 프로필에 저장되고, 아직 본인확인이나 보험계약 조회를 하지 않는다고 간결하게 안내합니다. 정식 개인정보 수집 목적·보관 기간·삭제 방법은 아직 미결정입니다. Supabase의 조건부 Privy 식별자 인덱스와 가입 SQL의 충돌 대상을 일치시켜 `42P10` 저장 오류를 수정했습니다. 실제 DB 롤백 거래 및 자동 테스트는 통과했으나, 사용자 이메일 OTP를 통한 실제 가입 저장은 별도 확인이 필요합니다.
+
+### C/Wallet 없이 로컬 가입 검증
+
+`npm run dev:auth-only`는 로컬 가입·동의·본인 계약 조회용 Backend를 실행합니다. `DATABASE_URL`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`만 사용하고 기본 포트는 3000입니다. `AUTH_ONLY_ALLOWED_ORIGIN`의 기본값은 `http://localhost:8094`이며 loopback HTTP origin만 허용합니다. 모바일 웹 미리보기의 `EXPO_PUBLIC_BACKEND_URL`을 `http://127.0.0.1:3000`으로 설정합니다. 이 경로에는 `/health`, `/auth/me`, `/auth/driver/onboarding`, `/consent`, `/insurance-contracts`와 소유 계약의 특약 경로만 있으며 C/Wallet 처리·복구는 실행되지 않습니다. 전체 서비스의 `npm run dev`는 기존 C/Wallet 설정을 계속 요구합니다.
+
+### 로컬 연결 확인 (2026-09-26)
+
+Supabase는 공식 CA로 TLS 접속과 `SELECT 1`을 확인했습니다. 프로세스 시작 시 `NODE_EXTRA_CA_CERTS=config/supabase-root-2021.crt`를 지정하고 로컬 `.env`를 로드합니다. 인증서 검증은 비활성화하지 않습니다. CA 출처는 Supabase Dashboard → Database Settings → SSL configuration입니다.
+
+Privy는 `Midnight-Drivacy` 앱으로 통일했습니다. 기존 모바일 Client ID의 소속을 Dashboard에서 확인했고 Backend App ID와 Secret도 서버 SDK 설정 조회로 검증했습니다. C/Wallet runtime 모듈·서비스 설정이 미제공이므로 전체 Backend 실행 및 가입 저장 E2E는 아직 완료되지 않았습니다.
+
 ### 프론트·백엔드 모의 운행 연동 경계 (2026-09-25)
 
 가입자 앱의 토큰 주입형 API 클라이언트는 운행 시작·종료 외에 `POST /driving-sessions/:sessionId/process`와 `GET /trip-processing/:operationId`도 호출할 수 있습니다. Backend는 C의 체인 확인 뒤 B의 DB 확정 전 상태를 `db-pending`으로 응답하며, DB에 저장된 유효한 결과에만 `db-confirmed`와 공개 거리·점수·조건 요약을 반환합니다. 기존 가입자 화면은 계속 fixture 데모이고 실제 Privy OTP·가입자 월렛·기기 E2E는 연결되지 않았습니다. 작업 범위와 남은 순서는 [연동 규칙](docs/FRONTEND_BACKEND_INTEGRATION_RULES_2026-09-25.md), [인계](docs/FRONTEND_BACKEND_INTEGRATION_HANDOFF_2026-09-25.md)를 참고하세요.
@@ -171,6 +189,12 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 ## Insurer web demo
 
+### 가입자 Privy 인증 — 2026-09-26
+
+가입자 앱은 제공받은 공개 Privy App ID와 모바일 client ID로 실제 이메일 OTP SDK를 사용한다. 웹 미리보기는 React SDK, iOS/Android는 Expo SDK로 분기한다. `apps/mobile/.env.example`의 `EXPO_PUBLIC_BACKEND_URL`에 팀 Backend 주소를 설정하고 Expo 서버를 재시작하면 인증된 가입 정보 저장과 DRIVER 화면 연결을 사용할 수 있다. 서버 주소가 비어 있으면 이메일 인증 후 가입 정보 저장에서 멈춘다. App Secret은 프론트에 넣지 않는다. Privy 대시보드에서 이메일 로그인을 활성화하고 웹 실행 origin을 허용해야 한다. 실제 이메일 수신은 사용자의 이메일과 OTP로 확인해야 한다.
+
+실제 인증 흐름에서 월렛 준비 프리뷰는 건너뛴다. 이는 월렛 연결 완료를 뜻하지 않으며, 가입자 월렛 승인/제출은 별도 연동 대상이다. 기존 화면만 검토하려면 `EXPO_PUBLIC_AUTH_MODE=preview`로 실행한다. 네이티브 인증은 Expo development build에서 확인하며 웹 미리보기 성공을 iOS/Android 실기기 인증 검증으로 간주하지 않는다.
+
 2026-09-24: 팀원 변경의 5개 메뉴를 유지한 채 추가 화면의 목록 타이포·카드·하단 행동 정렬과 특약 탭 키보드 탐색을 보정했습니다. 로컬 브리지 설정 여부는 실제 서비스 헬스체크와 구분해 표시합니다.
 
 2026-09-24: A 담당이 기존 특약 문서 확인 화면에서 수정된 약관 텍스트를 Rule Draft API로 보낼 수 있는 토큰 주입형 경계를 추가했습니다. 반환된 값과 약관 근거를 검토하고 실패 또는 `manual_required` 응답에서는 수기로 보완할 수 있습니다. 로그인 디자인·토큰 제공자와 실제 특약 ID가 없으므로 기본 실행은 API를 호출하지 않으며, 생성 결과는 저장·승인·운영 적용되지 않습니다. 가입자 앱에는 인증 토큰을 주입받는 Auth/동의/보험계약/특약 선택/모의 운행 API 호출 경계를 준비했지만 기존 화면은 아직 fixture 흐름입니다. 보험사 신청·심사 Backend API도 현재 없으므로 앱↔웹의 실제 서비스 연동을 완료했다고 보지 않습니다.
@@ -198,7 +222,7 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 `apps/web` is a separate insurer-facing React + TypeScript + Vite demo based on the [UI rules](docs/WEB_APP_RULES.md) and [implementation plan](docs/WEB_IMPLEMENTATION_PLAN.md). Its Figma-aligned shell has five navigation entries, compact KPI cards, a Dashboard guidance banner, four-column request lists and shared score/discount, proof-table and history details. Search/filter controls open from the Filter button and remain in the URL. The menus are Dashboard, Evaluation Requests, Special Rider Management with a rule-conversion screen, Verification History, and a read-only Integration Status mock. The 500 km approved-rule threshold is separate from the Figma web sample's 524.8 km (the mobile demo still uses 550 km).
 
-The standard web run uses a browser-persisted fixture adapter backed by localStorage. The optional local linked demo shares synthetic application status with the subscriber app through the demo bridge. Neither mode connects to insurer systems, authenticated Backend request/evaluation APIs, or the Midnight proof network. The UI labels this boundary; no real contract or discount is changed. The manual insurer Rule entry/review decision remains unchanged. The rule-change screen extracts text from uploaded PDF documents in the browser. A token-injected API boundary can request a review-only Rule draft, but the default fixture run has no authentication provider or real special-contract ID. It does not perform OCR, save a draft, approve a Rule, or register one on-chain.
+The standard web run uses a browser-persisted fixture adapter backed by localStorage. The optional local linked demo shares synthetic application status with the subscriber app through the demo bridge. The insurer evaluation and verification-history screens can use authenticated Backend application/decision APIs when an `insurerApi` is supplied to `App`, but the default entrypoint supplies none and remains a fixture. Neither default mode connects to insurer systems or the Midnight proof network. The UI labels this boundary; no real contract or discount is changed. The manual insurer Rule entry/review decision remains unchanged. The rule-change screen extracts text from uploaded PDF documents in the browser. A token-injected API boundary can request a review-only Rule draft, but the default fixture run has no authentication provider or real special-contract ID. It does not perform OCR, save a draft, approve a Rule, or register one on-chain.
 
 ```bash
 npm install
@@ -222,7 +246,7 @@ The subscriber app's Expo web target is a fast preview of the same React Native 
 
 2026-09-25 frontend follow-up: the onboarding and email/wallet setup preview use the same non-tab CTA slot, while tabbed screens use one separate slot above the floating pill. Setup inputs gate the next action, clear stale errors while editing, and support keyboard Next/Done transitions. This is a UI flow preview; email delivery, account persistence, and wallet creation remain unconnected.
 
-The app persists only this demo state locally with AsyncStorage. Hydration and route guards stop resumed or deep-linked sessions from bypassing required consent and policy selection. An authorized active simulated trip resumes through its persisted lifecycle, and its deterministic completion is applied exactly once; this is local UI-state handling, not GPS collection, proof processing, or a chain operation. The app does not collect GPS, contact Supabase or insurer APIs, submit an insurer application, make an insurer decision, create a Midnight proof, connect a wallet, or confirm a chain transaction. “Pending,” the fixed demo application number, and “demo approval” are presentation states only. Standalone submission/decision times record the local UI transition, not an insurer operation; missing legacy times stay unknown. The existing manual insurer Rule entry/review decision remains unchanged; this mobile work does not add LLM or document conversion to the MVP.
+The default app now uses Privy email authentication. With `EXPO_PUBLIC_BACKEND_URL` configured, a Backend-confirmed DRIVER identity supplies `backendConnection` to `AppProvider`: server-owned contract/rider/evaluation period, session records, stable retry keys, processing polling, DB-confirmed results, and application status. Tokens stay with the Privy SDK; application caches are scoped by Backend user ID and signed-out sessions do not load fixture caches. The explicit `EXPO_PUBLIC_AUTH_MODE=preview` path retains deterministic fixture screens and OTP `123456`. Preview completion does not authenticate a user or create a wallet. Real email delivery, Backend/DB, subscriber wallet and chain operations require their respective running services and end-to-end checks. Manual insurer Rule entry remains unchanged.
 
 Requirements: Node.js 24 LTS and npm.
 
@@ -236,6 +260,8 @@ npm run lint --workspace=@drivacy/mobile
 npm run mobile:export          # Expo bundles web, iOS, and Android
 cd apps/mobile && npx expo-doctor
 ```
+
+2026-09-26 화면·Backend 연결 경계의 로컬 검증: Shared 34, Rule Draft 38, Backend 206, 가입자 앱 110, 보험사 웹 33개 테스트와 각 타입 검사, 웹 Vite 빌드, 앱 Expo web export가 통과했다. 이 검증은 주입형 API 경계의 Fake 응답 테스트이며 기본 진입점의 Privy 로그인, 실제 DB/C/월렛, 실기기 또는 체인 종단 검증을 대체하지 않는다. 세부 미완료 항목은 [프론트·백엔드 인계](docs/FRONTEND_BACKEND_INTEGRATION_HANDOFF_2026-09-25.md)와 [화면 연결 계획](docs/superpowers/plans/2026-09-26-screen-api-integration.md)을 참고한다.
 
 Verification on 2026-09-22: 50 mobile Jest tests, including hydrated consent/policy deep-route protection, both consent-detail disclosures, active-trip resume, safe direct-review recovery, exactly-once authorized simulated-trip processing, the Documents tab route, and policy identifying metadata; mobile typecheck/lint, Expo Doctor (21/21), and web/iOS/Android export passed after the Figma-alignment update. The web preview was manually checked inside its iPhone frame for onboarding, the consent sheet/detail view, insurance selection, Home, fixed CTA placement, and the bottom-offset pill navigation. This is browser QA only; physical iOS/Android devices and Expo Go have not been exercised.
 

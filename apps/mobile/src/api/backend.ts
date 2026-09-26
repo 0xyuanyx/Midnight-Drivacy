@@ -5,6 +5,7 @@ export class DriverApiError extends Error {
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 type Config = { baseUrl: string; getAccessToken: () => Promise<string | null>; fetcher?: Fetcher };
 type DrivingStart = { insuranceContractId: string; specialContractId: string; evaluationPeriod: string };
+type DriverProfile = { name: string; birthDate: string; phoneNumber: string };
 
 export function createDriverApi({ baseUrl, getAccessToken, fetcher = fetch }: Config) {
   const root = baseUrl.replace(/\/+$/, "");
@@ -25,17 +26,22 @@ export function createDriverApi({ baseUrl, getAccessToken, fetcher = fetch }: Co
   }
   return {
     getCurrentUser: () => request("/auth/me", "GET"),
+    completeDriverOnboarding: (profile: DriverProfile) => request("/auth/driver/onboarding", "POST", profile),
     getConsent: () => request("/consent", "GET"),
     grantConsent: () => request("/consent", "POST", {}),
     listInsuranceContracts: () => request("/insurance-contracts", "GET"),
     getInsuranceContract: (id: string) => request(`/insurance-contracts/${encodeURIComponent(id)}`, "GET"),
     listSpecialContracts: (contractId: string) => request(`/insurance-contracts/${encodeURIComponent(contractId)}/special-contracts`, "GET"),
     getSpecialContractSelection: (contractId: string) => request(`/insurance-contracts/${encodeURIComponent(contractId)}/special-contract-selection`, "GET"),
+    listEvaluationPeriods: (contractId: string, specialContractId: string) => request(`/insurance-contracts/${encodeURIComponent(contractId)}/special-contracts/${encodeURIComponent(specialContractId)}/evaluation-periods`, "GET"),
     selectSpecialContract: (contractId: string, specialContractId: string) => request(`/insurance-contracts/${encodeURIComponent(contractId)}/special-contract-selection`, "PUT", { specialContractId }),
     startDrivingSession: (input: DrivingStart, idempotencyKey: string) => request("/driving-sessions", "POST", input, { "Idempotency-Key": idempotencyKey }),
     getDrivingSession: (id: string) => request(`/driving-sessions/${encodeURIComponent(id)}`, "GET"),
     endDrivingSession: (id: string) => request(`/driving-sessions/${encodeURIComponent(id)}/end`, "POST"),
     processDrivingSession: (id: string, idempotencyKey: string) => request(`/driving-sessions/${encodeURIComponent(id)}/process`, "POST", undefined, { "Idempotency-Key": idempotencyKey }),
     getTripProcessing: (operationId: string) => request(`/trip-processing/${encodeURIComponent(operationId)}`, "GET"),
+    createDiscountApplication: (insuranceContractId: string, specialContractId: string) => request("/discount-applications", "POST", { insuranceContractId, specialContractId }),
+    listDiscountApplications: () => request("/discount-applications", "GET"),
+    getDiscountApplication: (id: string) => request(`/discount-applications/${encodeURIComponent(id)}`, "GET"),
   };
 }

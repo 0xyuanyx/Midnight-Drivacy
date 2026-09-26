@@ -16,7 +16,8 @@ export default function Home() {
   const router = useRouter();
   const { state } = useAppState();
   const presentation = homePresentation(state);
-  const progress = Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
+  const live = state.source === "backend";
+  const progress = live ? (state.totals.isEligible ? 1 : 0) : Math.min(state.totals.distanceKm / demoRule.minimumDistanceKm, 1);
 
   return (
     <AppScreen
@@ -49,13 +50,13 @@ export default function Home() {
           </View>
         </View>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>거리 조건 {Math.round(progress * 100)}%</Text>
-          <Text style={styles.distance}>{state.totals.distanceKm} / {demoRule.minimumDistanceKm} km</Text>
+          <Text style={styles.progressLabel}>{live ? "서버 확정 조건" : `거리 조건 ${Math.round(progress * 100)}%`}</Text>
+          <Text style={styles.distance}>{live ? `확정 누적 ${state.totals.distanceKm} km` : `${state.totals.distanceKm} / ${demoRule.minimumDistanceKm} km`}</Text>
         </View>
         <ProgressBar progress={progress} />
         <View style={styles.metaRow}>
           <Text style={styles.metaLabel}>평가 기간</Text>
-          <Text style={styles.metaValue}>최근 90일</Text>
+          <Text style={styles.metaValue}>{live ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text>
         </View>
       </View>
 

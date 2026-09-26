@@ -21,6 +21,76 @@ function completeTrip(state = readyState()) {
 }
 
 describe("appReducer", () => {
+  it("isolates an authenticated user's selected demo policy from backend operations across hydration", () => {
+    const connected = { ...initialAppState, source: "backend" as const, hasConsented: true };
+    const selected = appReducer(connected, { type: "SELECT_DEMO_INSURANCE", policyId: "policy-safe-driver" } as never);
+    expect(selected).toMatchObject({ demoMode: true, hasConsented: true, selectedPolicyId: "policy-safe-driver" });
+    expect(selected.source).toBeUndefined();
+    expect(appReducer(selected, { type: "START_TRIP" }).driveStage).toBe("active");
+    expect(normalizePersistedAppState(selected, "backend")).toMatchObject({ demoMode: true, selectedPolicyId: "policy-safe-driver" });
+    const reset = appReducer(selected, { type: "RESET_DEMO" });
+    expect(reset).toMatchObject({ source: "backend", hasConsented: true, selectedPolicyId: null });
+    expect(reset.demoMode).toBeUndefined();
+    expect(appReducer(connected, { type: "SELECT_INSURANCE", policyId: "policy-safe-driver" })).toBe(connected);
+    expect(appReducer(connected, { type: "SELECT_DEMO_INSURANCE", policyId: "unknown" } as never)).toBe(connected);
+  });
+
+  it("does not equate verification with insurer approval", () => {
+    const selected = appReducer(appReducer(initialAppState, { type: "ACCEPT_CONSENT" }), {
+      type: "SELECT_BACKEND_INSURANCE", policyId: "contract-1", specialContractId: "rider-1", evaluationPeriod: "period-1",
+    });
+    const application = { id: "app-1", insuranceContractId: "contract-1", specialContractId: "rider-1", specialContractName: "안전운전 특약",
+      score: 91, distanceM: 1200, conditionsMet: true, expectedDiscountBps: 1000, appliedDiscountBps: null,
+      submittedAt: "2026-09-26T00:00:00Z", decidedAt: null, verificationStatus: "VERIFIED" as const,
+      reviewStatus: "PENDING_REVIEW" as const, stage: "pending-insurer" as const };
+    const verified = appReducer(selected, { type: "SYNC_BACKEND_APPLICATION", application });
+    expect(verified.applicationStage).toBe("pending");
+    const applied = appReducer(verified, { type: "SYNC_BACKEND_APPLICATION", application: {
+      ...application, reviewStatus: "APPLIED", appliedDiscountBps: 800,
+      decidedAt: "2026-09-26T01:00:00Z", stage: "applied",
+    } });
+    expect(applied.applicationStage).toBe("approved");
+    expect(applied.backendApplication?.appliedDiscountBps).toBe(800);
+    expect(appReducer(verified, { type: "SYNC_BACKEND_APPLICATION", application: { ...application, insuranceContractId: "foreign" } })).toBe(verified);
+  });
+
+  it("rechecks persisted backend result IDs instead of trusting cached score or approval", () => {
+    const stored = {
+      ...initialAppState, source: "backend", hasConsented: true, selectedPolicyId: "contract-1",
+      backendTarget: { specialContractId: "rider-1", evaluationPeriod: "period-1" },
+      backendSession: { sessionId: "session-1", operationId: "trip-1" }, driveStage: "result",
+      tripsCompleted: 2, totals: { distanceKm: 550, score: 100, isEligible: true, expectedDiscountPercent: 12 },
+      backendSummary: { operationId: "trip-1", tripId: "trip-1", score: 100 },
+      applicationStage: "approved",
+    };
+    const hydrated = normalizePersistedAppState(stored, "backend");
+    expect(hydrated.driveStage).toBe("processing");
+    expect(hydrated.totals.distanceKm).toBe(0);
+    expect(hydrated.applicationStage).toBe("idle");
+    expect(hydrated.backendSummary).toBeUndefined();
+  });
+
+  it("uses only a DB-confirmed backend summary for the trip result", () => {
+    const selected = appReducer(appReducer(initialAppState, { type: "ACCEPT_CONSENT" }), {
+      type: "SELECT_BACKEND_INSURANCE", policyId: "11111111-1111-4111-8111-111111111111",
+      specialContractId: "22222222-2222-4222-8222-222222222222", evaluationPeriod: "period-1",
+    });
+    const active = appReducer(selected, { type: "START_BACKEND_TRIP", sessionId: "session-1", operationId: "trip-1", startedAt: 1000 });
+    const processing = appReducer(active, { type: "FINISH_BACKEND_TRIP", endedAt: 3000 });
+    expect(processing.totals.distanceKm).toBe(0);
+    const result = appReducer(processing, { type: "COMPLETE_BACKEND_TRIP", summary: {
+      operationId: "trip-1", tripId: "trip-1", tripCount: 1, tripDistanceM: 1200, totalDistanceM: 1200,
+      score: 91, conditionsMet: false, expectedDiscountBps: 0, ruleVersion: 1,
+      stateCommitment: "commitment", transactionId: "tx-1",
+    } });
+    expect(result).toMatchObject({ driveStage: "result", tripsCompleted: 1, totals: { distanceKm: 1.2, score: 91, isEligible: false } });
+    expect(appReducer(result, { type: "COMPLETE_BACKEND_TRIP", summary: {
+      operationId: "trip-1", tripId: "trip-1", tripCount: 1, tripDistanceM: 1200, totalDistanceM: 1200,
+      score: 99, conditionsMet: true, expectedDiscountBps: 1000, ruleVersion: 1,
+      stateCommitment: "different", transactionId: "tx-2",
+    } })).toBe(result);
+  });
+
   it("retains submission and decision times across retries and hydration, clearing them on reset", () => {
     const clock = jest.spyOn(Date, "now").mockReturnValue(1800000000000);
     try {

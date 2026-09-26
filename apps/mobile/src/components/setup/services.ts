@@ -4,6 +4,7 @@ export type WalletConnection = { connected: boolean; address?: string };
 /** Transport boundary only: preview never authenticates or creates cryptographic keys. */
 export interface SetupServices {
   preview: boolean;
+  completeProfile?(profile: { name: string; birthDate: string; phoneNumber: string }): Promise<void>;
   sendCode(email: string): Promise<void>;
   verifyCode(email: string, code: string): Promise<void>;
   createWallet(password: string): Promise<WalletHandle>;

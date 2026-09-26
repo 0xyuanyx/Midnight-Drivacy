@@ -103,4 +103,59 @@ describe("Insurance selection", () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledTimes(1);
   });
+
+  it("uses authenticated contract, rider and server evaluation period instead of fixture IDs", async () => {
+    const contractId = "11111111-1111-4111-8111-111111111111";
+    const specialContractId = "22222222-2222-4222-8222-222222222222";
+    const backend = {
+      api: {
+        listInsuranceContracts: async () => [{ id: contractId, ownerUserId: "driver-a", insurerName: "실제 보험사", coverageStartsAt: "2026-01-01T00:00:00Z", coverageEndsAt: "2026-12-31T00:00:00Z", status: "ACTIVE", specialContracts: [
+          { id: specialContractId, insuranceContractId: contractId, insurerName: "실제 보험사", name: "안전운전 특약", isEligible: true, status: "ACTIVE" },
+        ] }],
+        selectSpecialContract: async () => ({ insuranceContractId: contractId, specialContractId }),
+        listEvaluationPeriods: async () => [{ id: "server-period", startDate: "2026-07-01", endDate: "2026-09-30" }],
+      },
+    };
+    mockUseAppState.mockReturnValue({ state: initialAppState, dispatch, isHydrated: true, backend } as never);
+    const ui = await render(<Insurance />);
+    await act(async () => { await Promise.resolve(); });
+    expect(ui.getByText("실제 보험사")).toBeTruthy();
+    expect(ui.queryByText("미래손해보험")).toBeNull();
+    await fireEvent.press(ui.getAllByTestId("policy-card")[0]);
+    await fireEvent.press(ui.getByRole("button", { name: "이 보험 선택하기" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(dispatch).toHaveBeenCalledWith({ type: "SELECT_BACKEND_INSURANCE", policyId: contractId, specialContractId, evaluationPeriod: "server-period" });
+    expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
+  it("shows three labeled demo policies when an authenticated user has no owned contract", async () => {
+    const selectSpecialContract = jest.fn();
+    mockUseAppState.mockReturnValue({
+      state: { ...initialAppState, source: "backend", hasConsented: true }, dispatch, isHydrated: true,
+      backend: { api: { listInsuranceContracts: async () => [], selectSpecialContract } },
+    } as never);
+    const ui = await render(<Insurance />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(ui.getAllByTestId("policy-card")).toHaveLength(3);
+    expect(ui.getByText("표시된 보험은 데모용 예시이며 실제 가입 계약이 아니에요.")).toBeTruthy();
+    await fireEvent.press(ui.getAllByTestId("policy-card")[0]);
+    await fireEvent.press(ui.getByRole("button", { name: "이 보험 선택하기" }));
+
+    expect(selectSpecialContract).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledWith({ type: "SELECT_DEMO_INSURANCE", policyId: "policy-safe-driver" });
+    expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
+  it("does not replace a failed authenticated lookup with demo data", async () => {
+    mockUseAppState.mockReturnValue({
+      state: { ...initialAppState, source: "backend", hasConsented: true }, dispatch, isHydrated: true,
+      backend: { api: { listInsuranceContracts: async () => { throw new Error("offline"); } } },
+    } as never);
+    const ui = await render(<Insurance />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(ui.queryAllByTestId("policy-card")).toHaveLength(0);
+    expect(ui.getByText("보험 정보를 불러오지 못했습니다. 다시 시도해 주세요.")).toBeTruthy();
+  });
 });

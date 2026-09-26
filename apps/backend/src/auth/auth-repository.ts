@@ -67,7 +67,9 @@ export class PgAuthRepository implements AuthRepository {
          ) VALUES (
            gen_random_uuid(), $1, $2, $3, $4, $5, $6, clock_timestamp()
          )
-         ON CONFLICT (auth_provider, auth_provider_user_id) DO NOTHING
+         ON CONFLICT (auth_provider, auth_provider_user_id)
+           WHERE auth_provider IS NOT NULL AND auth_provider_user_id IS NOT NULL
+         DO NOTHING
          RETURNING id, email`,
         [
           input.provider,

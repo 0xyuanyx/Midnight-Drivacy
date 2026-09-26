@@ -10,6 +10,32 @@ export interface Environment {
   cWalletAdapterToken: string;
 }
 
+export interface AuthOnlyEnvironment {
+  port: number;
+  databaseUrl: string;
+  privyAppId: string;
+  privyAppSecret: string;
+  allowedOrigin: string;
+}
+
+/** Local signup verification does not start C/Wallet workers or expose their routes. */
+export const loadAuthOnlyEnvironment = (): AuthOnlyEnvironment => {
+  const port = Number(process.env.PORT ?? "3000");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be an integer between 1 and 65535");
+  const allowedOrigin = process.env.AUTH_ONLY_ALLOWED_ORIGIN ?? "http://localhost:8094";
+  let origin: URL;
+  try { origin = new URL(allowedOrigin); } catch { throw new Error("AUTH_ONLY_ALLOWED_ORIGIN must be a loopback http origin"); }
+  if (origin.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(origin.hostname)
+    || origin.origin !== allowedOrigin) throw new Error("AUTH_ONLY_ALLOWED_ORIGIN must be a loopback http origin");
+  return {
+    port,
+    databaseUrl: requiredEnvironment("DATABASE_URL"),
+    privyAppId: requiredEnvironment("PRIVY_APP_ID"),
+    privyAppSecret: requiredEnvironment("PRIVY_APP_SECRET"),
+    allowedOrigin,
+  };
+};
+
 /**
  * Runtime configuration is checked before the server starts so a partially
  * configured deployment cannot fail later with an ambiguous auth or DB error.

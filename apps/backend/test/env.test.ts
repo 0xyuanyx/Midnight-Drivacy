@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { loadEnvironment } from "../src/config/env.js";
+import { loadAuthOnlyEnvironment, loadEnvironment } from "../src/config/env.js";
 
 const originalEnvironment = process.env;
 
@@ -43,5 +43,26 @@ describe("loadEnvironment", () => {
       cWalletAdapterUrl: "https://c-wallet.example.invalid/",
       cWalletAdapterToken: "adapter-token",
     });
+  });
+
+  it("loads a loopback auth server without C/Wallet configuration", () => {
+    delete process.env.MIDNIGHT_NETWORK;
+    delete process.env.MIDNIGHT_ADAPTER_PROFILE;
+    delete process.env.C_WALLET_ADAPTER_URL;
+    delete process.env.C_WALLET_ADAPTER_TOKEN;
+    process.env.AUTH_ONLY_ALLOWED_ORIGIN = "http://localhost:8094";
+
+    expect(loadAuthOnlyEnvironment()).toEqual({
+      port: 3000,
+      databaseUrl: process.env.DATABASE_URL,
+      privyAppId: process.env.PRIVY_APP_ID,
+      privyAppSecret: process.env.PRIVY_APP_SECRET,
+      allowedOrigin: "http://localhost:8094",
+    });
+  });
+
+  it("rejects a non-loopback origin for the auth-only server", () => {
+    process.env.AUTH_ONLY_ALLOWED_ORIGIN = "https://example.com";
+    expect(loadAuthOnlyEnvironment).toThrow("AUTH_ONLY_ALLOWED_ORIGIN must be a loopback http origin");
   });
 });

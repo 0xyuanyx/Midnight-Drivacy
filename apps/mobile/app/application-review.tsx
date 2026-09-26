@@ -9,17 +9,21 @@ import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { demoPolicies } from "@/fixtures/demo";
-import { linkedDemoEnabled, submitLinkedDemoApplication } from "@/api/linked-demo";
+import { canUseLinkedDemoBridge, submitLinkedDemoApplication } from "@/api/linked-demo";
+import { parseDriverApplication } from "@/api/driver-application";
 import { useAppState } from "@/state/app-provider";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationReview() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
+  const { dispatch, state, backend } = useAppState();
+  const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitInFlight = useRef(false);
-  const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
+  const policy = state.source === "backend"
+    ? { insurerName: "선택한 보험계약", productName: "자동차보험", riderName: "선택한 안전운전 특약", id: state.selectedPolicyId ?? "" }
+    : demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (!state.totals.isEligible || state.applicationStage !== "idle") {
     return (
@@ -51,6 +55,23 @@ export default function ApplicationReview() {
             submitInFlight.current = true;
             setSubmitting(true);
             setSubmitError(null);
+            if (state.source === "backend") {
+              if (!backend || !state.selectedPolicyId || !state.backendTarget) {
+                setSubmitError("인증된 신청 연결을 확인할 수 없습니다.");
+                setSubmitting(false); submitInFlight.current = false; return;
+              }
+              try {
+                const application = parseDriverApplication(await backend.api.createDiscountApplication(
+                  state.selectedPolicyId, state.backendTarget.specialContractId,
+                ));
+                dispatch({ type: "SYNC_BACKEND_APPLICATION", application });
+                router.replace("/application-submitted");
+              } catch {
+                setSubmitError("신청을 제출하지 못했습니다. 기존 신청 상태를 확인한 뒤 다시 시도해 주세요.");
+                setSubmitting(false); submitInFlight.current = false;
+              }
+              return;
+            }
             if (linkedDemoEnabled) {
               try { await submitLinkedDemoApplication(policy.id); }
               catch {
@@ -70,7 +91,7 @@ export default function ApplicationReview() {
         <PageEyebrow position="withBack">안전운전 결과 제출</PageEyebrow>
         <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
         <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>
-        <View style={styles.card}><Text style={styles.cardTitle}>제출 대상</Text><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 최근 90일</Text></View>
+        <View style={styles.card}><Text style={styles.cardTitle}>제출 대상</Text><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 {state.source === "backend" ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text></View>
         <View style={[styles.card, styles.selectedCard]}>
           <Text style={styles.cardTitle}>제공되는 결과</Text>
           <Text style={styles.line}>✓ 최종 안전운전점수 {state.totals.score}점</Text>

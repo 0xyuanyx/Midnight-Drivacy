@@ -28,12 +28,32 @@ async function reachWallet(ui: Awaited<ReturnType<typeof render>>) {
   await fireEvent.changeText(ui.getByLabelText("이름"), "홍길동");
   await fireEvent.changeText(ui.getByLabelText("생년월일"), "19900101");
   await fireEvent.changeText(ui.getByLabelText("휴대전화 번호"), "01012345678");
-  await fireEvent.press(
-    ui.getByRole("checkbox", { name: "가입 정보 처리 안내 확인" }),
-  );
   await fireEvent.press(ui.getByText("입력하고 계속하기"));
   await fireEvent.press(ui.getByText("확인하고 월렛 만들기"));
 }
+
+it("saves authenticated profile before advancing and retries failed provisioning", async () => {
+  const api = services();
+  api.preview = false;
+  const completeProfile = jest.fn().mockRejectedValueOnce(new Error("저장 실패")).mockResolvedValue(undefined);
+  api.completeProfile = completeProfile;
+  const complete = jest.fn();
+  const ui = await render(<SetupFlow services={api} onBack={jest.fn()} onComplete={complete} />);
+  await fireEvent.changeText(ui.getByLabelText("이메일"), "driver@example.com");
+  await fireEvent.press(ui.getByText("인증코드 받기"));
+  await fireEvent.changeText(ui.getByLabelText("6자리 인증번호"), "123456");
+  await fireEvent.press(ui.getByText("코드 확인하기"));
+  await fireEvent.changeText(ui.getByLabelText("이름"), "홍길동");
+  await fireEvent.changeText(ui.getByLabelText("생년월일"), "19900101");
+  await fireEvent.changeText(ui.getByLabelText("휴대전화 번호"), "01012345678");
+  await fireEvent.press(ui.getByText("입력하고 계속하기"));
+  expect(complete).not.toHaveBeenCalled();
+  expect(ui.getByText("저장 실패")).toBeTruthy();
+  await fireEvent.press(ui.getByText("입력하고 계속하기"));
+  expect(completeProfile).toHaveBeenLastCalledWith({ name: "홍길동", birthDate: "1990-01-01", phoneNumber: "01012345678" });
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(api.createWallet).not.toHaveBeenCalled();
+});
 
 it("rejects invalid email and code without advancing", async () => {
   const api = services();
@@ -175,7 +195,7 @@ it("blocks duplicate sends while the request is pending", async () => {
   expect(ui.getByLabelText("6자리 인증번호")).toBeTruthy();
 });
 
-it("rejects impossible birthdates and requires information acknowledgment", async () => {
+it("rejects impossible birthdates without an extra notice checkbox", async () => {
   const ui = await render(
     <SetupFlow
       services={services()}
@@ -187,6 +207,10 @@ it("rejects impossible birthdates and requires information acknowledgment", asyn
   await fireEvent.press(ui.getByText("인증코드 받기"));
   await fireEvent.changeText(ui.getByLabelText("6자리 인증번호"), "123456");
   await fireEvent.press(ui.getByText("코드 확인하기"));
+  expect(ui.queryByText("8자리 날짜 형식")).toBeNull();
+  expect(ui.queryByRole("button", { name: "가입 정보 처리 안내 상세" })).toBeNull();
+  expect(ui.queryByRole("checkbox", { name: "가입 정보 처리 안내 확인" })).toBeNull();
+  expect(ui.getByText("입력한 정보는 가입 프로필에 저장돼요. 본인확인이나 보험계약 조회는 아직 하지 않아요.")).toBeTruthy();
   await fireEvent.changeText(ui.getByLabelText("이름"), "홍길동");
   await fireEvent.changeText(ui.getByLabelText("생년월일"), "19900230");
   await fireEvent.changeText(ui.getByLabelText("휴대전화 번호"), "01012345678");
@@ -198,11 +222,6 @@ it("rejects impossible birthdates and requires information acknowledgment", asyn
   expect(ui.getByRole("button", { name: "입력하고 계속하기" })).toBeDisabled();
   await fireEvent.changeText(ui.getByLabelText("생년월일"), "19900228");
   expect(ui.queryByText("생년월일을 확인해주세요.")).toBeNull();
-  await fireEvent.press(ui.getByText("입력하고 계속하기"));
-  expect(ui.getByRole("button", { name: "입력하고 계속하기" })).toBeDisabled();
-  await fireEvent.press(
-    ui.getByRole("checkbox", { name: "가입 정보 처리 안내 확인" }),
-  );
   expect(ui.getByRole("button", { name: "입력하고 계속하기" })).toBeEnabled();
 });
 

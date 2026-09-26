@@ -3,6 +3,10 @@ import { demoRule } from "@/fixtures/demo";
 
 /** Home and Documents share one application lifecycle, including resumption. */
 export function homePresentation(state: AppState) {
+  if (state.applicationStage === "rejected") return {
+    action: "할인 결과 확인하기", route: "/application" as const,
+    title: "할인 신청 결과를\n확인해 보세요.", status: "미적용 결정", detail: "보험사 결정 결과를 서류에서 확인하세요.",
+  };
   if (state.applicationStage === "approved") return {
     action: "할인 결과 확인하기", route: "/application" as const,
     title: "할인 신청 결과를\n확인해 보세요.", status: "적용 결정 완료", detail: `안전운전 할인 ${state.totals.expectedDiscountPercent}% · 서류에서 결과를 확인하세요.`,
@@ -29,6 +33,8 @@ export function homePresentation(state: AppState) {
   };
   return {
     action: state.tripsCompleted === 0 ? "첫 주행 체험 시작" : "두 번째 주행 체험 시작", route: "/drive" as const,
-    title: "이번 달도\n안전하게 달려봐요.", status: "할인 조건 준비 중", detail: `누적 ${state.totals.distanceKm} / ${demoRule.minimumDistanceKm} km · ${state.tripsCompleted} / 2회 주행`,
+    title: "이번 달도\n안전하게 달려봐요.", status: "할인 조건 준비 중", detail: state.source === "backend"
+      ? `서버 확정 누적 ${state.totals.distanceKm} km · ${state.tripsCompleted}회 주행`
+      : `누적 ${state.totals.distanceKm} / ${demoRule.minimumDistanceKm} km · ${state.tripsCompleted} / 2회 주행`,
   };
 }

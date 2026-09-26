@@ -76,18 +76,21 @@ function ConsentRow({ checked, index, onDetail, onToggle, title }: {
 
 export default function Onboarding({ startWithConsent = false }: { startWithConsent?: boolean }) {
   const router = useRouter();
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, backend } = useAppState();
   const [pageHeight, setPageHeight] = useState(874);
   const compact = pageHeight < 700;
   const [consentSheetVisible, setConsentSheetVisible] = useState(startWithConsent);
   const [consents, setConsents] = useState([state.hasConsented, state.hasConsented]);
   const [detail, setDetail] = useState<ConsentDetail>(null);
+  const [savingConsent, setSavingConsent] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const allConsentsAccepted = consents.every(Boolean);
 
   function closeConsentSheet() {
     setConsentSheetVisible(false);
     setConsents([state.hasConsented, state.hasConsented]);
     setDetail(null);
+    setConsentError(null);
   }
 
   function dismissConsentSheet() {
@@ -99,8 +102,18 @@ export default function Onboarding({ startWithConsent = false }: { startWithCons
     setConsents((current) => current.map((checked, rowIndex) => (rowIndex === index ? !checked : checked)));
   }
 
-  function acceptConsent() {
-    if (!allConsentsAccepted) return;
+  async function acceptConsent() {
+    if (!allConsentsAccepted || savingConsent) return;
+    if (backend) {
+      setSavingConsent(true);
+      setConsentError(null);
+      try { await backend.api.grantConsent(); }
+      catch {
+        setConsentError("동의를 저장하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
+        setSavingConsent(false);
+        return;
+      }
+    }
     dispatch({ type: "ACCEPT_CONSENT" });
     closeConsentSheet();
     router.replace("/insurance");
@@ -149,7 +162,11 @@ export default function Onboarding({ startWithConsent = false }: { startWithCons
                     {selectedDetail.sections.map(([heading, body]) => (
                       <View key={heading} style={styles.detailSection}>
                         <Text style={styles.detailHeading}>{heading}</Text>
-                        <Text style={styles.detailBody}>{body}</Text>
+                        <Text style={styles.detailBody}>{backend && heading === "이용 범위"
+                          ? "Backend에 저장된 계약을 조회합니다. 보험사 운영 시스템 직접 연동 여부는 별도로 확인해야 합니다."
+                          : backend && heading === "서비스 연결 상태"
+                            ? "Backend의 모의 운행 처리 상태를 조회합니다. 실제 월렛 승인과 체인 확정은 상태별로 확인합니다."
+                            : body}</Text>
                       </View>
                     ))}
                   </View>
@@ -162,7 +179,8 @@ export default function Onboarding({ startWithConsent = false }: { startWithCons
                     <ConsentRow checked={consents[0]} index={0} onDetail={() => setDetail("policy")} onToggle={() => toggleConsent(0)} title="보험 계약 및 특약 조회 동의" />
                     <ConsentRow checked={consents[1]} index={1} onDetail={() => setDetail("driving")} onToggle={() => toggleConsent(1)} title="선택한 운행 기록 처리 동의" />
                   </View>
-                  <PrimaryButton disabled={!allConsentsAccepted} title="동의하고 계속하기" onPress={acceptConsent} testID="consent-continue" />
+                  <PrimaryButton disabled={!allConsentsAccepted || savingConsent} title={savingConsent ? "동의 저장 중…" : "동의하고 계속하기"} onPress={() => { void acceptConsent(); }} testID="consent-continue" />
+                  {consentError ? <Text accessibilityRole="alert" style={styles.consentError}>{consentError}</Text> : null}
                   <PrimaryButton title="닫기" variant="ghost" onPress={dismissConsentSheet} />
                 </View>
               )}
@@ -210,4 +228,5 @@ const styles = StyleSheet.create({
   detailSection: { borderBottomColor: "#ECEEF2", borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 13 },
   detailHeading: { ...typography.cardTitle, color: colors.textPrimary, },
   detailBody: { ...typography.body, color: colors.textSecondary, marginTop: 7 },
+  consentError: { ...typography.caption, color: "#C12D39", marginBottom: 12 },
 });

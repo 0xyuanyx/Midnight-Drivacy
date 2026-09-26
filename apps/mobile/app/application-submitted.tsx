@@ -8,15 +8,18 @@ import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageEyebrow } from "@/components/PageEyebrow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { demoPolicies } from "@/fixtures/demo";
-import { clearLinkedDemoApplication, getLinkedDemoApplication, linkedDemoEnabled, type LinkedDemoApplication } from "@/api/linked-demo";
+import { canUseLinkedDemoBridge, clearLinkedDemoApplication, getLinkedDemoApplication, type LinkedDemoApplication } from "@/api/linked-demo";
+import { parseDriverApplication, type DriverApplicationView } from "@/api/driver-application";
 import { useAppState } from "@/state/app-provider";
 import { applicationTime } from "@/state/application-time";
 import { colors } from "@/theme/tokens";
 
 export default function ApplicationSubmitted() {
   const router = useRouter();
-  const { dispatch, state } = useAppState();
+  const { dispatch, state, backend } = useAppState();
+  const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
   const [linked, setLinked] = useState<LinkedDemoApplication | null>(null);
+  const [backendApplication, setBackendApplication] = useState<DriverApplicationView | null>(state.backendApplication ?? null);
   const [refreshError, setRefreshError] = useState(false);
   const [missing, setMissing] = useState(false);
   const [restarting, setRestarting] = useState(false);
@@ -26,6 +29,15 @@ export default function ApplicationSubmitted() {
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
     try {
+      if (state.source === "backend") {
+        if (!backend || !state.backendApplication) throw new Error("신청 정보가 없습니다.");
+        const application = parseDriverApplication(await backend.api.getDiscountApplication(state.backendApplication.id));
+        setBackendApplication(application);
+        dispatch({ type: "SYNC_BACKEND_APPLICATION", application });
+        setRefreshError(false);
+        if (application.stage === "applied" || application.stage === "rejected") router.replace("/application-result");
+        return;
+      }
       const current = await getLinkedDemoApplication();
       setLinked(current);
       setMissing(current === null);
@@ -36,7 +48,7 @@ export default function ApplicationSubmitted() {
       }
     } catch { setRefreshError(true); }
     finally { refreshInFlight.current = false; }
-  }, [dispatch, router]);
+  }, [backend, dispatch, router, state.backendApplication, state.source]);
   async function restartApplication() {
     if (restartInFlight.current) return;
     restartInFlight.current = true;
@@ -53,12 +65,14 @@ export default function ApplicationSubmitted() {
     }
   }
   useEffect(() => {
-    if (!linkedDemoEnabled || state.applicationStage !== "pending") return;
+    if ((!linkedDemoEnabled && state.source !== "backend") || state.applicationStage !== "pending") return;
     void refresh();
     const timer = setInterval(() => { void refresh(); }, 4000);
     return () => clearInterval(timer);
-  }, [refresh, state.applicationStage]);
-  const policy = demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
+  }, [refresh, linkedDemoEnabled, state.applicationStage, state.source]);
+  const policy = state.source === "backend"
+    ? { insurerName: "선택한 보험계약", riderName: backendApplication?.specialContractName ?? "안전운전 특약" }
+    : demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
 
   if (state.applicationStage !== "pending") {
     return (
@@ -79,9 +93,10 @@ export default function ApplicationSubmitted() {
         contentContainerStyle={styles.screen}
         fixedFooter={(
           <PrimaryButton
-            title={restarting ? "다시 준비 중…" : linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
+            title={restarting ? "다시 준비 중…" : state.source === "backend" ? "처리 상태 새로고침" : linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
             disabled={restarting}
             onPress={() => {
+              if (state.source === "backend") { void refresh(); return; }
               if (linkedDemoEnabled) {
                 if (missing) void restartApplication();
                 else void refresh();
@@ -95,10 +110,16 @@ export default function ApplicationSubmitted() {
         testID="application-submitted-screen"
       >
         <PageEyebrow>신청 완료</PageEyebrow>
-        <Text style={styles.title}>{missing ? "신청 기록을 찾지 못했어요." : linked?.reviewStatus === "REJECTED" ? "할인이 적용되지 않았어요." : "보험사가 결과를 검토하고 있어요."}</Text>
+        <Text style={styles.title}>{state.source === "backend"
+          ? backendApplication?.stage === "pending-verification" ? "증명 결과를 검증하고 있어요."
+            : backendApplication?.stage === "verification-failed" ? "증명 검증에 실패했어요."
+              : "보험사가 결과를 검토하고 있어요."
+          : missing ? "신청 기록을 찾지 못했어요." : linked?.reviewStatus === "REJECTED" ? "할인이 적용되지 않았어요." : "보험사가 결과를 검토하고 있어요."}</Text>
         <Text style={styles.description}>{missing ? "신청 기록을 확인할 수 없습니다. 다시 제출해 주세요." : linkedDemoEnabled ? "신청 정보와 처리 상태를 확인하세요." : "신청 정보와 처리 상태를 확인하세요."}</Text>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{missing ? "기록 없음" : linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{state.source === "backend"
+            ? backendApplication?.stage === "pending-verification" ? "검증 중" : backendApplication?.stage === "verification-failed" ? "검증 실패" : "보험사 검토 중"
+            : missing ? "기록 없음" : linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>보험사</Text><Text style={styles.value}>{policy.insurerName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>예상 할인 구간</Text><Text style={styles.value}>{state.totals.expectedDiscountPercent}%</Text></View>
@@ -106,15 +127,15 @@ export default function ApplicationSubmitted() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>제출한 결과</Text>
           <View style={styles.row}><Text style={styles.label}>최종 점수</Text><Text style={styles.value}>{state.totals.score}점 · 조건 충족</Text></View>
-          <View style={styles.row}><Text style={styles.label}>평가 기간</Text><Text style={styles.value}>최근 90일</Text></View>
+          <View style={styles.row}><Text style={styles.label}>평가 기간</Text><Text style={styles.value}>{state.source === "backend" ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text></View>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>신청 내역</Text>
-          <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>{linked?.id ?? (linkedDemoEnabled ? "확인 중" : "DR-DEMO-001")}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{linkedDemoEnabled ? linked ? applicationTime(linked.submittedAt) : missing ? "기록 없음" : "확인 중" : applicationTime(state.applicationSubmittedAt)}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>{state.source === "backend" ? backendApplication?.id : linked?.id ?? (linkedDemoEnabled ? "확인 중" : "DR-DEMO-001")}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{state.source === "backend" ? applicationTime(backendApplication?.submittedAt) : linkedDemoEnabled ? linked ? applicationTime(linked.submittedAt) : missing ? "기록 없음" : "확인 중" : applicationTime(state.applicationSubmittedAt)}</Text></View>
         </View>
         {refreshError ? <Text style={styles.demoNote}>신청 정보를 불러오지 못했습니다. 다시 시도해 주세요.</Text> : null}
-        <Text style={styles.demoNote}>{linkedDemoEnabled ? "증명·체인 검증 정보는 아직 연결되지 않았습니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text>
+        <Text style={styles.demoNote}>{state.source === "backend" ? "증명 검증과 보험사의 할인 적용 결정은 별도 단계입니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text>
       </AppScreen>
       <BottomTabBar />
     </View>

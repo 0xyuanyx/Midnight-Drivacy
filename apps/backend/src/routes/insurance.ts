@@ -49,6 +49,18 @@ export const createInsuranceRouter = (
     },
   );
 
+  insuranceRouter.get(
+    "/insurance-contracts/:id/special-contracts/:specialContractId/evaluation-periods",
+    ...requireDriver,
+    async (request, response) => {
+      const specialContractId = UuidSchema.safeParse(request.params.specialContractId);
+      if (!specialContractId.success) throw new AppError("INVALID_REQUEST", "Special contract ID must be a UUID", 400);
+      response.json(await insuranceService.listEvaluationPeriods(
+        contractId(request.params.id), specialContractId.data, request.authUser!.id,
+      ));
+    },
+  );
+
   insuranceRouter.put(
     "/insurance-contracts/:id/special-contract-selection",
     ...requireDriver,

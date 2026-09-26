@@ -4,12 +4,21 @@ import {
   isDemoPolicyId,
   type DemoTotals,
 } from "@/fixtures/demo";
+import type { ConfirmedTripSummary } from "@/api/driver-workflow";
+import { parseDriverApplication, type DriverApplicationView } from "@/api/driver-application";
 
 export type TripsCompleted = 0 | 1 | 2;
-export type ApplicationStage = "idle" | "pending" | "approved";
+export type ApplicationStage = "idle" | "pending" | "approved" | "rejected";
 export type DriveStage = "idle" | "active" | "processing" | "result";
 
 export interface AppState {
+  source?: "backend";
+  /** Explicit fixture-only flow entered after a successful empty live insurance lookup. */
+  demoMode?: boolean;
+  backendTarget?: { specialContractId: string; evaluationPeriod: string };
+  backendSession?: { sessionId: string; operationId: string };
+  backendSummary?: ConfirmedTripSummary;
+  backendApplication?: DriverApplicationView;
   setupPreviewCompleted?: boolean;
   hasConsented: boolean;
   selectedPolicyId: string | null;
@@ -19,7 +28,7 @@ export interface AppState {
   tripEndedAt?: number;
   totals: DemoTotals;
   applicationStage: ApplicationStage;
-  applicationMode?: "local" | "linked";
+  applicationMode?: "local" | "linked" | "backend";
   applicationSubmittedAt?: number;
   applicationDecidedAt?: number;
 }
@@ -28,6 +37,12 @@ export type AppAction =
   | { type: "COMPLETE_SETUP_PREVIEW" }
   | { type: "ACCEPT_CONSENT" }
   | { type: "SELECT_INSURANCE"; policyId: string }
+  | { type: "SELECT_DEMO_INSURANCE"; policyId: string }
+  | { type: "SELECT_BACKEND_INSURANCE"; policyId: string; specialContractId: string; evaluationPeriod: string }
+  | { type: "START_BACKEND_TRIP"; sessionId: string; operationId: string; startedAt: number }
+  | { type: "FINISH_BACKEND_TRIP"; endedAt: number }
+  | { type: "COMPLETE_BACKEND_TRIP"; summary: ConfirmedTripSummary }
+  | { type: "SYNC_BACKEND_APPLICATION"; application: DriverApplicationView }
   | { type: "START_TRIP" }
   | { type: "FINISH_TRIP" }
   | { type: "COMPLETE_TRIP" }
@@ -36,7 +51,7 @@ export type AppAction =
   | { type: "APPROVE_APPLICATION" }
   | { type: "RESET_APPLICATION" }
   | { type: "RESET_DEMO" }
-  | { type: "HYDRATE"; persistedState: unknown; mode?: "local" | "linked" };
+  | { type: "HYDRATE"; persistedState: unknown; mode?: "local" | "linked" | "backend" };
 
 export const initialAppState: AppState = {
   hasConsented: false,
@@ -69,7 +84,11 @@ function isTripsCompleted(value: unknown): value is TripsCompleted {
 }
 
 function isApplicationStage(value: unknown): value is ApplicationStage {
-  return value === "idle" || value === "pending" || value === "approved";
+  return value === "idle" || value === "pending" || value === "approved" || value === "rejected";
+}
+
+function stageForBackendApplication(application: DriverApplicationView): ApplicationStage {
+  return application.stage === "applied" ? "approved" : application.stage === "rejected" ? "rejected" : "pending";
 }
 
 function isDriveStage(value: unknown): value is DriveStage {
@@ -88,12 +107,15 @@ function normalizedDriveStage(value: unknown, tripsCompleted: TripsCompleted): D
   return value === "result" && tripsCompleted === 0 ? "idle" : value;
 }
 
-export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "selectedPolicyId">): boolean {
-  return state.hasConsented && isDemoPolicyId(state.selectedPolicyId);
+export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "selectedPolicyId" | "source">): boolean {
+  if (!state.hasConsented) return false;
+  return state.source === "backend"
+    ? typeof state.selectedPolicyId === "string" && state.selectedPolicyId.length > 0
+    : isDemoPolicyId(state.selectedPolicyId);
 }
 
 /** Keeps storage migrations conservative by accepting only public AppState fields. */
-export function normalizePersistedAppState(persistedState: unknown, currentMode: "local" | "linked" = "local"): AppState {
+export function normalizePersistedAppState(persistedState: unknown, currentMode: "local" | "linked" | "backend" = "local"): AppState {
   if (!isRecord(persistedState)) {
     return initialAppState;
   }
@@ -104,6 +126,36 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
     return setupPreviewCompleted ? { ...initialAppState, setupPreviewCompleted: true } : initialAppState;
   }
 
+  if (currentMode === "backend" && persistedState.source === "backend" && typeof persistedState.selectedPolicyId === "string") {
+    const target = isRecord(persistedState.backendTarget) ? persistedState.backendTarget : {};
+    if (typeof target.specialContractId === "string" && typeof target.evaluationPeriod === "string") {
+      const session = isRecord(persistedState.backendSession) ? persistedState.backendSession : {};
+      const validSession = typeof session.sessionId === "string" && typeof session.operationId === "string";
+      const stage = persistedState.driveStage === "active" && !validTimestamp(persistedState.tripEndedAt)
+        ? "active" : "processing";
+      let backendApplication: DriverApplicationView | undefined;
+      try {
+        if (persistedState.backendApplication) backendApplication = parseDriverApplication(persistedState.backendApplication);
+      } catch { /* Keep an invalid persisted application out of the UI. */ }
+      if (backendApplication?.insuranceContractId !== persistedState.selectedPolicyId
+        || backendApplication?.specialContractId !== target.specialContractId) backendApplication = undefined;
+      return {
+        ...initialAppState, source: "backend", hasConsented: true,
+        setupPreviewCompleted, selectedPolicyId: persistedState.selectedPolicyId,
+        backendTarget: { specialContractId: target.specialContractId, evaluationPeriod: target.evaluationPeriod },
+        ...(validSession ? { backendSession: { sessionId: session.sessionId as string, operationId: session.operationId as string } } : {}),
+        driveStage: validSession ? stage : "idle",
+        tripStartedAt: validTimestamp(persistedState.tripStartedAt) ? persistedState.tripStartedAt : undefined,
+        tripEndedAt: validTimestamp(persistedState.tripEndedAt) ? persistedState.tripEndedAt : undefined,
+        tripsCompleted: 0,
+        totals: { ...initialDemoTotals },
+        ...(backendApplication ? { backendApplication, applicationMode: "backend" as const } : {}),
+        applicationStage: backendApplication ? "pending" : "idle",
+      };
+    }
+  }
+
+  const demoMode = currentMode === "backend" && persistedState.demoMode === true;
   const selectedPolicyId = isDemoPolicyId(persistedState.selectedPolicyId)
     ? persistedState.selectedPolicyId
     : null;
@@ -118,13 +170,14 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
   const applicationMode = persistedState.applicationMode === "linked" ? "linked" : "local";
   const applicationStage =
     tripsCompleted === 2 && totals.isEligible && isApplicationStage(persistedState.applicationStage)
-      && applicationMode === currentMode ? persistedState.applicationStage
+      && applicationMode === (demoMode ? "local" : currentMode) ? persistedState.applicationStage
       : "idle";
   const driveStage = normalizedDriveStage(persistedState.driveStage, tripsCompleted);
 
   return {
     ...initialAppState,
     hasConsented,
+    ...(demoMode ? { demoMode: true } : {}),
     ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}),
     selectedPolicyId,
     tripsCompleted,
@@ -150,19 +203,56 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "ACCEPT_CONSENT":
       return { ...state, hasConsented: true };
     case "SELECT_INSURANCE":
-      return state.hasConsented && isDemoPolicyId(action.policyId)
+      return state.hasConsented && state.source !== "backend" && isDemoPolicyId(action.policyId)
         ? { ...state, selectedPolicyId: action.policyId }
         : state;
+    case "SELECT_DEMO_INSURANCE":
+      return state.hasConsented && state.source === "backend" && isDemoPolicyId(action.policyId)
+        ? { ...initialAppState, hasConsented: true, setupPreviewCompleted: true,
+          demoMode: true, selectedPolicyId: action.policyId }
+        : state;
+    case "SELECT_BACKEND_INSURANCE":
+      return state.hasConsented && action.policyId && action.specialContractId && action.evaluationPeriod
+        ? { ...initialAppState, hasConsented: true, setupPreviewCompleted: state.setupPreviewCompleted,
+          source: "backend", selectedPolicyId: action.policyId,
+          backendTarget: { specialContractId: action.specialContractId, evaluationPeriod: action.evaluationPeriod } }
+        : state;
+    case "START_BACKEND_TRIP":
+      return state.source === "backend" && hasSelectedDemoPolicy(state) && state.driveStage === "idle" && state.tripsCompleted < 2
+        ? { ...state, driveStage: "active", backendSession: { sessionId: action.sessionId, operationId: action.operationId },
+          tripStartedAt: action.startedAt, tripEndedAt: undefined }
+        : state;
+    case "FINISH_BACKEND_TRIP":
+      return state.source === "backend" && state.driveStage === "active" && state.backendSession
+        ? { ...state, driveStage: "processing", tripEndedAt: action.endedAt }
+        : state;
+    case "COMPLETE_BACKEND_TRIP": {
+      const summary = action.summary;
+      if (state.source !== "backend" || state.driveStage !== "processing"
+        || !state.backendSession || state.backendSession.operationId !== summary.operationId
+        || summary.tripId !== summary.operationId) return state;
+      return { ...state, driveStage: "result", backendSummary: summary,
+        tripsCompleted: Math.min(summary.tripCount, 2) as TripsCompleted,
+        totals: { distanceKm: summary.totalDistanceM / 1000, score: summary.score,
+          isEligible: summary.conditionsMet, expectedDiscountPercent: summary.expectedDiscountBps / 100 } };
+    }
+    case "SYNC_BACKEND_APPLICATION": {
+      const application = action.application;
+      if (state.source !== "backend" || state.selectedPolicyId !== application.insuranceContractId
+        || state.backendTarget?.specialContractId !== application.specialContractId) return state;
+      return { ...state, backendApplication: application,
+        applicationStage: stageForBackendApplication(application), applicationMode: "backend" };
+    }
     case "START_TRIP":
-      return hasSelectedDemoPolicy(state) && state.driveStage === "idle" && state.tripsCompleted < 2
+      return state.source !== "backend" && hasSelectedDemoPolicy(state) && state.driveStage === "idle" && state.tripsCompleted < 2
         ? { ...state, driveStage: "active", tripStartedAt: Date.now(), tripEndedAt: undefined }
         : state;
     case "FINISH_TRIP":
-      return hasSelectedDemoPolicy(state) && state.driveStage === "active" && state.tripsCompleted < 2
+      return state.source !== "backend" && hasSelectedDemoPolicy(state) && state.driveStage === "active" && state.tripsCompleted < 2
         ? { ...state, driveStage: "processing", tripEndedAt: Date.now() }
         : state;
     case "COMPLETE_TRIP": {
-      if (!hasSelectedDemoPolicy(state) || state.driveStage !== "processing") {
+      if (state.source === "backend" || !hasSelectedDemoPolicy(state) || state.driveStage !== "processing") {
         return state;
       }
 
@@ -181,15 +271,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "DISMISS_TRIP_RESULT":
       return state.driveStage === "result" ? { ...state, driveStage: "idle" } : state;
     case "SUBMIT_APPLICATION":
-      return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
+      return state.source !== "backend" && hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "idle"
         ? { ...state, applicationStage: "pending", applicationMode: action.mode ?? "local", applicationSubmittedAt: action.mode === "linked" ? undefined : Date.now(), applicationDecidedAt: undefined }
         : state;
     case "APPROVE_APPLICATION":
-      return hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "pending"
+      return state.source !== "backend" && hasSelectedDemoPolicy(state) && state.tripsCompleted === 2 && state.totals.isEligible && state.applicationStage === "pending"
         ? { ...state, applicationStage: "approved", applicationDecidedAt: state.applicationMode === "linked" ? undefined : Date.now() }
         : state;
     case "RESET_DEMO":
-      return initialAppState;
+      return state.demoMode
+        ? { ...initialAppState, source: "backend", setupPreviewCompleted: true, hasConsented: true }
+        : initialAppState;
     case "RESET_APPLICATION":
       return state.applicationStage !== "idle" ? { ...state, applicationStage: "idle", applicationMode: undefined, applicationSubmittedAt: undefined, applicationDecidedAt: undefined } : state;
     case "HYDRATE":

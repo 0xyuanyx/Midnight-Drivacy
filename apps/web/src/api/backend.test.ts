@@ -47,4 +47,17 @@ describe("insurer backend boundary", () => {
     expect(calls[0][0]).toBe(`http://localhost:3000/special-contracts/${id}/rules/versions`);
     expect(calls[0][1]).toEqual(expect.objectContaining({ method: "POST", body: JSON.stringify(input) }));
   });
+
+  it("reads insurer applications and sends only an explicit verified decision", async () => {
+    const calls: Array<[string, RequestInit]> = [];
+    const api = createInsurerApi({ baseUrl: "http://localhost:3000", getAccessToken: async () => "insurer-token", fetcher: async (url, init) => {
+      calls.push([url, init]); return new Response(JSON.stringify([]), { status: 200 });
+    } });
+    await api.listDiscountApplications();
+    await api.getDiscountApplication(id);
+    await api.decideDiscountApplication(id, "APPLIED");
+    expect(calls[0]?.[0]).toBe("http://localhost:3000/insurer/discount-applications");
+    expect(calls[1]?.[0]).toBe(`http://localhost:3000/insurer/discount-applications/${id}`);
+    expect(calls[2]).toEqual([`http://localhost:3000/insurer/discount-applications/${id}/decision`, expect.objectContaining({ method: "POST", body: '{"decision":"APPLIED"}', headers: expect.objectContaining({ Authorization: "Bearer insurer-token" }) })]);
+  });
 });

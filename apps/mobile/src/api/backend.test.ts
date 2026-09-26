@@ -4,6 +4,19 @@ const contractId = "11111111-1111-4111-8111-111111111111";
 const specialContractId = "22222222-2222-4222-8222-222222222222";
 
 describe("driver backend boundary", () => {
+  it("sends the required onboarding profile without a client-selected role or email", async () => {
+    const calls: Array<[string, RequestInit]> = [];
+    const api = createDriverApi({ baseUrl: "https://api.example.test", getAccessToken: async () => "privy-token", fetcher: async (url, init) => {
+      calls.push([url, init]);
+      return { ok: true, status: 200, json: async () => ({ id: "driver-id", email: "driver@example.com", role: "DRIVER" }) } as Response;
+    } });
+    await api.completeDriverOnboarding({ name: "홍길동", birthDate: "1990-01-01", phoneNumber: "01012345678" });
+    expect(calls[0]).toEqual(["https://api.example.test/auth/driver/onboarding", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ name: "홍길동", birthDate: "1990-01-01", phoneNumber: "01012345678" }),
+      headers: expect.objectContaining({ Authorization: "Bearer privy-token" }),
+    })]);
+  });
   it("keeps consent and selection payloads server-owned", async () => {
     const calls: Array<[string, RequestInit]> = [];
     const fetcher = async (url: string, init: RequestInit) => {
@@ -43,5 +56,19 @@ describe("driver backend boundary", () => {
     await api.getTripProcessing("op");
     expect(calls[0]).toEqual(["https://api.example.test/driving-sessions/session/process", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "Idempotency-Key": "stable-key" }) })]);
     expect(calls[1]?.[0]).toBe("https://api.example.test/trip-processing/op");
+  });
+
+  it("reads the server evaluation period and sends only target IDs for final application", async () => {
+    const calls: Array<[string, RequestInit]> = [];
+    const api = createDriverApi({ baseUrl: "https://api.example.test", getAccessToken: async () => "token", fetcher: async (url, init) => {
+      calls.push([url, init]); return { ok: true, json: async () => ([]) } as Response;
+    } });
+    await api.listEvaluationPeriods(contractId, specialContractId);
+    await api.createDiscountApplication(contractId, specialContractId);
+    await api.listDiscountApplications();
+    expect(calls[0]?.[0]).toBe(`https://api.example.test/insurance-contracts/${contractId}/special-contracts/${specialContractId}/evaluation-periods`);
+    expect(calls[1]).toEqual(["https://api.example.test/discount-applications", expect.objectContaining({ method: "POST", body: JSON.stringify({ insuranceContractId: contractId, specialContractId }) })]);
+    expect(calls[2]?.[0]).toBe("https://api.example.test/discount-applications");
+    expect(calls[2]?.[1].method).toBe("GET");
   });
 });

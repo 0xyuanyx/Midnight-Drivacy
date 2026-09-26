@@ -85,6 +85,23 @@ export class InsuranceService {
     return (await this.repository.findSpecialContracts([contractId])).map(toSpecialContract);
   }
 
+  public async listEvaluationPeriods(contractId: string, specialContractId: string, userId: string) {
+    await this.getOwnedContract(contractId, userId);
+    const selected = await this.repository.findSelection(contractId);
+    if (selected?.specialContractId !== specialContractId) {
+      throw new AppError("SPECIAL_CONTRACT_SELECTION_NOT_FOUND", "Selected special contract was not found", 404);
+    }
+    const periods = await this.repository.findEvaluationPeriods(contractId, specialContractId, userId);
+    if (periods.length === 0) {
+      throw new AppError("EVALUATION_PERIOD_NOT_FOUND", "Evaluation period was not found", 404);
+    }
+    return periods.map((period) => ({
+      id: period.id,
+      startDate: period.startDate instanceof Date ? period.startDate.toISOString().slice(0, 10) : period.startDate,
+      endDate: period.endDate instanceof Date ? period.endDate.toISOString().slice(0, 10) : period.endDate,
+    }));
+  }
+
   public async selectSpecialContract(
     contractId: string,
     specialContractId: string,

@@ -24,6 +24,7 @@ export default function DriveResult() {
   if (state.driveStage !== "result") return null;
   const trip = demoTrips[Math.max(state.tripsCompleted - 1, 0)];
   const previousScore = state.tripsCompleted === 1 ? null : demoTrips[0].cumulativeTotals.score;
+  const live = state.source === "backend" && Boolean(state.backendSummary);
 
   function returnHome() {
     if (returning.current) return;
@@ -47,16 +48,16 @@ export default function DriveResult() {
       <Text style={styles.title}>이번 주행 결과</Text>
       <View style={styles.resultHero}>
         <Text style={styles.delta}>{state.totals.score}점</Text>
-        <Text style={styles.deltaHelper}>{previousScore === null ? "첫 주행 점수" : `${previousScore}점 → ${state.totals.score}점`}</Text>
+        <Text style={styles.deltaHelper}>{live ? "서버 확정 점수" : previousScore === null ? "첫 주행 점수" : `${previousScore}점 → ${state.totals.score}점`}</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>주행 요약</Text>
         {state.tripStartedAt && state.tripEndedAt ? <View style={styles.row}><Text style={styles.label}>주행 시간</Text><Text style={styles.value}>{elapsedLabel(state.tripStartedAt, state.tripEndedAt)}</Text></View> : null}
-        <View style={styles.row}><Text style={styles.label}>이번 거리</Text><Text style={styles.value}>{trip.distanceKm} km</Text></View>
+        <View style={styles.row}><Text style={styles.label}>이번 거리</Text><Text style={styles.value}>{live ? state.backendSummary!.tripDistanceM / 1000 : trip.distanceKm} km</Text></View>
         <View style={styles.row}><Text style={styles.label}>누적 거리</Text><Text style={styles.value}>{state.totals.distanceKm} km</Text></View>
         <View style={styles.row}><Text style={styles.label}>현재 점수</Text><Text style={styles.value}>{state.totals.score}점</Text></View>
-        <View style={styles.row}><Text style={styles.label}>처리 상태</Text><Text style={styles.successValue}>로컬 계산 완료</Text></View>
+        <View style={styles.row}><Text style={styles.label}>처리 상태</Text><Text style={styles.successValue}>{live ? "DB 확정 완료" : "로컬 계산 완료"}</Text></View>
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>주행 체험을 반영했어요</Text>
@@ -64,7 +65,9 @@ export default function DriveResult() {
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>처리 정보</Text>
-        <Text style={styles.cardText}>실제 위치 수집, Midnight 증명, 체인 확인이나 보험사 제출은 수행하지 않았어요.</Text>
+        <Text style={styles.cardText}>{live
+          ? `확정 거래 ${state.backendSummary!.transactionId} · Rule v${state.backendSummary!.ruleVersion}. 보험사 할인 적용 결정은 별도 단계예요.`
+          : "실제 위치 수집, Midnight 증명, 체인 확인이나 보험사 제출은 수행하지 않았어요."}</Text>
       </View>
 
     </AppScreen>

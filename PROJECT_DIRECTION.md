@@ -1,5 +1,50 @@
 # Drivacy 프로젝트 방향성
 
+## 2026-09-26 — 보험 조회 0건의 명시적 데모 흐름
+
+- 사용자 결정: 로그인·동의 후 본인 보험계약 조회가 정상적으로 0건이면 기존 fixture 보험 3개를 선택 화면에 바로 표시한다. CTA 바로 위에는 실제 가입 계약이 아닌 데모 예시임을 작은 문구로 알린다. 실제 보험 조회 실패는 0건과 구분하여 오류로 남기며 예시로 대체하지 않는다.
+- 구현 경계: 데모 카드 선택 후에는 계정별 로컬 데모 상태로 전환한다. Backend 계약 선택·주행·할인 신청 API 및 별도 linked-demo bridge에는 예시 계약을 보내지 않는다. 실제 Supabase 계약 행을 생성하거나 사용자에게 임의 배정하지 않는다. 데모 초기화 후에는 로그인된 보험 선택 화면으로 돌아간다.
+- 미완료: 실제 가입 보험의 조회·실제 보험사 할인 적용·Midnight 증명은 이 데모 카드로 검증되지 않는다.
+
+## 2026-09-26 — 가입 후 화면 전환과 로컬 동의 경계
+
+- 구현: Expo Router의 최상위 화면 스택을 경로 전환 중에도 유지한다. 인증 상태가 바뀌어도 `/onboarding`↔`/consent` 전체 재초기화 루프가 생기지 않도록 경로 교체는 스택이 마운트된 뒤 수행한다.
+- 구현: C/Wallet이 없는 로컬 서버에 기존 인증·역할 검사를 그대로 적용한 동의 조회/저장과 본인 보험계약·특약 조회 경계를 연결한다. 실제 계약 소유권이 확인되지 않으면 서버는 빈 목록을 반환하고 데모 계약을 임의 배정하지 않는다. 앱의 명시적 데모 표시 방식은 상단 결정을 따른다. C/Wallet 처리·증명·주행 라우트는 계속 열지 않는다.
+- 검증 한계: 브라우저에서 반복 경로 전환이 멈추고 필수 동의 시트가 열리는 것을 확인했다. 사용자의 필수 동의 확정과 실제 보험계약 선택은 별도 사용자 행동 및 계약 데이터가 필요하다.
+
+## 2026-09-26 — 가입 정보 입력 안내와 저장 오류 보정
+
+- 구현 판단: 생년월일 입력 아래의 중복된 `8자리 날짜 형식` 안내를 제거한다. 가입 정보 화면의 파란 안내 박스와 확인 체크는 실제 서버 저장을 부정하는 오래된 문구 및 형식적 확인이므로 제거하고, 저장 사실과 아직 하지 않는 본인확인·보험계약 조회만 간결하게 설명한다.
+- 미결정: 이름·생년월일·휴대전화 번호의 구체적 수집 목적, 보관 기간, 삭제 방법, 필수 여부와 정식 개인정보 안내 문구는 별도로 확정해야 한다. 이번 문구 변경을 법적 동의 설계 완료로 해석하지 않는다.
+- 구현·검증: 실제 Supabase의 Privy 식별자 UNIQUE 인덱스는 조건부 인덱스다. 가입 INSERT의 `ON CONFLICT` 조건을 인덱스 조건과 일치시켜 PostgreSQL `42P10` 실패를 수정했다. 실제 DB에서 롤백 거래로 최초·중복 INSERT를 확인했으며, 사용자 OTP를 이용한 가입 저장 E2E는 아직 별도 확인이 필요하다.
+
+## 2026-09-26 — C/Wallet 부재 중 가입 검증 경로
+
+- 팀 확인: 현재 C/Wallet HTTP host에는 배포용 `createRuntime()` 모듈과 Rule 등록·Final Evaluation 구현이 없어 전체 서비스 실행 설정을 받을 수 없다. C/Wallet 실동작과 주행·증명 완료는 후속 구현이다.
+- 결정: `dev:auth-only`를 별도 로컬 엔트리포인트로 두고 실제 Privy 검증·Supabase 프로필 저장의 가입 경로를 조립한다. 후속 구현으로 동의와 본인 보험계약 조회도 같은 인증 경계에서 제공한다. 서버는 loopback에 바인딩하고 지정한 loopback 브라우저 origin만 허용하며 C/Wallet 라우트와 복구 worker를 실행하지 않는다. 전체 Backend `dev`의 C/Wallet fail-closed 조건은 유지한다.
+- 실측: 로컬 Supabase 연결 및 Privy 설정 조회 성공, 인증 전용 서버 `127.0.0.1:3000/health` 200, 로컬 origin OPTIONS 204, C 처리 경로 404. 사용자 OTP를 통한 실제 가입 저장은 별도 확인이 필요하다.
+
+## 2026-09-26 — 로컬 연결 설정 검증
+
+- Supabase session pooler에 공식 CA로 인증서 검증을 유지하며 `SELECT 1` 접속을 확인했다. 공개 CA는 `config/supabase-root-2021.crt`, 비밀번호는 Git 제외 로컬 `.env`에 둔다.
+- 결정: 사용자 승인으로 Privy는 기존 `Midnight-Drivacy` 앱(`cmudw308g01rv0ckyr0wcqqhd`)으로 통일한다. Dashboard에서 기존 모바일 Client ID가 이 앱의 `Drivacy Mobile` 소속임을 확인했다. 로컬 Backend App ID와 Secret을 맞춘 뒤 서버 SDK의 설정 조회가 성공했고 이메일 인증 활성화를 확인했다. 별도 `Drivacy` 앱의 Secret은 혼용하지 않는다.
+- C/Wallet HTTP host는 있으나 배포용 `createRuntime()` 모듈과 실행 설정은 미제공이다. 임의 adapter 주소·토큰·가짜 성공으로 Backend 시작 조건을 우회하지 않는다. 실제 가입 저장·월렛·체인 종단 검증은 아직 미완료다.
+
+## 2026-09-26 — Privy 이메일 인증 연결
+
+- 사용자 제공 공개 App ID·모바일 client ID로 Privy를 기본 인증 공급자로 연결한다. Expo web에는 React SDK, iOS/Android에는 Expo SDK를 사용하며 이메일 OTP 입력 화면을 유지한다.
+- 가입 정보는 실제 access token과 함께 Backend onboarding에 보내고 서버가 확인한 DRIVER ID로 앱 상태를 분리한다. 로그아웃·계정 변경 시 다른 사용자의 상태를 표시하지 않는다. 토큰은 Privy SDK가 관리하며 앱 상태 저장소에 복사하지 않는다.
+- 실제 월렛 Provider가 없는 상태에서 월렛 생성/연결 완료를 표시하지 않는다. 인증 가입 흐름은 프로필 저장 후 보험 조회 동의로 이어지며, 월렛 서명·제출은 기존 미연결 범위를 유지한다.
+- Backend 주소는 `EXPO_PUBLIC_BACKEND_URL`로 공급한다. 주소가 없으면 이메일 OTP까지만 사용할 수 있고 프로필 저장 단계는 안내와 함께 중단한다. 실제 이메일 수신·운영 DB·월렛 종단 검증과 SDK 빌드 검증을 구분한다.
+- 기존 fixture 화면 검토는 명시적으로 `EXPO_PUBLIC_AUTH_MODE=preview`를 설정한다.
+- 검증: 모바일 115개 테스트·타입 검사·lint 및 web/iOS/Android export 통과. Privy 공개 설정 조회에서 `Midnight-Drivacy`와 이메일 로그인 활성화를 확인했고, `http://localhost:8094/setup`에서 실제 SDK 초기화 후 이메일 입력 화면을 확인했다. 이메일 발송·OTP 검증은 사용자 수신 코드가 필요한 미검증 항목이다. Backend URL은 아직 제공되지 않았다.
+
+## 2026-09-26 — 가입자·보험사 화면의 Backend 선택 연결
+
+- 구현: 기존 앱/웹 fixture 실행을 보존하면서 인증된 API 객체가 주입된 경우에만 계약·특약·평가기간, 동일 서버 운행 Session의 기록 재생, 처리 상태·확정 요약, 할인 신청 및 보험사 심사 화면을 Backend 응답에 연결했다. 가입자 온보딩 API 요청은 서버 필수 프로필(이름·생년월일·전화번호)만 보내며 이메일·역할은 서버가 검증 신원에서 정한다.
+- 결정: 화면 성공은 저장된 `db-confirmed` 공개 요약에서만 발생한다. `awaiting-wallet-approval`, `submitted`, `chain-unknown`, `db-pending`은 완료가 아니며, 같은 Session/operation ID와 멱등 키로 복구한다. 최종 신청의 `VERIFIED`는 보험사의 `APPLIED`/`REJECTED`와 별개다. 수기 보험사 Rule 입력과 fixture 프리뷰는 유지한다.
+- 미완료: 앱·웹 진입점은 아직 인증 공급자를 주입하지 않는다. 프리뷰의 OTP `123456`과 월렛 준비 화면은 실제 Privy 인증/가입자 월렛이 아니다. 실제 Privy 세션, 실기기 월렛 승인, 운영 DB/C/체인 종단 실행은 필요한 설정과 외부 서비스가 준비되기 전까지 검증 완료로 표시하지 않는다.
+
 ## 2026-09-25 — 프론트·백엔드 모의 운행 연동 경계
 
 - 결정: 기존 모바일·보험사 화면과 fixture 흐름은 임의로 바꾸지 않고, 실제 인증·계약·월렛이 준비되면 API 경계를 통해 연결한다. 구체적인 순서와 남은 항목은 `docs/FRONTEND_BACKEND_INTEGRATION_HANDOFF_2026-09-25.md`를 따른다.
@@ -24,7 +69,7 @@
 - Decision: C derives `transactionId` only from the exact SDK-deserialized Wallet-balanced transaction using `tx.identifiers().at(-1)`. SHA-256 `localSubmissionReference` remains local metadata, never a Shared chain ID.
 - Status: the host, capability verifier, browser page, and concrete private C executor are implemented. `LocalJobStore` and the source file store are development/demo persistence only; production durable recovery and real Lace/Preprod E2E remain required.
 
-마지막 업데이트: 2026-09-25 (KST)
+마지막 업데이트: 2026-09-26 (KST)
 
 ## 가입자 Wallet Provider 경계 — 2026-09-23 구현
 
