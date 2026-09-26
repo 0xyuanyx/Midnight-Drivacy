@@ -245,6 +245,16 @@ describe("Driving flow", () => {
     expect(replace).toHaveBeenCalledWith("/(tabs)/home");
   });
 
+  it("does not redirect to Drive while dismissing a result for Home", async () => {
+    mockUseAppState.mockReturnValue({ state: stateForTrips(1, "result"), dispatch, isHydrated: true });
+    const ui = await render(<DriveResult />);
+    await fireEvent.press(ui.getByRole("button", { name: "홈으로 돌아가기" }));
+    mockUseAppState.mockReturnValue({ state: stateForTrips(1), dispatch, isHydrated: true });
+    await ui.rerender(<DriveResult />);
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/(tabs)/home");
+  });
+
   it("emphasizes the current score after the second trip, keeping change as context", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(2, "result"), dispatch, isHydrated: true });
     const ui = await render(<DriveResult />);

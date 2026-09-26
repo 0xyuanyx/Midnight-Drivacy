@@ -32,7 +32,7 @@ describe("route policy", () => {
     expect(initialRouteForState(readyState)).toBe("/(tabs)/home");
     expect(redirectForRoute("/drive-session", readyState)).toBe("/(tabs)/drive");
     expect(redirectForRoute("/drive-processing", readyState)).toBe("/(tabs)/drive");
-    expect(redirectForRoute("/drive-result", readyState)).toBe("/(tabs)/drive");
+    expect(redirectForRoute("/drive-result", readyState)).toBe("/(tabs)/home");
     expect(redirectForRoute("/drive-session", activeState)).toBeNull();
     expect(redirectForRoute("/drive-processing", processingState)).toBeNull();
     expect(redirectForRoute("/drive-result", resultState)).toBeNull();

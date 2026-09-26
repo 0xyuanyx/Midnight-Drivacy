@@ -68,8 +68,8 @@ export default function Home() {
       <View style={styles.privacyCard}>
         <View style={styles.privacyIcon}><Text style={styles.privacyCheck}>✓</Text></View>
         <View style={styles.privacyCopy}>
-          <Text style={styles.privacyTitle}>보험사에는 결과만 보내요</Text>
-          <Text style={styles.privacyText}>위치와 이동경로는 보내지 않아요.</Text>
+          <Text style={styles.privacyTitle}>{live ? "보험사에는 결과만 보내요" : "데모에서는 결과만 표시해요"}</Text>
+          <Text style={styles.privacyText}>{live ? "위치와 이동경로는 보내지 않아요." : "실제 보험사 제출이나 위치 수집은 하지 않아요."}</Text>
         </View>
       </View>
 

@@ -25,6 +25,7 @@ export default function Application() {
   const { state } = useAppState();
   const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
   const live = state.source === "backend";
+  const fixtureOnly = !live && !linkedDemoEnabled;
   const policy = live
     ? { insurerName: "선택한 보험계약", productName: "자동차보험", riderName: state.backendApplication?.specialContractName ?? "선택한 안전운전 특약" }
     : demoPolicies.find((item) => item.id === state.selectedPolicyId) ?? demoPolicies[0];
@@ -57,9 +58,9 @@ export default function Application() {
         testID="application-pending-screen"
       >
         <PageEyebrow>신청 완료</PageEyebrow>
-        <Text style={styles.title}>{live && state.backendApplication?.stage === "pending-verification" ? "증명 결과를 검증하고 있어요." : linkedDemoEnabled ? "신청 처리 상태를 확인해 주세요." : "보험사가 결과를 검토하고 있어요."}</Text>
-        <Text style={styles.description}>신청 정보와 처리 상태를 확인하세요.</Text>
-        <Card title="신청 상태"><Text style={[styles.statusBadge, styles.neutralBadge]}>{live ? state.backendApplication?.stage === "verification-failed" ? "검증 실패" : state.backendApplication?.stage === "pending-verification" ? "검증 중" : "보험사 검토 중" : linkedDemoEnabled ? "내역에서 확인" : "검토 중"}</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
+        <Text style={styles.title}>{live && state.backendApplication?.stage === "pending-verification" ? "증명 결과를 검증하고 있어요." : linkedDemoEnabled ? "데모 신청 처리 상태를 확인해 주세요." : "데모 신청을 기록했어요."}</Text>
+        <Text style={styles.description}>{fixtureOnly ? "실제 보험사에 제출되지 않은 화면 체험용 신청입니다." : "신청 정보와 처리 상태를 확인하세요."}</Text>
+        <Card title="신청 상태"><Text style={[styles.statusBadge, styles.neutralBadge]}>{live ? state.backendApplication?.stage === "verification-failed" ? "검증 실패" : state.backendApplication?.stage === "pending-verification" ? "검증 중" : "보험사 검토 중" : linkedDemoEnabled ? "데모 내역" : "데모 기록"}</Text><Text style={styles.cardText}>{policy.insurerName}{`\n`}{policy.riderName}</Text></Card>
         <Card title="제출한 결과"><Text style={styles.cardText}>최종 점수 {state.totals.score}점 · 조건 충족{`\n`}평가 기간 {live ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text></Card>
         <Card title="신청 내역"><Text style={styles.cardText}>{live ? `신청 번호 ${state.backendApplication?.id ?? "확인 중"}` : linkedDemoEnabled ? "신청 번호와 최신 처리 상태는 신청 내역에서 확인할 수 있어요." : `신청 번호 DR-DEMO-001\n제출 시각 ${applicationTime(state.applicationSubmittedAt)}`}</Text></Card>
       </AppScreen>
@@ -75,10 +76,10 @@ export default function Application() {
         testID="application-approved-screen"
       >
         <PageEyebrow>할인 처리 결과</PageEyebrow>
-        <Text style={styles.title}>{state.applicationStage === "rejected" ? "할인이 적용되지 않았어요" : "할인 적용 결정이 완료되었어요"}</Text>
-        <Text style={styles.description}>최종 결과를 확인하세요.</Text>
-        <View style={styles.resultHero}><Text style={styles.resultValue}>{state.applicationStage === "rejected" ? "미적용" : live ? `${(state.backendApplication?.appliedDiscountBps ?? 0) / 100}%` : `${state.totals.expectedDiscountPercent}%`}</Text><Text style={styles.resultLabel}>안전운전 할인 적용 결정</Text></View>
-        <Card title="처리 상태"><Text style={styles.statusBadge}>{state.applicationStage === "rejected" ? "미적용 결정" : "적용 결정"}</Text><Text style={styles.cardText}>{policy.productName}{`\n`}{policy.riderName}</Text></Card>
+        <Text style={styles.title}>{live ? state.applicationStage === "rejected" ? "할인이 적용되지 않았어요" : "할인 적용 결정이 완료되었어요" : "데모 결과를 확인했어요"}</Text>
+        <Text style={styles.description}>{live ? "최종 결과를 확인하세요." : "실제 보험사 결정이 아닌 화면 체험 결과입니다."}</Text>
+        <View style={styles.resultHero}><Text style={styles.resultValue}>{state.applicationStage === "rejected" ? "미적용" : live ? `${(state.backendApplication?.appliedDiscountBps ?? 0) / 100}%` : `${state.totals.expectedDiscountPercent}%`}</Text><Text style={styles.resultLabel}>{live ? "안전운전 할인 적용 결정" : "예상 할인 적용 예시"}</Text></View>
+        <Card title="처리 상태"><Text style={styles.statusBadge}>{live ? state.applicationStage === "rejected" ? "미적용 결정" : "적용 결정" : "데모 예시"}</Text><Text style={styles.cardText}>{policy.productName}{`\n`}{policy.riderName}</Text></Card>
         <Card title="검증 안내"><Text style={styles.cardText}>{live ? "신청 증명 검증과 보험사 적용 결정은 별도로 완료되었습니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text></Card>
       </AppScreen>
     );

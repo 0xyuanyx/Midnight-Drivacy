@@ -49,6 +49,7 @@ describe("Insurance selection", () => {
     });
 
     expect(queryAllByTestId("policy-card")).toHaveLength(3);
+    expect(getByText("표시된 보험은 데모용 예시이며 실제 가입 계약이 아니에요.")).toBeTruthy();
   });
 
   it("returns to the consent sheet from the insurance back action", async () => {

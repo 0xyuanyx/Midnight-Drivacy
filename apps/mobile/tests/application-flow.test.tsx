@@ -136,6 +136,22 @@ describe("Discount application flow", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("identifies a locally simulated application before the user submits it", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2), demoMode: true }, dispatch, isHydrated: true });
+    const ui = await render(<ApplicationReview />);
+    expect(ui.getByText(/실제 보험사에 제출되지 않습니다/)).toBeTruthy();
+    expect(ui.getByRole("button", { name: "데모 신청 진행" })).toBeTruthy();
+  });
+
+  it("does not present a local result as an insurer decision", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "approved"), demoMode: true }, dispatch, isHydrated: true });
+    const ui = await render(<ApplicationResult />);
+    expect(ui.getByText(/데모 결과/)).toBeTruthy();
+    expect(ui.getByText("데모 확인 시각")).toBeTruthy();
+    expect(ui.queryByText("보험사에는 필요한 정보만 보냈어요")).toBeNull();
+    expect(ui.queryByText("할인 적용 결정이 완료되었어요")).toBeNull();
+  });
+
   it("renders recorded local times and never invents dates for legacy applications", async () => {
     const date = new Date(2026, 8, 25, 10, 15).getTime();
     mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "pending"), applicationSubmittedAt: date }, dispatch, isHydrated: true });
@@ -210,7 +226,7 @@ describe("Discount application flow", () => {
     await fireEvent.press(getByRole("button", { name: "뒤로" }));
     expect(replace).toHaveBeenCalledWith("/(tabs)/application");
 
-    const submitButton = getByRole("button", { name: "할인 신청 제출" });
+    const submitButton = getByRole("button", { name: "데모 신청 진행" });
     await fireEvent.press(submitButton);
     await fireEvent.press(submitButton);
     expect(dispatch).toHaveBeenCalledWith({ type: "SUBMIT_APPLICATION" });
@@ -227,12 +243,13 @@ describe("Discount application flow", () => {
 
     const { getByText, getByRole } = await render(<ApplicationSubmitted />);
 
-    expect(getByText("보험사가 결과를 검토하고 있어요.")).toBeTruthy();
+    expect(getByText("데모 신청을 기록했어요.")).toBeTruthy();
+    expect(getByText("데모 기록 시각")).toBeTruthy();
     expect(getByText("신청 번호")).toBeTruthy();
     expect(getByText("DR-DEMO-001")).toBeTruthy();
     expect(getByText(/증명·체인 검증 정보는 아직 연결되지 않았습니다./)).toBeTruthy();
 
-    await fireEvent.press(getByRole("button", { name: "결과 확인" }));
+    await fireEvent.press(getByRole("button", { name: "데모 결과 확인" }));
 
     expect(dispatch).toHaveBeenCalledWith({ type: "APPROVE_APPLICATION" });
     expect(replace).toHaveBeenCalledWith("/application-result");
@@ -252,6 +269,17 @@ describe("Discount application flow", () => {
     expect(push).toHaveBeenCalledWith("/application-submitted");
   });
 
+  it("keeps the local application tab explicitly in demo mode", async () => {
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "pending"), demoMode: true }, dispatch, isHydrated: true });
+    const pending = await render(<Application />);
+    expect(pending.getByText("데모 신청을 기록했어요.")).toBeTruthy();
+    await pending.unmount();
+    mockUseAppState.mockReturnValue({ state: { ...stateForTrips(2, "approved"), demoMode: true }, dispatch, isHydrated: true });
+    const result = await render(<Application />);
+    expect(result.getByText("데모 결과를 확인했어요")).toBeTruthy();
+    expect(result.queryByText("할인 적용 결정이 완료되었어요")).toBeNull();
+  });
+
   it("resets the demo from the result detail and returns to onboarding", async () => {
     mockUseAppState.mockReturnValue({ state: stateForTrips(2, "approved"), dispatch, isHydrated: true });
     const { getByRole } = await render(<ApplicationResult />);
@@ -269,11 +297,11 @@ describe("Discount application flow", () => {
 
     const { getByText, getByRole } = await render(<ApplicationResult />);
 
-    expect(getByText("할인 적용 결정이 완료되었어요")).toBeTruthy();
+    expect(getByText("데모 결과를 확인했어요")).toBeTruthy();
     expect(getByText("10%")).toBeTruthy();
     expect(getByText("개인용 자동차보험")).toBeTruthy();
     expect(getByText("안전운전 할인 특약")).toBeTruthy();
-    expect(getByText(/보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다./)).toBeTruthy();
+    expect(getByText(/실제 보험사 제출·계약 반영·증명 검증은 수행되지 않았습니다./)).toBeTruthy();
 
     await fireEvent.press(getByRole("button", { name: "홈으로 돌아가기" }));
 

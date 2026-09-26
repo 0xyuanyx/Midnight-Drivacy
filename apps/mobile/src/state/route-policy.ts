@@ -68,7 +68,8 @@ export function redirectForRoute(pathname: string, state: AppState): AppRoute | 
 
   const isFocusedDriveRoute = pathname === "/drive-session" || pathname === "/drive-processing" || pathname === "/drive-result";
   if (isFocusedDriveRoute) {
-    const expectedRoute = routeForDriveStage(state);
+    const expectedRoute = pathname === "/drive-result" && state.driveStage === "idle"
+      ? "/(tabs)/home" : routeForDriveStage(state);
     return pathname === expectedRoute ? null : expectedRoute;
   }
 

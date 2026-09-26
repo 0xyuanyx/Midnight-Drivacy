@@ -1,5 +1,12 @@
 # Drivacy 프로젝트 방향성
 
+## 2026-09-27 — 제출용 화면 데모의 표시 경계
+
+- 사용자 결정: 해커톤 제출 전에는 현재의 가입·보험 선택·두 번의 모의 주행·할인 신청 화면 흐름을 안정화하고, 실제 보험사·월렛·Midnight 종단 연동 완료로 표현하지 않는다.
+- 구현: 예시 보험 카드와 로컬 신청·결과 화면을 `데모`로 명시한다. 로컬 신청은 보험사에 전송되지 않고, `데모 결과`는 보험사 적용 결정이나 증명 검증을 의미하지 않는다. 인증된 계약/Backend 응답을 쓰는 경로와 로컬 fixture 경로는 계속 분리한다.
+- 구현·검증: 결과 화면에서 홈 복귀 시 상태 변경과 화면 자동 이동이 경쟁해 주행 탭으로 빠지는 문제를 고쳤다. 브라우저의 화면 체험 모드에서 두 번의 운행, 신청, 결과, 홈 복귀를 직접 확인했다.
+- 미완료: 실제 보험계약, C/Wallet runtime·누락 API, Midnight 증명과 체인 확인, 보험사 결정 및 실기기 E2E는 이 화면 데모 안정화의 범위 밖이다.
+
 ## 2026-09-26 — 보험 조회 0건의 명시적 데모 흐름
 
 - 사용자 결정: 로그인·동의 후 본인 보험계약 조회가 정상적으로 0건이면 기존 fixture 보험 3개를 선택 화면에 바로 표시한다. CTA 바로 위에는 실제 가입 계약이 아닌 데모 예시임을 작은 문구로 알린다. 실제 보험 조회 실패는 0건과 구분하여 오류로 남기며 예시로 대체하지 않는다.
@@ -69,7 +76,7 @@
 - Decision: C derives `transactionId` only from the exact SDK-deserialized Wallet-balanced transaction using `tx.identifiers().at(-1)`. SHA-256 `localSubmissionReference` remains local metadata, never a Shared chain ID.
 - Status: the host, capability verifier, browser page, and concrete private C executor are implemented. `LocalJobStore` and the source file store are development/demo persistence only; production durable recovery and real Lace/Preprod E2E remain required.
 
-마지막 업데이트: 2026-09-26 (KST)
+마지막 업데이트: 2026-09-27 (KST)
 
 ## 가입자 Wallet Provider 경계 — 2026-09-23 구현
 

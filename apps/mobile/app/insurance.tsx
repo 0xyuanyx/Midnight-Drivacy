@@ -42,6 +42,7 @@ export default function Insurance() {
   const [error, setError] = useState<string | null>(null);
   const confirming = useRef(false);
   const showDemoPolicies = Boolean(backend && !isLoading && !error && backendOptions.length === 0);
+  const fixturePolicies = !backend || showDemoPolicies;
 
   useEffect(() => {
     if (backend) {
@@ -87,15 +88,15 @@ export default function Insurance() {
       contentContainerStyle={styles.screen}
       fixedFooter={isLoading ? undefined : (
         <View style={styles.footer}>
-          {showDemoPolicies ? <Text style={styles.demoNote}>표시된 보험은 데모용 예시이며 실제 가입 계약이 아니에요.</Text> : null}
+          {fixturePolicies ? <Text style={styles.demoNote}>표시된 보험은 데모용 예시이며 실제 가입 계약이 아니에요.</Text> : null}
           <PrimaryButton disabled={!selectedPolicyId} title="이 보험 선택하기" onPress={confirmSelection} />
         </View>
       )}
       testID="insurance-screen"
     >
       <ScreenHeader title="내 보험 조회하기" onBack={() => router.replace("/consent")} />
-      <Text style={styles.title}>가입한 보험을 확인해주세요.</Text>
-      <Text style={styles.description}>할인 특약을 신청할 보험계약을 선택해요.</Text>
+      <Text style={styles.title}>{fixturePolicies ? "데모 보험을 선택해주세요." : "가입한 보험을 확인해주세요."}</Text>
+      <Text style={styles.description}>{fixturePolicies ? "예시 보험으로 화면 흐름을 체험할 수 있어요." : "할인 특약을 신청할 보험계약을 선택해요."}</Text>
 
       {isLoading ? (
         <View accessibilityLabel="보험 정보를 불러오는 중" style={styles.loadingState}>

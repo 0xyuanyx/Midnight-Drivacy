@@ -18,6 +18,7 @@ export default function ApplicationReview() {
   const router = useRouter();
   const { dispatch, state, backend } = useAppState();
   const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
+  const fixtureOnly = state.source !== "backend" && !linkedDemoEnabled;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitInFlight = useRef(false);
@@ -50,7 +51,7 @@ export default function ApplicationReview() {
         footerPlacement="tabbed"
         contentContainerStyle={styles.screen}
         fixedFooter={(
-          <PrimaryButton disabled={submitting} title={submitting ? "제출 중…" : "할인 신청 제출"} onPress={async () => {
+          <PrimaryButton disabled={submitting} title={submitting ? "제출 중…" : fixtureOnly ? "데모 신청 진행" : "할인 신청 제출"} onPress={async () => {
             if (submitInFlight.current) return;
             submitInFlight.current = true;
             setSubmitting(true);
@@ -89,8 +90,8 @@ export default function ApplicationReview() {
       >
         <ScreenHeader title="서류" onBack={() => router.replace("/(tabs)/application")} backDisabled={submitting} />
         <PageEyebrow position="withBack">안전운전 결과 제출</PageEyebrow>
-        <Text style={styles.title}>보험사에 보낼 정보를{`\n`}확인해 주세요</Text>
-        <Text style={styles.description}>아래에 표시된 정보만 보험사에 보내요.</Text>
+        <Text style={styles.title}>{fixtureOnly ? "데모 신청 내용을" : "보험사에 보낼 정보를"}{`\n`}확인해 주세요</Text>
+        <Text style={styles.description}>{fixtureOnly ? "화면 체험용 신청입니다. 실제 보험사에 제출되지 않습니다." : linkedDemoEnabled ? "보험사 연동 데모에 표시할 정보만 확인해요." : "아래에 표시된 정보만 보험사에 보내요."}</Text>
         <View style={styles.card}><Text style={styles.cardTitle}>제출 대상</Text><Text style={styles.cardText}>{policy.insurerName} · {policy.riderName}{`\n`}평가기간 {state.source === "backend" ? state.backendTarget?.evaluationPeriod : "최근 90일"}</Text></View>
         <View style={[styles.card, styles.selectedCard]}>
           <Text style={styles.cardTitle}>제공되는 결과</Text>

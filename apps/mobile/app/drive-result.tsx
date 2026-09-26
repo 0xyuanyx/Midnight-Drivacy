@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { demoTrips } from "@/fixtures/demo";
 import { useAppState } from "@/state/app-provider";
+import { initialRouteForState } from "@/state/route-policy";
 import { colors } from "@/theme/tokens";
 
 export default function DriveResult() {
@@ -18,8 +19,8 @@ export default function DriveResult() {
   const returning = useRef(false);
 
   useEffect(() => {
-    if (state.driveStage !== "result") router.replace("/(tabs)/drive");
-  }, [router, state.driveStage]);
+    if (state.driveStage !== "result" && !returning.current) router.replace(initialRouteForState(state));
+  }, [router, state]);
 
   if (state.driveStage !== "result") return null;
   const trip = demoTrips[Math.max(state.tripsCompleted - 1, 0)];

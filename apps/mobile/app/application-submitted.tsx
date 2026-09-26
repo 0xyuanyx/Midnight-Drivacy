@@ -18,6 +18,7 @@ export default function ApplicationSubmitted() {
   const router = useRouter();
   const { dispatch, state, backend } = useAppState();
   const linkedDemoEnabled = canUseLinkedDemoBridge(state.demoMode);
+  const fixtureOnly = state.source !== "backend" && !linkedDemoEnabled;
   const [linked, setLinked] = useState<LinkedDemoApplication | null>(null);
   const [backendApplication, setBackendApplication] = useState<DriverApplicationView | null>(state.backendApplication ?? null);
   const [refreshError, setRefreshError] = useState(false);
@@ -93,7 +94,7 @@ export default function ApplicationSubmitted() {
         contentContainerStyle={styles.screen}
         fixedFooter={(
           <PrimaryButton
-            title={restarting ? "다시 준비 중…" : state.source === "backend" ? "처리 상태 새로고침" : linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "결과 확인"}
+            title={restarting ? "다시 준비 중…" : state.source === "backend" ? "처리 상태 새로고침" : linkedDemoEnabled ? missing ? "다시 신청하기" : "처리 상태 새로고침" : "데모 결과 확인"}
             disabled={restarting}
             onPress={() => {
               if (state.source === "backend") { void refresh(); return; }
@@ -114,12 +115,12 @@ export default function ApplicationSubmitted() {
           ? backendApplication?.stage === "pending-verification" ? "증명 결과를 검증하고 있어요."
             : backendApplication?.stage === "verification-failed" ? "증명 검증에 실패했어요."
               : "보험사가 결과를 검토하고 있어요."
-          : missing ? "신청 기록을 찾지 못했어요." : linked?.reviewStatus === "REJECTED" ? "할인이 적용되지 않았어요." : "보험사가 결과를 검토하고 있어요."}</Text>
-        <Text style={styles.description}>{missing ? "신청 기록을 확인할 수 없습니다. 다시 제출해 주세요." : linkedDemoEnabled ? "신청 정보와 처리 상태를 확인하세요." : "신청 정보와 처리 상태를 확인하세요."}</Text>
+          : missing ? "신청 기록을 찾지 못했어요." : linkedDemoEnabled ? linked?.reviewStatus === "REJECTED" ? "데모 할인 미적용 상태예요." : "데모 보험사 검토 상태를 확인해요." : "데모 신청을 기록했어요."}</Text>
+        <Text style={styles.description}>{missing ? "신청 기록을 확인할 수 없습니다. 다시 제출해 주세요." : fixtureOnly ? "실제 보험사에 전송되지 않은 화면 체험용 신청입니다." : "신청 정보와 처리 상태를 확인하세요."}</Text>
         <View style={styles.card}>
           <View style={styles.cardHeader}><Text style={styles.cardTitle}>신청 상태</Text><Text style={styles.badge}>{state.source === "backend"
             ? backendApplication?.stage === "pending-verification" ? "검증 중" : backendApplication?.stage === "verification-failed" ? "검증 실패" : "보험사 검토 중"
-            : missing ? "기록 없음" : linked?.reviewStatus === "REJECTED" ? "미적용" : "검토 중"}</Text></View>
+            : missing ? "기록 없음" : linked?.reviewStatus === "REJECTED" ? "데모 미적용" : linkedDemoEnabled ? "데모 검토 중" : "데모 기록"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>보험사</Text><Text style={styles.value}>{policy.insurerName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>예상 할인 구간</Text><Text style={styles.value}>{state.totals.expectedDiscountPercent}%</Text></View>
@@ -132,7 +133,7 @@ export default function ApplicationSubmitted() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>신청 내역</Text>
           <View style={styles.row}><Text style={styles.label}>신청 번호</Text><Text style={styles.value}>{state.source === "backend" ? backendApplication?.id : linked?.id ?? (linkedDemoEnabled ? "확인 중" : "DR-DEMO-001")}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>제출 시각</Text><Text style={styles.value}>{state.source === "backend" ? applicationTime(backendApplication?.submittedAt) : linkedDemoEnabled ? linked ? applicationTime(linked.submittedAt) : missing ? "기록 없음" : "확인 중" : applicationTime(state.applicationSubmittedAt)}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>{state.source === "backend" ? "제출 시각" : "데모 기록 시각"}</Text><Text style={styles.value}>{state.source === "backend" ? applicationTime(backendApplication?.submittedAt) : linkedDemoEnabled ? linked ? applicationTime(linked.submittedAt) : missing ? "기록 없음" : "확인 중" : applicationTime(state.applicationSubmittedAt)}</Text></View>
         </View>
         {refreshError ? <Text style={styles.demoNote}>신청 정보를 불러오지 못했습니다. 다시 시도해 주세요.</Text> : null}
         <Text style={styles.demoNote}>{state.source === "backend" ? "증명 검증과 보험사의 할인 적용 결정은 별도 단계입니다." : "증명·체인 검증 정보는 아직 연결되지 않았습니다."}</Text>

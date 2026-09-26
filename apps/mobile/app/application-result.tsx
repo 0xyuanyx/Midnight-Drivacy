@@ -74,23 +74,23 @@ export default function ApplicationResult() {
         testID="application-result-screen"
       >
         <PageEyebrow>할인 처리 결과</PageEyebrow>
-        <Text style={styles.title}>{rejected ? "할인이 적용되지 않았어요" : "할인 적용 결정이 완료되었어요"}</Text>
-        <Text style={styles.description}>{linkedDemoEnabled ? "신청 처리 결과를 확인하세요." : "최종 결과를 확인하세요."}</Text>
+        <Text style={styles.title}>{live ? rejected ? "할인이 적용되지 않았어요" : "할인 적용 결정이 완료되었어요" : "데모 결과를 확인했어요"}</Text>
+        <Text style={styles.description}>{live ? "최종 결과를 확인하세요." : "실제 보험사 결정이 아닌 화면 체험 결과입니다."}</Text>
         <View style={styles.resultHero}>
           <Text style={styles.resultValue}>{rejected ? "미적용" : live ? `${(state.backendApplication?.appliedDiscountBps ?? 0) / 100}%` : `${state.totals.expectedDiscountPercent}%`}</Text>
-          <Text style={styles.resultLabel}>{rejected ? "보험사 미적용 결정" : "안전운전 할인 적용 결정"}</Text>
+          <Text style={styles.resultLabel}>{live ? rejected ? "보험사 미적용 결정" : "안전운전 할인 적용 결정" : "예상 할인 적용 예시"}</Text>
         </View>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>{rejected ? "미적용 결정" : "적용 결정"}</Text></View>
+          <View style={styles.cardHeader}><Text style={styles.cardTitle}>처리 상태</Text><Text style={styles.badge}>{live ? rejected ? "미적용 결정" : "적용 결정" : "데모 예시"}</Text></View>
           <View style={styles.row}><Text style={styles.label}>대상</Text><Text style={styles.value}>{policy.productName}</Text></View>
           <View style={styles.row}><Text style={styles.label}>특약</Text><Text style={styles.value}>{policy.riderName}</Text></View>
-          <View style={styles.row}><Text style={styles.label}>결정 시각</Text><Text style={styles.value}>{applicationTime(live ? state.backendApplication?.decidedAt : linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
+          <View style={styles.row}><Text style={styles.label}>{live ? "결정 시각" : "데모 확인 시각"}</Text><Text style={styles.value}>{applicationTime(live ? state.backendApplication?.decidedAt : linkedDemoEnabled ? decidedAt : state.applicationDecidedAt)}</Text></View>
         </View>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>보험사에는 필요한 정보만 보냈어요</Text>
+          <Text style={styles.cardTitle}>{live ? "보험사에는 필요한 정보만 보냈어요" : "화면 체험 안내"}</Text>
           <Text style={styles.cardText}>{live
             ? "신청의 증명 검증과 보험사 적용 결정은 각각 확인되었습니다. 위치와 이동 경로는 표시하지 않습니다."
-            : "위치와 이동 경로는 표시하지 않습니다. 보험 계약 반영과 증명 검증 정보는 아직 확인할 수 없습니다."}</Text>
+            : "실제 보험사 제출·계약 반영·증명 검증은 수행되지 않았습니다. 위치와 이동 경로는 표시하지 않습니다."}</Text>
         </View>
       </AppScreen>
       <BottomTabBar />
