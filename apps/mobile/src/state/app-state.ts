@@ -116,14 +116,17 @@ export function hasSelectedDemoPolicy(state: Pick<AppState, "hasConsented" | "se
 
 /** Keeps storage migrations conservative by accepting only public AppState fields. */
 export function normalizePersistedAppState(persistedState: unknown, currentMode: "local" | "linked" | "backend" = "local"): AppState {
+  const unselectedState: AppState = currentMode === "backend"
+    ? { ...initialAppState, source: "backend" }
+    : initialAppState;
   if (!isRecord(persistedState)) {
-    return initialAppState;
+    return unselectedState;
   }
 
   const hasConsented = persistedState.hasConsented === true;
   const setupPreviewCompleted = persistedState.setupPreviewCompleted === true;
   if (!hasConsented) {
-    return setupPreviewCompleted ? { ...initialAppState, setupPreviewCompleted: true } : initialAppState;
+    return setupPreviewCompleted ? { ...unselectedState, setupPreviewCompleted: true } : unselectedState;
   }
 
   if (currentMode === "backend" && persistedState.source === "backend" && typeof persistedState.selectedPolicyId === "string") {
@@ -160,7 +163,7 @@ export function normalizePersistedAppState(persistedState: unknown, currentMode:
     ? persistedState.selectedPolicyId
     : null;
   if (!selectedPolicyId) {
-    return { ...initialAppState, hasConsented: true, ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}) };
+    return { ...unselectedState, hasConsented: true, ...(setupPreviewCompleted ? { setupPreviewCompleted: true } : {}) };
   }
 
   const tripsCompleted = isTripsCompleted(persistedState.tripsCompleted)

@@ -21,6 +21,19 @@ function completeTrip(state = readyState()) {
 }
 
 describe("appReducer", () => {
+  it("keeps backend mode when hydrating a consented account without a selected contract", () => {
+    const beforeConsent = normalizePersistedAppState({ hasConsented: false, setupPreviewCompleted: true }, "backend");
+    expect(beforeConsent).toMatchObject({ source: "backend", hasConsented: false, setupPreviewCompleted: true });
+
+    const restored = normalizePersistedAppState({
+      source: "backend", hasConsented: true, selectedPolicyId: null,
+    }, "backend");
+    expect(restored).toMatchObject({ source: "backend", hasConsented: true, selectedPolicyId: null });
+
+    const selected = appReducer(restored, { type: "SELECT_DEMO_INSURANCE", policyId: "policy-safe-driver" });
+    expect(selected).toMatchObject({ demoMode: true, selectedPolicyId: "policy-safe-driver" });
+  });
+
   it("isolates an authenticated user's selected demo policy from backend operations across hydration", () => {
     const connected = { ...initialAppState, source: "backend" as const, hasConsented: true };
     const selected = appReducer(connected, { type: "SELECT_DEMO_INSURANCE", policyId: "policy-safe-driver" } as never);
