@@ -1,5 +1,11 @@
 # Midnight-Drivacy
 
+### GitHub 클론 심사 실행 (2026-09-27)
+
+Node.js 24와 npm으로 새 클론에서 `npm ci` 후 `npm run dev:driver-preview`(가입자 웹 미리보기) 또는 `npm run dev:insurer`(보험사 웹)를 실행합니다. 가입자 앱은 환경변수가 없으면 명시적인 로컬 데모 화면으로 시작하며 키를 요구하지 않습니다. 두 화면의 로컬 메모리 연결 데모는 `npm run dev:linked`를 사용합니다. 이 경로의 OTP `123456`, 보험 카드, 주행·신청·결과는 예시이며 실제 Privy 인증·보험계약·Gemini 생성·월렛·체인 검증이 아닙니다.
+
+실제 Privy 인증을 별도로 실행하려면 `apps/mobile/.env.example`을 `apps/mobile/.env`로 복사하고, 같은 Privy 앱의 공개 App ID와 모바일 Client ID, 접근 가능한 Backend 주소를 채운 뒤 `EXPO_PUBLIC_AUTH_MODE=privy`로 설정합니다. 서버의 DB 연결값, Privy App Secret, Gemini 키는 Git에 올리지 않으며 심사위원 클론에 포함되지 않습니다. 서버 배포 없이 이 실제 연동을 키 없이 제공할 수는 없습니다.
+
 ### 가입 후 화면 전환 보정 (2026-09-26)
 
 Expo Router의 최상위 스택을 경로 변경 중에도 유지해 온보딩과 동의 화면이 번갈아 전체 초기화되는 문제를 수정했습니다. `dev:auth-only`는 C/Wallet 없이 가입뿐 아니라 인증된 동의 조회/저장과 본인 보험계약·특약 조회도 제공합니다. 실제 소유 계약이 0건이면 서버는 빈 목록을 반환하고, 앱은 기존 보험 fixture 3개를 작은 데모 안내와 함께 표시합니다. 선택 후에는 로컬 데모 흐름으로 전환하며 예시 계약을 DB에 만들거나 실제 계약·주행·할인 신청 API에 보내지 않습니다. 조회 오류는 fixture로 대체하지 않습니다. 실제 동의 확정은 사용자가 직접 진행해야 하고, C/Wallet 주행·증명 경로는 여전히 제공하지 않습니다.
@@ -248,7 +254,7 @@ The subscriber app's Expo web target is a fast preview of the same React Native 
 
 2026-09-25 frontend follow-up: the onboarding and email/wallet setup preview use the same non-tab CTA slot, while tabbed screens use one separate slot above the floating pill. Setup inputs gate the next action, clear stale errors while editing, and support keyboard Next/Done transitions. This is a UI flow preview; email delivery, account persistence, and wallet creation remain unconnected.
 
-The default app now uses Privy email authentication. With `EXPO_PUBLIC_BACKEND_URL` configured, a Backend-confirmed DRIVER identity supplies `backendConnection` to `AppProvider`: server-owned contract/rider/evaluation period, session records, stable retry keys, processing polling, DB-confirmed results, and application status. Tokens stay with the Privy SDK; application caches are scoped by Backend user ID and signed-out sessions do not load fixture caches. The explicit `EXPO_PUBLIC_AUTH_MODE=preview` path retains deterministic fixture screens and OTP `123456`. Preview completion does not authenticate a user or create a wallet. Real email delivery, Backend/DB, subscriber wallet and chain operations require their respective running services and end-to-end checks. Manual insurer Rule entry remains unchanged.
+The opt-in `EXPO_PUBLIC_AUTH_MODE=privy` path uses Privy email authentication. With `EXPO_PUBLIC_BACKEND_URL` configured, a Backend-confirmed DRIVER identity supplies `backendConnection` to `AppProvider`: server-owned contract/rider/evaluation period, session records, stable retry keys, processing polling, DB-confirmed results, and application status. Tokens stay with the Privy SDK; application caches are scoped by Backend user ID and signed-out sessions do not load fixture caches. The default preview path retains deterministic fixture screens and OTP `123456`. Preview completion does not authenticate a user or create a wallet. Real email delivery, Backend/DB, subscriber wallet and chain operations require their respective running services and end-to-end checks. Manual insurer Rule entry remains unchanged.
 
 Requirements: Node.js 24 LTS and npm.
 
