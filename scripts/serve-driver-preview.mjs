@@ -25,8 +25,8 @@ const mimeTypes = {
   ".otf": "font/otf",
 };
 
-// 심사 프리뷰는 완성된 웹 산출물을 제공한다. 빌드 시 로컬 데모 서버 주소도 함께 반영된다.
-const exportProcess = spawn(process.execPath, [resolve(root, "node_modules/expo/bin/cli"), "export", "--platform", "web"], {
+// 심사 프리뷰는 완성된 웹 산출물을 제공한다. 캐시를 지워 이전 실행의 연결 주소가 재사용되지 않게 한다.
+const exportProcess = spawn(process.execPath, [resolve(root, "node_modules/expo/bin/cli"), "export", "--platform", "web", "--clear"], {
   cwd: mobile,
   env: process.env,
   stdio: "inherit",
