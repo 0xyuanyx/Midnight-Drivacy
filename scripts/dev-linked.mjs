@@ -7,7 +7,7 @@ const bridgeUrl = "http://127.0.0.1:3001";
 const processes = [
   ["bridge", [join(root, "scripts/demo-bridge.mjs")], root, {}],
   ["insurer", [join(root, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", "5173", "--strictPort"], join(root, "apps/web"), { VITE_DEMO_BRIDGE_URL: bridgeUrl }],
-  ["driver", [join(root, "node_modules/expo/bin/cli"), "start", "--web", "--port", "8081"], join(root, "apps/mobile"), { EXPO_PUBLIC_DEMO_BRIDGE_URL: bridgeUrl }],
+  ["driver", [join(root, "scripts/serve-driver-preview.mjs")], root, { EXPO_PUBLIC_DEMO_BRIDGE_URL: bridgeUrl }],
 ];
 const children = processes.map(([name, args, cwd, vars]) => {
   const child = spawn(process.execPath, args, { cwd, env: { ...process.env, ...vars }, stdio: "inherit" });

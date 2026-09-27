@@ -14,7 +14,7 @@
     "dev:auth-only": "NODE_EXTRA_CA_CERTS=config/supabase-root-2021.crt node --env-file=.env --import tsx apps/backend/src/auth-only-server.ts",
     "dev:insurer": "npm run dev --workspace=@drivacy/web -- --port 5173 --strictPort",
     "dev:driver": "npm run start --workspace=@drivacy/mobile",
-    "dev:driver-preview": "npm run web --workspace=@drivacy/mobile -- --port 8081",
+    "dev:driver-preview": "node scripts/serve-driver-preview.mjs",
     "dev:bridge": "node scripts/demo-bridge.mjs",
     "dev:c-wallet": "tsx packages/midnight/runtime/server.ts",
     "dev:linked": "node scripts/dev-linked.mjs",
