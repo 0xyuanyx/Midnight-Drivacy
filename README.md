@@ -12,6 +12,10 @@ Expo Router의 최상위 스택을 경로 변경 중에도 유지해 온보딩�
 
 `npm run dev:auth-only`는 로컬 가입·동의·본인 계약 조회용 Backend를 실행합니다. `DATABASE_URL`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`만 사용하고 기본 포트는 3000입니다. `AUTH_ONLY_ALLOWED_ORIGIN`의 기본값은 `http://localhost:8094`이며 loopback HTTP origin만 허용합니다. 모바일 웹 미리보기의 `EXPO_PUBLIC_BACKEND_URL`을 `http://127.0.0.1:3000`으로 설정합니다. 이 경로에는 `/health`, `/auth/me`, `/auth/driver/onboarding`, `/consent`, `/insurance-contracts`와 소유 계약의 특약 경로만 있으며 C/Wallet 처리·복구는 실행되지 않습니다. 전체 서비스의 `npm run dev`는 기존 C/Wallet 설정을 계속 요구합니다.
 
+깨끗한 클론에서는 `npm ci` 뒤 루트의 Git 제외 `.env`에 실제 `DATABASE_URL`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`을 안전하게 넣습니다. `npm run dev:auth-only`는 공통 workspace 패키지를 먼저 빌드하고 운영체제에 관계없이 저장소의 CA 파일을 Backend 프로세스에 적용합니다. 표준 `npm run dev:driver-preview`는 8081 포트를 사용하므로 브라우저 주소가 `127.0.0.1:8081`이면 루트 `.env`의 `AUTH_ONLY_ALLOWED_ORIGIN=http://127.0.0.1:8081`을 지정합니다. `localhost:8081`로 접속하면 허용 origin도 `http://localhost:8081`로 맞춥니다. `apps/mobile/.env`에는 같은 앱의 공개 Privy ID, `EXPO_PUBLIC_AUTH_MODE=privy`, `EXPO_PUBLIC_BACKEND_URL=http://127.0.0.1:3000`을 둡니다. 이 URL은 같은 컴퓨터의 웹 미리보기에서만 유효하며, 다른 기기에서 접속하려면 접근 가능한 Backend 주소와 별도 배포 구성이 필요합니다. 비밀값은 앱 환경변수나 Git에 넣지 않습니다.
+
+비밀값 없이 로컬 화면 흐름을 검수할 때는 `npm run dev:linked`를 사용합니다. 이 명령은 가입자 미리보기에 `EXPO_PUBLIC_AUTH_MODE=preview`를 명시하고 보험사 웹·가입자 앱·메모리 데모 브리지를 함께 실행합니다. 이 모드의 이메일 코드·계약·주행·신청 결과는 데모이며 실제 Privy 인증이나 Backend/Wallet 처리의 성공 증거가 아닙니다.
+
 ### 로컬 연결 확인 (2026-09-26)
 
 Supabase는 공식 CA로 TLS 접속과 `SELECT 1`을 확인했습니다. 프로세스 시작 시 `NODE_EXTRA_CA_CERTS=config/supabase-root-2021.crt`를 지정하고 로컬 `.env`를 로드합니다. 인증서 검증은 비활성화하지 않습니다. CA 출처는 Supabase Dashboard → Database Settings → SSL configuration입니다.
