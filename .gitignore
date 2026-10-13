@@ -7,3 +7,4 @@ artifacts/
 .env.*
 !.env.example
 *.local
+apps/web/public/wallet-bridge.js

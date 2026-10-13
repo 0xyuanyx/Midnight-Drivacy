@@ -62,6 +62,10 @@ export class ChainProcessingService {
   }
 
   public async stage(user: User, sessionId: string, idempotencyKey: string): Promise<{ operationId: string }> {
+    if (user.role !== "DRIVER") throw new AppError("FORBIDDEN", "Only drivers can process driving sessions", 403);
+    const terminal = await this.repository.findTerminalJob(user.id, sessionId, idempotencyKey);
+    if (terminal?.status === "db-confirmed") return { operationId: terminal.operationId };
+    if (terminal?.status === "abandoned") throw new AppError("DRIVING_PROCESSING_FAILED", "Driving processing has safely ended and its raw data was deleted", 409);
     const request = await this.assemble(user, sessionId, idempotencyKey);
     const sourceKey = await this.source.save(request);
     // 같은 operation의 save는 기존 pending Job과 같은 source key를 반환할 수 있어, 충돌만으로 삭제하면 기존 Job의 원본을 잃는다.

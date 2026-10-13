@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { CalculateTripRequestSchema, TripProcessingResultSchema, type CalculateTripRequest, type TripProcessingResult, type User } from "@drivacy/shared";
 
 import { ChainFinalizer, type PrivateTripSource } from "./chain-finalizer.js";
+import { purgeStoredTrip } from "./purge-stored-trip.js";
 
 export type RecoveryAction = "retry" | "status-check";
 export interface DueChainJob {
@@ -106,9 +107,7 @@ export class PgChainJobRecoveryRepository implements ChainJobRecoveryRepository 
   }
 
   public async markRawDeleted(operationId: string, token: string): Promise<boolean> {
-    const result = await this.pool.query(`UPDATE public.chain_jobs SET deletion_status='deleted',claim_token=NULL,claim_expires_at=NULL
-      WHERE operation_id=$1 AND status='abandoned' AND deletion_status='pending' AND claim_token=$2`, [operationId, token]);
-    return result.rowCount === 1;
+    return purgeStoredTrip(this.pool, operationId, "abandoned", token);
   }
 
   public async releaseRawClaim(operationId: string, token: string): Promise<void> {
@@ -137,15 +136,19 @@ export class ChainJobRecoveryService {
 
   public async cleanupExpiredRaw(limit: number): Promise<void> {
     for (const operationId of await this.repository.findExpiredRaw(this.now(), limit)) {
-      const claim = await this.repository.claimExpiredRaw(operationId);
-      if (!claim) continue;
-      try {
-        await this.source.delete(claim.sourceKey);
-        await this.repository.markRawDeleted(operationId, claim.token);
-      } catch {
-        // 삭제 실패는 이미 안전 종료된 Job만 다시 시도하게 하고, Confirmed State나 pending 상태를 되돌리지 않는다.
-        await this.repository.releaseRawClaim(operationId, claim.token);
-      }
+      await this.cleanupAbandoned(operationId);
+    }
+  }
+
+  private async cleanupAbandoned(operationId: string): Promise<void> {
+    const claim = await this.repository.claimExpiredRaw(operationId);
+    if (!claim) return;
+    try {
+      await this.source.delete(claim.sourceKey);
+      await this.repository.markRawDeleted(operationId, claim.token);
+    } catch {
+      // 외부 또는 DB 삭제 실패 시 pending을 유지하고 다음 worker 주기에 동일 작업을 재시도한다.
+      await this.repository.releaseRawClaim(operationId, claim.token);
     }
   }
 
@@ -207,6 +210,9 @@ export class ChainJobRecoveryService {
     }
     // non-retryable 또는 소진된 오류는 예약만 제거한다. C가 안전 종료를 확인할 때까지 pending Scope를 임의로 풀지 않는다.
     await this.repository.recordFailure(job.operationId, token, result.error.code, result.error.retryable);
-    if (!result.error.retryable) await this.finalizer.abandonJob(actor, job.operationId);
+    if (!result.error.retryable) {
+      await this.finalizer.abandonJob(actor, job.operationId);
+      await this.cleanupAbandoned(job.operationId);
+    }
   }
 }

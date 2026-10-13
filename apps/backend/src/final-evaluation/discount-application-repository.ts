@@ -85,7 +85,14 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
 
   public async reserve(ownerUserId: string, contractId: string, specialContractId: string, operationId: string,
     network: string, adapterProfile: string): Promise<{ row: DiscountApplicationRow; created: boolean } | undefined> {
-    const result = await this.pool.query<DiscountApplicationRow & { created: boolean }>(`WITH target AS (
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      // Session 생성과 같은 Scope를 잠근 다음 새 statement snapshot으로 미처리 운행을 확인한다.
+      await client.query(`SELECT id FROM public.evaluation_scopes
+        WHERE owner_user_id=$1 AND insurance_contract_id=$2 AND special_contract_id=$3 FOR UPDATE`,
+      [ownerUserId, contractId, specialContractId]);
+      const result = await client.query<DiscountApplicationRow & { created: boolean }>(`WITH target AS (
       SELECT es.id AS evaluation_scope_id,es.owner_user_id,es.insurance_contract_id,es.special_contract_id,
         c.insurer_id,es.evaluation_period_id,es.evaluation_starts_on::text AS evaluation_starts_on,
         es.evaluation_ends_on::text AS evaluation_ends_on,
@@ -108,6 +115,12 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
         AND cs.registered_rule->>'ruleHash'=rr.rule_hash
       WHERE es.owner_user_id=$1 AND es.insurance_contract_id=$2 AND es.special_contract_id=$3
         AND d.network IN ('local','preprod') AND cs.version>0
+        -- 수집된 운행 중 하나라도 미확정이면 현재 State를 최종 누적 결과로 신청하지 않는다.
+        AND NOT EXISTS (
+          SELECT 1 FROM public.driving_sessions ds
+          LEFT JOIN public.chain_jobs j ON j.trip_id=ds.trip_id
+          WHERE ds.evaluation_scope_id=es.id AND (j.operation_id IS NULL OR j.status<>'db-confirmed')
+        )
     ), inserted AS (
       INSERT INTO public.discount_applications(owner_user_id,insurance_contract_id,special_contract_id,evaluation_scope_id,
         rule_version_id,state_commitment,state_version,rule_hash,evaluation_operation_id,score,distance_m,conditions_met,
@@ -124,8 +137,13 @@ export class PgDiscountApplicationRepository implements DiscountApplicationRepos
         t.rule_id AS "ruleId",t.rule_version AS "ruleVersion",i.created
       FROM inserted i JOIN target t ON t.evaluation_scope_id=i.evaluation_scope_id`,
     [ownerUserId, contractId, specialContractId, operationId, network, adapterProfile]);
-    const raw = result.rows[0] as unknown as Record<string, unknown> | undefined;
-    return raw ? { row: normalize(raw), created: raw.created as boolean } : undefined;
+      await client.query("COMMIT");
+      const raw = result.rows[0] as unknown as Record<string, unknown> | undefined;
+      return raw ? { row: normalize(raw), created: raw.created as boolean } : undefined;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
   }
 
   public async markVerified(id: string, value: VerifiedEvaluation): Promise<DiscountApplicationRow | undefined> {

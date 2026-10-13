@@ -16,7 +16,7 @@ async function database(): Promise<IDBDatabase> {
     request.onerror = () => reject(new Error("WALLET_STORAGE_UNAVAILABLE"));
   });
 }
-export async function saveSeed(seed: Uint8Array, passphrase: string): Promise<void> {
+export async function saveSeed(seed: Uint8Array, passphrase: string, vaultKey = "wallet"): Promise<void> {
   if (seed.length !== 32) throw new Error("INVALID_SEED_LENGTH");
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -26,18 +26,18 @@ export async function saveSeed(seed: Uint8Array, passphrase: string): Promise<vo
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("seeds", "readwrite");
       // 기기 월렛을 매번 새 seed로 덮지 않는다. 최초 생성만 add로 저장한다.
-      tx.objectStore("seeds").add({ salt, iv, ciphertext } satisfies VaultRecord, "wallet");
+      tx.objectStore("seeds").add({ salt, iv, ciphertext } satisfies VaultRecord, vaultKey);
       tx.oncomplete = () => resolve();
       tx.onabort = () => reject(new Error("WALLET_ALREADY_CREATED_OR_STORAGE_FAILED"));
     });
   } finally { db.close(); }
 }
-export async function loadSeed(passphrase: string): Promise<Uint8Array> {
+export async function loadSeed(passphrase: string, vaultKey = "wallet"): Promise<Uint8Array> {
   const db = await database();
   let record: VaultRecord;
   try {
     record = await new Promise((resolve, reject) => {
-      const request = db.transaction("seeds", "readonly").objectStore("seeds").get("wallet");
+      const request = db.transaction("seeds", "readonly").objectStore("seeds").get(vaultKey);
       request.onsuccess = () => request.result ? resolve(request.result as VaultRecord) : reject(new Error("WALLET_NOT_CREATED"));
       request.onerror = () => reject(new Error("WALLET_STORAGE_UNAVAILABLE"));
     });
@@ -47,7 +47,18 @@ export async function loadSeed(passphrase: string): Promise<Uint8Array> {
       await key(passphrase, record.salt), record.ciphertext));
   } catch { throw new Error("WALLET_UNLOCK_FAILED"); }
 }
-export async function createSeed(passphrase: string): Promise<void> {
+export async function createSeed(passphrase: string, vaultKey = "wallet"): Promise<void> {
   const seed = crypto.getRandomValues(new Uint8Array(32));
-  try { await saveSeed(seed, passphrase); } finally { seed.fill(0); }
+  try { await saveSeed(seed, passphrase, vaultKey); } finally { seed.fill(0); }
+}
+
+export async function hasSeed(vaultKey = "wallet"): Promise<boolean> {
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction("seeds", "readonly").objectStore("seeds").getKey(vaultKey);
+      request.onsuccess = () => resolve(request.result !== undefined);
+      request.onerror = () => reject(new Error("WALLET_STORAGE_UNAVAILABLE"));
+    });
+  } finally { db.close(); }
 }

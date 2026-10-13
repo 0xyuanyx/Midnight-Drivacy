@@ -48,6 +48,7 @@ class MemoryRepository implements ChainProcessingRepository {
     sessionId: "session", ownerUserId: driver.id, scope, registeredRule, confirmedState, trip,
   };
   public async findEndedSession(): Promise<ChainProcessingTarget | undefined> { return this.target; }
+  public async findTerminalJob(): Promise<undefined> { return undefined; }
 }
 
 const service = (repository: ChainProcessingRepository) => new ChainProcessingService(
@@ -135,6 +136,16 @@ describe("ChainProcessingService", () => {
     await processing.stage(driver, "session", "another-http-key");
     expect(gateway.startTrip).not.toHaveBeenCalled();
     expect(gateway.getTripStatus).toHaveBeenCalledWith(trip.id);
+  });
+
+  it("returns a confirmed operation without reloading deleted raw data", async () => {
+    const repository = new MemoryRepository();
+    repository.findTerminalJob = vi.fn().mockResolvedValue({ operationId: trip.id, status: "db-confirmed" });
+    const source = { save: vi.fn(), load: vi.fn(), delete: vi.fn() };
+    const processing = new ChainProcessingService(repository, {} as never, source as never,
+      {} as never, {} as never, runtime);
+    await expect(processing.stage(driver, "session", "session-key")).resolves.toEqual({ operationId: trip.id });
+    expect(source.save).not.toHaveBeenCalled();
   });
 
   it("fails closed and schedules status recovery when the C boundary is unavailable", async () => {

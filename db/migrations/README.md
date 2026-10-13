@@ -1,5 +1,9 @@
 # 첫 수직 기능 DB 기록
 
+## 운행 원본 삭제 — 2026-09-23, 원격 미적용
+
+`20260923123000_purge_driving_raw_after_processing.sql`은 Session salt를 삭제 가능하게 하고 삭제 시각을 기록한다. Backend는 외부 source 삭제 성공 뒤 DB 구간과 salt를 지우며 Job/Session 식별 이력은 남긴다. 기존 7일 abandoned 원본도 migration 적용 후 다음 worker 주기에 삭제 대상으로 전환한다. 이 migration은 저장소에만 있으며 Supabase 원격에는 적용하지 않았다. 적용 전에는 새 Backend 원본 삭제 경로가 DB 컬럼 부재로 실패하므로 함께 배포해야 한다. 외부 source와 백업의 실제 삭제는 별도 운영 검증이 필요하다.
+
 ## 최종 할인 신청 — 2026-09-23, 원격 적용 완료
 
 `20260923090000_add_discount_applications.sql`은 최신 Confirmed State 기반 신청, 외부 Final Evaluation operation, result commitment/nullifier, 검증 상태와 보험사 결정을 분리 저장한다. Scope·State와 nullifier UNIQUE, 복합 Scope/계약/특약 FK, 결정 상태 CHECK, RLS와 `PUBLIC`·`anon`·`authenticated` 권한 회수를 포함한다. raw 운행정보와 salt/witness는 저장하지 않는다. 이 migration은 Supabase 원격에 적용 완료됐다.

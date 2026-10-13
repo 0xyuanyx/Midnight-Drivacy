@@ -91,6 +91,21 @@ describe("POST /auth/driver/onboarding", () => {
     expect(authRepository.users).toHaveLength(2);
   });
 
+  it("does not overwrite an incompatible role on repeated onboarding", async () => {
+    const { app, authRepository } = appFor({ providerUserId: "did:privy:insurer", email: "insurer@drivacy.test" });
+    authRepository.users.set("did:privy:insurer", {
+      id: randomUUID(), email: "insurer@drivacy.test", role: "INSURER",
+    });
+
+    const response = await request(app)
+      .post("/auth/driver/onboarding")
+      .set("Authorization", "Bearer valid-token")
+      .send(requestBody);
+
+    expect(response.status).toBe(403);
+    expect(authRepository.users.get("did:privy:insurer")?.role).toBe("INSURER");
+  });
+
   it.each([
     [undefined, 401],
     [{ providerUserId: "did:privy:driver", email: undefined }, 401],

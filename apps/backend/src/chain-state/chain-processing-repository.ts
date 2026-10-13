@@ -11,6 +11,7 @@ export interface ChainProcessingTarget {
 }
 
 export interface ChainProcessingRepository {
+  findTerminalJob(userId: string, sessionId: string, idempotencyKey: string): Promise<{ operationId: string; status: "db-confirmed" | "abandoned" } | undefined>;
   findEndedSession(userId: string, sessionId: string, runtime: AdapterRuntime): Promise<ChainProcessingTarget | undefined>;
 }
 
@@ -36,6 +37,15 @@ const uint32 = (value: string, field: string): number => {
 
 export class PgChainProcessingRepository implements ChainProcessingRepository {
   public constructor(private readonly pool: Pool) {}
+
+  public async findTerminalJob(userId: string, sessionId: string, idempotencyKey: string) {
+    const result = await this.pool.query<{ operationId: string; status: "db-confirmed" | "abandoned" }>(`SELECT j.operation_id AS "operationId",j.status
+      FROM public.driving_sessions ds JOIN public.evaluation_scopes es ON es.id=ds.evaluation_scope_id
+      JOIN public.chain_jobs j ON j.trip_id=ds.trip_id
+      WHERE ds.id=$1 AND es.owner_user_id=$2 AND j.idempotency_key=$3
+        AND j.status IN ('db-confirmed','abandoned')`, [sessionId, userId, idempotencyKey]);
+    return result.rows[0];
+  }
 
   public async findEndedSession(userId: string, sessionId: string, runtime: AdapterRuntime): Promise<ChainProcessingTarget | undefined> {
     const target = await this.pool.query<TargetRow>(
@@ -64,7 +74,7 @@ export class PgChainProcessingRepository implements ChainProcessingRepository {
           AND cs.registered_rule #>> '{rule,version}'=rv.version::text
           -- Session 생성 뒤 State가 바뀌었다면 최신 State로 과거 운행을 재조립하지 않고 stale 요청으로 거절한다.
           AND ds.generation_state_commitment=cs.state_commitment
-        WHERE ds.id=$1 AND es.owner_user_id=$2 AND ds.status='ENDED'`,
+        WHERE ds.id=$1 AND es.owner_user_id=$2 AND ds.status='ENDED' AND ds.raw_deleted_at IS NULL`,
       [sessionId, userId, runtime.network, runtime.adapterProfile],
     );
     const row = target.rows[0];

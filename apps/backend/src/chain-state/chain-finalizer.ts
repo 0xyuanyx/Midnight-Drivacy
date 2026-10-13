@@ -7,6 +7,7 @@ import {
   type Scope, type TripProcessingResult, type User,
 } from "@drivacy/shared";
 import { chainScopeKey } from "./scope-key.js";
+import { purgeStoredTrip } from "./purge-stored-trip.js";
 
 export interface TrustedChainReader {
   getTripStatus(operationId: string): Promise<TripProcessingResult>;
@@ -218,10 +219,10 @@ export class ChainFinalizer {
       if (jobs.rows[0]?.status === "abandoned") return;
       if (jobs.rows[0]?.status !== "pending") throw new FinalizationBlocked("JOB_NOT_PENDING");
       // 비재시도 실패라도 C가 안전 종료를 확인하기 전에는 scope를 풀 수 없다. 종료가 확인된 경우에만
-      // 보관 시각까지 같은 transaction에 남겨 서버 재시작 뒤에도 원본 cleanup 대상이 복구되게 한다.
+      // 즉시 삭제 대상을 같은 transaction에 남겨 서버 재시작 뒤에도 cleanup이 복구되게 한다.
       await client.query(`UPDATE public.chain_jobs SET status='abandoned',claim_token=NULL,claim_expires_at=NULL,
         next_action_type=NULL,next_action_at=NULL,abandoned_at=clock_timestamp(),
-        raw_expires_at=clock_timestamp()+interval '7 days' WHERE operation_id=$1`, [operationId]);
+        raw_expires_at=clock_timestamp() WHERE operation_id=$1`, [operationId]);
       // C가 cancelTrip까지 확정해 canAbandonTrip=true를 준 terminal 실패만 같은 transaction에서
       // Session 점유를 푼다. pending/unknown/단순 ENDED Session을 풀면 유리한 운행만 골라
       // 누적할 수 있으므로, 새 운행은 이 안전한 abandon 이후에만 같은 Previous State를 쓸 수 있다.
@@ -239,6 +240,6 @@ export class ChainFinalizer {
     if (job.deletion_status === "deleted") return;
     // delete 포트는 같은 sourceKey 반복 삭제에 성공해야 한다. 외부 삭제 후 DB 기록 실패도 복구한다.
     await this.source.delete(job.source_key);
-    await this.pool.query("UPDATE public.chain_jobs SET deletion_status='deleted' WHERE operation_id=$1 AND status='db-confirmed'", [operationId]);
+    await purgeStoredTrip(this.pool, operationId, "db-confirmed");
   }
 }

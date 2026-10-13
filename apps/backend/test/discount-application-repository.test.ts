@@ -5,13 +5,18 @@ import { PgDiscountApplicationRepository } from "../src/final-evaluation/discoun
 describe("PgDiscountApplicationRepository security predicates", () => {
   it("reserves only the owner's selected special contract and current confirmed non-genesis State atomically", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
-    await new PgDiscountApplicationRepository({ query } as unknown as Pool)
+    const client = { query, release: vi.fn() };
+    await new PgDiscountApplicationRepository({ connect: vi.fn().mockResolvedValue(client) } as unknown as Pool)
       .reserve("owner", "contract", "special", "operation", "local", "profile");
-    const sql = String(query.mock.calls[0]?.[0]);
+    expect(String(query.mock.calls[1]?.[0])).toContain("FOR UPDATE");
+    const sql = String(query.mock.calls[2]?.[0]);
     expect(sql).toContain("c.owner_user_id=es.owner_user_id");
     expect(sql).toContain("special_contract_selections");
     expect(sql).toContain("d.current_rule_version_id");
     expect(sql).toContain("cs.version>0");
+    expect(sql).toContain("NOT EXISTS");
+    expect(sql).toContain("ds.evaluation_scope_id=es.id");
+    expect(sql).toContain("j.status<>'db-confirmed'");
     expect(sql).toContain("c.insurer_id");
     expect(sql).toContain("es.evaluation_period_id");
     expect(sql).toContain("ON CONFLICT(evaluation_scope_id,state_commitment) DO UPDATE");

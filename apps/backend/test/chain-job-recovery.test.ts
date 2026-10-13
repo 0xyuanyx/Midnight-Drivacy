@@ -72,6 +72,8 @@ describe("ChainJobRecoveryService", () => {
     const result = service(repository, retriesExhausted()); await result.worker.recoverDue(10);
     expect(repository.retries).toEqual([]); expect(repository.failures).toEqual([{ code: "RETRIES_EXHAUSTED", retryable: false }]);
     expect(result.finalizer.abandonJob).toHaveBeenCalledWith(expect.objectContaining({ id: "driver" }), "operation");
+    expect(result.source.delete).toHaveBeenCalledWith("source");
+    expect(repository.deleted).toEqual(["operation"]);
   });
 
   it("uses status-only recovery for chain-unknown without invoking C retry submission", async () => {

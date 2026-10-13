@@ -32,7 +32,7 @@ Final Evaluation의 `pending`·`proving`·wallet 승인 대기·`submitted`·`ch
 
 Backend production runtime은 종료된 Driving Session을 `POST /driving-sessions/:sessionId/process`로 받아, Session에 고정된 Rule Version과 Confirmed State로 요청을 조립하고 DB에 `chain_jobs`를 먼저 기록한 뒤 외부 C/Wallet 실행 경계에 전달합니다. 새 Job만 처리를 시작하며, 재요청과 응답 유실 복구는 기존 operationId로 상태를 조회합니다. `calculated`, `proving`, `submitted`, `chain-unknown`은 DB Confirmed State로 반영하지 않고, Shared 계약이 검증한 `chain-confirmed`만 transaction에서 `chain_states`와 Job을 확정합니다.
 
-production adapter는 `C_WALLET_ADAPTER_URL`과 `C_WALLET_ADAPTER_TOKEN`으로 최소 HTTP 경계를 구성합니다. raw Trip source의 저장·조회·삭제와 처리 시작·재시도·상태 조회·안전 종료 확인을 외부 C/Wallet runtime에 위임하며, Backend는 Midnight SDK나 가입자 Wallet key를 소유하지 않습니다. 설정 또는 외부 runtime이 없거나 응답이 불명확하면 fail-closed하고 로컬 `packages/midnight/probe/*`나 성공 fixture로 대체하지 않습니다. 확정 뒤 raw source 삭제 실패는 확정 DB state를 되돌리지 않고 recovery worker가 다시 삭제합니다. 일시 오류는 1·5·15분 재시도, chain-unknown은 기존 operationId 상태 조회, 안전 종료된 실패 원본은 7일 보관 정책을 유지합니다.
+production adapter는 `C_WALLET_ADAPTER_URL`과 `C_WALLET_ADAPTER_TOKEN`으로 최소 HTTP 경계를 구성합니다. raw Trip source의 저장·조회·삭제와 처리 시작·재시도·상태 조회·안전 종료 확인을 외부 C/Wallet runtime에 위임하며, Backend는 Midnight SDK나 가입자 Wallet key를 소유하지 않습니다. 설정 또는 외부 runtime이 없거나 응답이 불명확하면 fail-closed하고 로컬 `packages/midnight/probe/*`나 성공 fixture로 대체하지 않습니다. 확정 뒤 raw source 삭제 실패는 확정 DB state를 되돌리지 않고 recovery worker가 다시 삭제합니다. 일시 오류는 1·5·15분 재시도, chain-unknown은 기존 operationId 상태 조회, 안전 종료된 실패 원본은 즉시 삭제 대상으로 전환합니다. DB 원본 삭제에는 후속 migration 적용이 필요합니다.
 
 이 저장소에는 위 HTTP 계약에 응답하는 실제 외부 C/Wallet 서비스와 실제 가입자 Wallet 연결이 없습니다. 따라서 Backend wiring과 adapter 계약은 구현됐지만 live Midnight 처리, 실제 Wallet Approval, production chain-confirmed E2E는 완료 또는 검증됐다고 보지 않습니다. 테스트는 명시적인 Stub/Fake 경계로 Backend orchestration만 검증합니다. 최종 평가 요청, nullifier 기반 최종 신청, 보험사 심사·할인 적용은 이번 연결 범위에 포함하지 않습니다.
 
@@ -121,9 +121,11 @@ strict 검사와 106개 테스트, 실제 로컬 브라우저 월렛·격리 Pos
 
 2026-09-23 로컬 `feat` 체크아웃에는 npm workspace 기반 Express Backend와 Shared 계약 패키지가 있습니다. `packages/shared`는 첫 수직 기능용 Role, User, Consent, InsuranceContract, SpecialContract, SpecialContractSelection, ApiError, RequestId의 Zod 스키마와 TypeScript 타입을 제공합니다. Backend는 모의 운행 시작·종료와 Trip 생성을 구현했으며, 시작 당시 Rule Version과 Confirmed State commitment를 고정합니다. 동일 commitment의 동시 중복 소비는 DB 제약으로 막지만, Core 계산·실제 증명·Midnight 운영 연동은 이 구현 범위에 포함하지 않습니다. 원격에 적용된 Privy schema migration과 같은 `20260923085900_add_privy_auth_identity.sql`을 `db/migrations/`에 보존합니다. Backend는 `DATABASE_URL`의 단일 `pg` Pool로 Privy 검증 신원과 DB 역할을 내부 Drivacy UUID로 결합하고, 신규 DRIVER는 `POST /auth/driver/onboarding`에서 원자적으로 생성합니다. `GET /auth/me`과 DRIVER 전용 동의·계약·특약 API는 기존 내부 UUID 기반 권한 검사를 유지합니다. Frontend는 React로 정해졌으며 디자인 완성 후 구현합니다. Backend는 Node.js + TypeScript + Express, DB는 Supabase Postgres, 인증은 Privy, 배포는 Cloud Run으로 선정했습니다.
 
-2026-09-21 B의 DB recovery worker는 영속화된 due action을 읽어 `TEMPORARY_FAILURE`의 1·5·15분 재시도와 `chain-unknown` 상태 재조회를 분리합니다. 기존 operationId·원본을 재사용하고 claim/lease와 조건부 증가로 동시 worker를 막으며, C가 안전 종료를 확인한 작업만 7일 보관 후 cleanup합니다. 이 구현은 injected C 경계와 테스트 fixture 범위이며 production C Adapter, 실제 Midnight network, ZK/Proof E2E 또는 production chain-confirmed 연동 완료를 의미하지 않습니다.
+2026-09-21 B의 DB recovery worker는 영속화된 due action을 읽어 `TEMPORARY_FAILURE`의 1·5·15분 재시도와 `chain-unknown` 상태 재조회를 분리합니다. 기존 operationId·원본을 재사용하고 claim/lease와 조건부 증가로 동시 worker를 막습니다. 2026-09-23 정책에 따라 C가 안전 종료를 확인한 작업은 즉시 삭제 대상으로 전환합니다. 이 구현은 injected C 경계와 테스트 fixture 범위이며 production C Adapter, 실제 Midnight network, ZK/Proof E2E 또는 production chain-confirmed 연동 완료를 의미하지 않습니다.
 
 ## Planned demo
+
+발표 Deck의 데모 Rule은 보험사가 수기로 입력·검토·승인하는 흐름을 기준으로 합니다. LLM·약관 문서 변환은 데모 성립 조건이 아니며, 모의 운행과 로컬 증명의 확인 범위는 [Deck 작성 가이드](docs/PROJECT_DECK_GUIDE.md)에 구분합니다.
 
 ### 2026-09-19 subscriber-scope Rule registration foundation
 
@@ -142,24 +144,26 @@ INSURER users can also request a review-only Rule Draft from policy text. Gemini
 
 ## Scope decision
 
-- 2026-09-16 합의로 규칙 등록을 **LLM 초안 생성 우선 시도 → 보험사 검토·승인**으로 변경했습니다. 예시 약관 한 종을 대상으로 하며, 수기 입력 경로를 유지하고 LLM 방식이 구현되지 않으면 제외합니다.
-- LLM은 승인 전 초안을 작성하며, 승인된 규칙만 계산과 증명에 적용합니다.
+- 2026-09-16에는 LLM 초안 생성 경로도 검토했으나, 현재 해커톤 Deck·데모의 필수 경로는 **보험사 수기 Rule 입력 → 검토·승인**입니다. LLM·문서 변환이 구현되지 않아도 데모 범위의 결함으로 보지 않습니다.
+- LLM 초안 경로를 후속 도입하더라도 보험사 승인 전에는 계산과 증명에 적용하지 않습니다.
 - 실제 GPS 수집, 외부 내비게이션 연동, 실제 보험사 시스템 연동은 MVP에서 제외합니다.
 - 예시 보험사 한 곳, 특약 한 종 및 모의 주행기록을 대상으로 합니다.
 - 이메일 기반 로그인과 역할 구분을 MVP에 포함합니다. Backend는 Privy access token 검증과 `POST /auth/driver/onboarding`을 구현했습니다. 가입자 프론트는 이메일 6자리 OTP 화면을 구성했지만 실제 Privy 인증·세션·provisioning 연결은 아직 구현하지 않았습니다.
 - 가입자용 자체 보관형 임베디드 월렛을 Midnight Wallet SDK로 구현할 계획입니다. 최초 Scope 계약 배포·Genesis 초기화와 결과 제출은 가입자 승인을 받고, 이후 보험사가 승인한 Rule Version 갱신은 가입자에게 알리되 재승인을 요구하지 않습니다. 갱신 거래의 권한·서명 방식은 구현 시 검증해야 합니다. 가입자 개인키를 서버에 저장하지 않으며 보험사는 별도 월렛 설치 없이 이용합니다. 실제 제품 SDK·네트워크 연동은 아직 미구현이고 다중 기기 복구는 MVP에서 제외합니다.
 - Dataset Merkle Tree를 MVP에 적용할 계획입니다. Driver Merkle Tree는 필수 채택으로 확정하지 않았습니다.
-- 원본은 운행별 Midnight 검증과 트랜잭션 반영 확인 후 삭제하며, 실패 시 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 일시적 실패는 최초 시도 외 3회(1·5·15분 간격) 자동 재시도하고, 소진 후 체인 실패가 확인된 원본은 최대 7일 보관 후 삭제하는 기준을 채택했습니다. 체인 결과 불명은 상태를 먼저 확인합니다. 실제 운영 구현은 후속 작업입니다.
+- 원본은 운행별 검증과 트랜잭션 반영·DB 확정 후 삭제하며, 실패 시 안전 종료가 확인될 때까지 재처리를 위해 보관합니다. 최종 신청은 과거 원본을 다시 입력하지 않고 최종 확정 상태에서 결과를 검증합니다. 일시적 실패는 최초 시도 외 3회(1·5·15분 간격) 자동 재시도하고, 체인 미반영·안전 종료가 확인된 실패 원본은 즉시 삭제 대상으로 전환합니다. 체인 결과 불명은 상태를 먼저 확인합니다. 실제 운영 연결은 후속 작업입니다.
 - 중복 제출은 Backend와 `nullifier`로 방지합니다. 미적용 후 새 운행으로 점수가 바뀌고 조건을 만족한 새 확정 상태의 재신청을 허용하며 심사 중·적용 완료 추가 신청은 막습니다. 보험사에는 정확한 점수·거리와 최소 평가/검증 결과를 제공하고 공개 원장에는 커밋먼트 등 최소 검증 정보를 두는 기준을 채택했습니다.
 - 2026-09-17 사용자 지시에 따라 교체 가능한 데모용 임시 산식을 작성했습니다. 100점에서 누적 과속·급가속·급제동 1회당 각각 2·1·3점을 차감하고 0점 하한을 적용합니다. 누적 500km·80점 이상이면 10%, 90점 이상이면 12%의 예상 할인율을 사용합니다. 두 운행 예시는 300km·92점(거리 미충족) → 누적 550km·87점(예상 10%)입니다. 실제 보험상품 규칙이나 구현·검증 완료를 뜻하지 않으며 승인된 임시 Rule만 사용합니다. 채택한 기준과 이유는 PROJECT_DIRECTION을 따릅니다.
 
 ## Verification boundaries
 
-가입자의 실제 운행 전체 제출을 요구하지 않고 반영할 운행을 선택하는 것을 서비스 전제로 합니다. 미반영 운행의 거리와 이벤트는 누적 평가에 포함되지 않습니다. 선택해 제출한 Dataset 안의 기록 누락·중복·변조 검증은 유지하며, 이를 실제 운행 전체의 제출 보장과 구분합니다.
+2026-09-23 결정은 수집을 시작한 뒤 수집된 운행을 모두 누적 State에 반영하고, 보험사에는 운행별 원본·결과 대신 최종 누적 결과와 검증 근거만 제공하는 것입니다. 수집 시작 자체는 가입자가 선택하므로 실제 모든 운행의 포착·제출은 보장하지 않습니다. 현재 코드에는 모든 종료 운행의 자동 처리·강제 반영이 연결되어 있지 않으며, `cancelTrip`은 실패 작업의 안전한 종료 경로입니다. Dataset 안의 기록 누락·중복·변조 검증과 수집 전 운행 누락의 한계를 구분합니다.
 
 목표는 제출된 기록과 승인 규칙 사이의 계산 관계를 검증하는 것입니다. 입력 기록의 실제 운행 여부, 미제출 운행, 전체 운행의 완전성, 원본 삭제 사실 또는 보험사의 결과 재사용 방지까지 ZK가 보장하는 것은 아닙니다.
 
-원본 기록은 설계상 Drivacy의 계산·증명 처리 영역에 일시적으로 존재합니다. 보험사와 공개 원장에 원본을 전달하지 않는 것이 목표이며, Drivacy 자체가 원본에 접근하지 않는 구조로 표현하지 않습니다.
+원본 기록은 Drivacy의 오프체인 계산·증명 처리 영역에 일시적으로 존재하며, 공개 원장에는 commitment·root·처리 메타데이터가 남습니다. 보험사에는 원본을 전달하지 않습니다. Backend는 외부 source 삭제 성공 후 DB의 `driving_segments`와 `driving_sessions.dataset_salt`를 지우도록 수정했지만 새 migration은 원격 미적용이고 외부 C/Wallet 운영 서비스·백업 삭제는 미검증입니다. 현재 운영 환경에서 원본이 모두 삭제됐거나 Drivacy 자체가 원본을 볼 수 없다고 주장하지 않습니다.
+
+원본의 접근 가능한 사본을 모두 지운 뒤에는 Drivacy도 그 운행 원본을 재조회할 수 없게 하는 것이 목표입니다. 다만 최종 평가에 필요한 비공개 누적 합계·점수·State opening과 공개 commitment·거래 기록은 남으므로 전체 저장 정보가 해시뿐인 것은 아닙니다. 반복 실패 원본은 기존 최대 3회 자동 재시도 후 체인 미반영·안전 종료가 확인되면 즉시 삭제 대상으로 전환하며, 결과 불명은 삭제하지 않고 조회합니다. 실패 운행이 남은 Scope의 최종 할인 신청은 차단하며 데모·MVP에 수동 승인 예외를 두지 않습니다. 이 경우 원본 삭제 후 재처리는 불가능하며 운행별 분쟁 조사·입력 진위 재검증·새 Rule 재계산도 제한됩니다. 실서비스의 이의 접수·구제 절차는 미결정입니다. 실제 위치 수집과 지도 API 연동은 실서비스 단계에 두며 현재 데모는 모의 운행입니다.
 
 ## Mobile demo (Expo Go scope)
 
@@ -262,7 +266,7 @@ npm run build
 npm run dev
 ```
 
-`npm run dev`에는 `DATABASE_URL`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `MIDNIGHT_NETWORK`, `MIDNIGHT_ADAPTER_PROFILE`, `C_WALLET_ADAPTER_URL`, `C_WALLET_ADAPTER_TOKEN`이 필요합니다. Supabase PostgreSQL은 계속 `DATABASE_URL`로 사용하며, 인증 access token만 Privy 서버 SDK로 서명 검증합니다. 외부 adapter의 최소 호출 경계는 `POST rule-registrations/deploy`, `POST rule-registrations/update`, `GET rule-registrations/initial/:operationId`이며 Shared `BCAdapter` 스키마를 사용합니다. 통신 실패나 알 수 없는 응답은 `not-submitted`으로 간주하지 않고 503으로 닫힙니다. `.env.example`에는 변수 이름과 용도만 있으며, 실제 Connection String·Access Token·adapter token·월렛 키·비밀번호는 저장소에 기록하지 않습니다.
+`npm run dev`에는 `DATABASE_URL`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `MIDNIGHT_NETWORK`, `MIDNIGHT_ADAPTER_PROFILE`, `C_WALLET_ADAPTER_URL`, `C_WALLET_ADAPTER_TOKEN`이 필요합니다. 이 명령은 프로세스 환경변수를 읽고 `.env` 파일을 자동으로 불러오지 않습니다. 로컬 파일로 주입할 때는 저장소 루트에서 `Copy-Item .env.example .env`로 파일을 만든 뒤 실제 서버 값을 채우고 `npm run dev:backend:local`을 실행합니다. 이 명령은 Node.js 24의 `--env-file=.env`로 루트 파일을 읽습니다. `.env`는 Git에서 제외되며 서버 비밀값을 프론트에 복사하지 않습니다. Supabase PostgreSQL은 계속 `DATABASE_URL`로 사용하며, 인증 access token만 Privy 서버 SDK로 서명 검증합니다. 외부 adapter의 최소 호출 경계는 `POST rule-registrations/deploy`, `POST rule-registrations/update`, `GET rule-registrations/initial/:operationId`이며 Shared `BCAdapter` 스키마를 사용합니다. 통신 실패나 알 수 없는 응답은 `not-submitted`으로 간주하지 않고 503으로 닫힙니다. `.env.example`에는 변수 이름과 용도만 있으며, 실제 Connection String·Access Token·adapter token·월렛 키·비밀번호는 저장소에 기록하지 않습니다.
 
 With the development server running, `GET http://localhost:3000/health` returns:
 

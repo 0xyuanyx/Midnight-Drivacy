@@ -37,8 +37,8 @@ export function verifyApprovalTransaction(display: ApprovalDisplay, transactionH
 }
 
 /** 브라우저에서만 생성한다. 반환 객체에 seed/개인키/secretKey getter를 넣지 않는다. */
-export async function unlockWallet(passphrase: string, endpoints: WalletEndpoints) {
-  const seed = await loadSeed(passphrase);
+export async function unlockWallet(passphrase: string, endpoints: WalletEndpoints, vaultKey = "wallet") {
+  const seed = await loadSeed(passphrase, vaultKey);
   const hd = HDWallet.fromSeed(Buffer.from(seed));
   seed.fill(0);
   if (hd.type !== "seedOk") throw new Error("WALLET_DERIVATION_FAILED");
